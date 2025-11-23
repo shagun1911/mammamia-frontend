@@ -115,39 +115,81 @@ export class PythonRagService {
    */
   async chat(params: ChatRequest): Promise<ChatResponse> {
     try {
+      console.log('🔧 [Python RAG Service] Chat request initiated');
+      console.log('📦 [Python RAG Service] Parameters:', {
+        collection: params.collection_name,
+        query: params.query?.substring(0, 50) + '...',
+        threadId: params.thread_id,
+        topK: params.top_k,
+        hasSystemPrompt: !!params.system_prompt,
+        provider: params.provider,
+        hasApiKey: !!params.api_key
+      });
+
       // Fetch API keys if not provided
       let provider = params.provider;
       let apiKey = params.api_key;
 
       if (!provider || !apiKey) {
+        console.log('🔑 [Python RAG Service] API keys not provided, fetching from service...');
         try {
           const { apiKeysService } = await import('./apiKeys.service');
           const apiKeys = await apiKeysService.getApiKeys();
-          provider = apiKeys.llmProvider;
-          apiKey = apiKeys.apiKey;
+          if (apiKeys) {
+            provider = apiKeys.llmProvider;
+            apiKey = apiKeys.apiKey;
+            console.log('✅ [Python RAG Service] API keys fetched:', {
+              provider,
+              apiKeyLength: apiKey?.length || 0
+            });
+          } else {
+            console.warn('⚠️  [Python RAG Service] No API keys found in service');
+          }
         } catch (error) {
-          console.warn('Failed to fetch API keys, using provided values or defaults');
+          console.warn('❌ [Python RAG Service] Failed to fetch API keys:', error);
         }
       }
 
+      const requestBody = {
+        query: params.query,
+        collection_name: params.collection_name,
+        top_k: params.top_k || 5,
+        thread_id: params.thread_id,
+        system_prompt: params.system_prompt,
+        provider: provider,
+        api_key: apiKey
+      };
+
+      console.log('🌐 [Python RAG Service] Making POST request to:', `${PYTHON_RAG_URL}/rag/chat`);
+      console.log('📤 [Python RAG Service] Request body (sanitized):', {
+        ...requestBody,
+        api_key: requestBody.api_key ? `${requestBody.api_key.substring(0, 8)}...` : 'MISSING',
+        system_prompt: requestBody.system_prompt?.substring(0, 50) + '...'
+      });
+
       const response = await axios.post<ChatResponse>(
         `${PYTHON_RAG_URL}/rag/chat`,
-        {
-          query: params.query,
-          collection_name: params.collection_name,
-          top_k: params.top_k || 5,
-          thread_id: params.thread_id,
-          system_prompt: params.system_prompt,
-          provider: provider,
-          api_key: apiKey
-        },
+        requestBody,
         {
           headers: { 'Content-Type': 'application/json' }
         }
       );
 
+      console.log('✅ [Python RAG Service] Response received:', {
+        status: response.status,
+        hasAnswer: !!response.data.answer,
+        answerLength: response.data.answer?.length || 0,
+        retrievedDocs: response.data.retrieved_docs?.length || 0
+      });
+
       return response.data;
     } catch (error: any) {
+      console.error('❌ [Python RAG Service] Request failed:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
       throw new Error(
         error.response?.data?.detail || 
         error.response?.data?.message || 

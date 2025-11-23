@@ -34,10 +34,17 @@ export function RAGChatInterface() {
   const handleSend = async () => {
     if (!query.trim() || !selectedCollection) return;
 
+    console.log('🤖 [RAG Chat] Starting conversation...');
+    console.log('📋 [RAG Chat] Collection:', selectedCollection);
+    console.log('💬 [RAG Chat] Query:', query);
+
     // Create new thread if none exists
     let threadId = currentThreadId;
     if (!threadId || currentThread?.collection_name !== selectedCollection) {
       threadId = createNewThread(selectedCollection);
+      console.log('🆕 [RAG Chat] Created new thread:', threadId);
+    } else {
+      console.log('🔄 [RAG Chat] Using existing thread:', threadId);
     }
 
     const userMessage = {
@@ -54,15 +61,24 @@ export function RAGChatInterface() {
 
     try {
       // Check if API keys are configured
+      console.log('🔑 [RAG Chat] Checking API keys...');
       if (!apiKeys || !apiKeys.apiKey) {
+        console.error('❌ [RAG Chat] API keys not configured!');
         toast.error('Please configure your API keys in Settings → API Keys');
         setIsSending(false);
         return;
       }
+      console.log('✅ [RAG Chat] API keys found:', {
+        provider: apiKeys.llmProvider,
+        apiKeyLength: apiKeys.apiKey?.length || 0,
+        apiKeyPrefix: apiKeys.apiKey?.substring(0, 8) + '...'
+      });
 
       // Construct system prompt
       const systemPrompt = `Knowledge base: ${selectedCollection}. Use documents from this collection to answer questions accurately.\n\n${chatAgentPrompt}`;
+      console.log('📝 [RAG Chat] System prompt length:', systemPrompt.length);
 
+      console.log('🚀 [RAG Chat] Sending request to Python RAG service...');
       const response = await pythonRagService.chat({
         query: userQuery,
         collection_name: selectedCollection,
@@ -71,6 +87,12 @@ export function RAGChatInterface() {
         top_k: 5,
         provider: apiKeys.llmProvider,
         api_key: apiKeys.apiKey
+      });
+
+      console.log('✅ [RAG Chat] Received response:', {
+        answerLength: response.answer?.length || 0,
+        retrievedDocs: response.retrieved_docs?.length || 0,
+        threadId: response.thread_id
       });
 
       const assistantMessage = {
@@ -82,20 +104,27 @@ export function RAGChatInterface() {
       };
 
       addMessageToThread(threadId, assistantMessage);
+      console.log('💾 [RAG Chat] Message added to thread');
     } catch (error: any) {
-      console.error('Chat error:', error);
+      console.error('❌ [RAG Chat] Error occurred:', error);
+      console.error('📊 [RAG Chat] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error(error.message || 'Failed to get response from RAG service');
       
       // Add error message to chat
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant' as const,
-        content: `Error: ${error.message}. Please check if the Python RAG service is running on http://localhost:8000`,
+        content: `Error: ${error.message}. Please check if the Python RAG service is running.`,
         timestamp: new Date()
       };
       addMessageToThread(threadId, errorMessage);
     } finally {
       setIsSending(false);
+      console.log('🏁 [RAG Chat] Conversation handler completed');
     }
   };
 
