@@ -9,6 +9,8 @@ export function useApiKeys() {
   return useQuery({
     queryKey: ['apiKeys'],
     queryFn: () => apiKeysService.getApiKeys(),
+    retry: 1, // Only retry once
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 }
 

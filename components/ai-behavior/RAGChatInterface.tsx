@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Bot, User, ChevronDown, ChevronUp, MessageSquarePlus } from 'lucide-react';
 import { useKnowledgeBase } from '@/contexts/KnowledgeBaseContext';
 import { pythonRagService } from '@/services/pythonRag.service';
+import { useApiKeys } from '@/hooks/useApiKeys';
 import { toast } from '@/lib/toast';
 
 export function RAGChatInterface() {
@@ -18,6 +19,7 @@ export function RAGChatInterface() {
     chatAgentPrompt
   } = useKnowledgeBase();
 
+  const { data: apiKeys } = useApiKeys();
   const [query, setQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showRetrievedDocs, setShowRetrievedDocs] = useState<string | null>(null);
@@ -51,6 +53,13 @@ export function RAGChatInterface() {
     setIsSending(true);
 
     try {
+      // Check if API keys are configured
+      if (!apiKeys || !apiKeys.apiKey) {
+        toast.error('Please configure your API keys in Settings → API Keys');
+        setIsSending(false);
+        return;
+      }
+
       // Construct system prompt
       const systemPrompt = `Knowledge base: ${selectedCollection}. Use documents from this collection to answer questions accurately.\n\n${chatAgentPrompt}`;
 
@@ -59,7 +68,9 @@ export function RAGChatInterface() {
         collection_name: selectedCollection,
         thread_id: threadId,
         system_prompt: systemPrompt,
-        top_k: 5
+        top_k: 5,
+        provider: apiKeys.llmProvider,
+        api_key: apiKeys.apiKey
       });
 
       const assistantMessage = {

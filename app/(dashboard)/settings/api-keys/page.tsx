@@ -15,7 +15,7 @@ export default function ApiKeysSettingsPage() {
 
   useEffect(() => {
     if (apiKeysData) {
-      setLlmProvider(apiKeysData.llmProvider);
+      setLlmProvider(apiKeysData.llmProvider || "openai");
       setApiKey(apiKeysData.apiKey || "");
     }
   }, [apiKeysData]);

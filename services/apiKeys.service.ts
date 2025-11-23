@@ -18,9 +18,22 @@ export const apiKeysService = {
   /**
    * Get API keys
    */
-  async getApiKeys(): Promise<ApiKeys> {
-    const response = await apiClient.get('/api-keys');
-    return response.data;
+  async getApiKeys(): Promise<ApiKeys | null> {
+    try {
+      const response = await apiClient.get('/api-keys');
+      // Handle both wrapped and unwrapped responses
+      if (response.data) {
+        return response.data;
+      }
+      if (response.success && response.data) {
+        return response.data;
+      }
+      return null;
+    } catch (error: any) {
+      console.error('Failed to fetch API keys:', error);
+      // Return null instead of throwing to allow graceful handling
+      return null;
+    }
   },
 
   /**
@@ -28,7 +41,8 @@ export const apiKeysService = {
    */
   async updateApiKeys(data: UpdateApiKeysData): Promise<ApiKeys> {
     const response = await apiClient.put('/api-keys', data);
-    return response.data;
+    // Handle both wrapped and unwrapped responses
+    return response.data || response;
   },
 
   /**
@@ -36,7 +50,7 @@ export const apiKeysService = {
    */
   async deleteApiKeys(): Promise<{ message: string }> {
     const response = await apiClient.delete('/api-keys');
-    return response.data;
+    return response.data || response;
   },
 };
 
