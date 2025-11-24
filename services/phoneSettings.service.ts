@@ -93,11 +93,17 @@ export const phoneSettingsService = {
     });
 
     if (!response.ok) {
+      console.error('❌ [Phone Settings Service] Request failed');
+      console.error('Status:', response.status, response.statusText);
       const error = await response.json().catch(() => ({ message: 'Failed to setup SIP trunk' }));
       throw new Error(error.message || 'Failed to setup SIP trunk');
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('✅ [Phone Settings Service] Backend response received:');
+    console.log(JSON.stringify(result, null, 2));
+    
+    return result;
   },
 
   /**
