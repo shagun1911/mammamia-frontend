@@ -83,11 +83,21 @@ export const phoneSettingsService = {
    * Setup SIP Trunk - Full setup from scratch with Twilio credentials
    */
   async setupSipTrunk(data: SetupSipTrunkRequest): Promise<SetupSipTrunkResponse> {
-    const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'http://localhost:8000';
-    const response = await fetch(`${PYTHON_API}/calls/setup-sip-trunk`, {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+    const fullUrl = `${API_URL}/phone-settings/setup-sip-trunk`;
+    
+    console.log('🌐 [Phone Settings Service] Calling backend setup-sip-trunk...');
+    console.log('🔗 [Phone Settings Service] Request URL:', fullUrl);
+    console.log('📤 [Phone Settings Service] Request data:', {
+      ...data,
+      twilio_auth_token: '***hidden***'
+    });
+    
+    const response = await fetch(fullUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
       },
       body: JSON.stringify(data),
     });
