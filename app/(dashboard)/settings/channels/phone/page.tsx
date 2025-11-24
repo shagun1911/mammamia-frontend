@@ -111,6 +111,14 @@ export default function PhoneSettingsDetailPage() {
       return;
     }
 
+    console.log('🚀 [SIP Trunk Setup] Starting full setup...');
+    console.log('📋 [SIP Trunk Setup] Request data:', {
+      label: fullSetupLabel,
+      phone_number: fullSetupPhone,
+      twilio_sid: fullSetupTwilioSid,
+      twilio_auth_token: '***hidden***'
+    });
+
     setIsSettingUp(true);
     try {
       const result = await phoneSettingsService.setupSipTrunk({
@@ -120,14 +128,38 @@ export default function PhoneSettingsDetailPage() {
         twilio_auth_token: fullSetupTwilioToken,
       });
 
+      console.log('✅ [SIP Trunk Setup] Full response received:');
+      console.log(JSON.stringify(result, null, 2));
+      console.log('📊 [SIP Trunk Setup] Response fields:', {
+        status: result.status,
+        message: result.message,
+        livekit_trunk_id: result.livekit_trunk_id,
+        twilio_trunk_sid: result.twilio_trunk_sid,
+        termination_uri: result.termination_uri,
+        origination_uri: result.origination_uri,
+        credential_list_sid: result.credential_list_sid,
+        ip_acl_sid: result.ip_acl_sid,
+        username: result.username,
+        origination_uri_sid: result.origination_uri_sid
+      });
+
       // Auto-fill the form with returned values
+      console.log('💾 [SIP Trunk Setup] Setting form values...');
       setTwilioPhoneNumber(fullSetupPhone);
       setLivekitSipTrunkId(result.livekit_trunk_id);
       setTwilioTrunkSid(result.twilio_trunk_sid);
       setTerminationUri(result.termination_uri);
       setOriginationUri(result.origination_uri);
+      console.log('✅ [SIP Trunk Setup] Form values set:', {
+        twilioPhoneNumber: fullSetupPhone,
+        livekitSipTrunkId: result.livekit_trunk_id,
+        twilioTrunkSid: result.twilio_trunk_sid,
+        terminationUri: result.termination_uri,
+        originationUri: result.origination_uri
+      });
 
       // Save settings automatically
+      console.log('💾 [SIP Trunk Setup] Saving settings to database...');
       await updateSettings({
         selectedVoice,
         twilioPhoneNumber: fullSetupPhone,
@@ -137,6 +169,7 @@ export default function PhoneSettingsDetailPage() {
         originationUri: result.origination_uri,
         humanOperatorPhone,
       });
+      console.log('✅ [SIP Trunk Setup] Settings saved successfully');
 
       toast.success("SIP Trunk setup completed successfully!");
       setShowSetupMethods(false);
@@ -147,9 +180,16 @@ export default function PhoneSettingsDetailPage() {
       setFullSetupPhone("");
       setFullSetupTwilioSid("");
       setFullSetupTwilioToken("");
+      
+      console.log('🎉 [SIP Trunk Setup] Setup process completed!');
     } catch (error: any) {
+      console.error('❌ [SIP Trunk Setup] Setup failed:', error);
+      console.error('📊 [SIP Trunk Setup] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error(error.message || "Failed to setup SIP trunk");
-      console.error("Setup error:", error);
     } finally {
       setIsSettingUp(false);
     }
