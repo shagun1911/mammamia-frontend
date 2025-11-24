@@ -6,6 +6,9 @@ export interface PhoneSettings {
   selectedVoice: string;
   twilioPhoneNumber: string;
   livekitSipTrunkId: string;
+  twilioTrunkSid?: string;
+  terminationUri?: string;
+  originationUri?: string;
   humanOperatorPhone: string;
   isConfigured: boolean;
   createdAt: string;
@@ -16,6 +19,9 @@ export interface UpdatePhoneSettingsData {
   selectedVoice?: string;
   twilioPhoneNumber?: string;
   livekitSipTrunkId?: string;
+  twilioTrunkSid?: string;
+  terminationUri?: string;
+  originationUri?: string;
   humanOperatorPhone?: string;
 }
 
@@ -32,8 +38,12 @@ export interface SetupSipTrunkResponse {
   message: string;
   twilio_trunk_sid: string;
   livekit_trunk_id: string;
+  termination_uri: string;
   credential_list_sid: string;
+  ip_acl_sid: string;
   username: string;
+  origination_uri: string;
+  origination_uri_sid: string;
 }
 
 export interface CreateLiveKitTrunkRequest {

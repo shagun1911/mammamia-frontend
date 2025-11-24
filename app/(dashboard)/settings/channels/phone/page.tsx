@@ -21,6 +21,9 @@ export default function PhoneSettingsDetailPage() {
   const [selectedVoice, setSelectedVoice] = useState(settings?.selectedVoice || "adam");
   const [twilioPhoneNumber, setTwilioPhoneNumber] = useState(settings?.twilioPhoneNumber || "");
   const [livekitSipTrunkId, setLivekitSipTrunkId] = useState(settings?.livekitSipTrunkId || "");
+  const [twilioTrunkSid, setTwilioTrunkSid] = useState(settings?.twilioTrunkSid || "");
+  const [terminationUri, setTerminationUri] = useState(settings?.terminationUri || "");
+  const [originationUri, setOriginationUri] = useState(settings?.originationUri || "");
   const [humanOperatorPhone, setHumanOperatorPhone] = useState(settings?.humanOperatorPhone || "");
   const [escalationRules, setEscalationRules] = useState<string[]>(
     aiBehavior?.voiceAgent?.humanOperator?.escalationRules || []
@@ -48,6 +51,9 @@ export default function PhoneSettingsDetailPage() {
       setSelectedVoice(settings.selectedVoice);
       setTwilioPhoneNumber(settings.twilioPhoneNumber);
       setLivekitSipTrunkId(settings.livekitSipTrunkId);
+      setTwilioTrunkSid(settings.twilioTrunkSid || "");
+      setTerminationUri(settings.terminationUri || "");
+      setOriginationUri(settings.originationUri || "");
       setHumanOperatorPhone(settings.humanOperatorPhone);
     }
   }, [settings]);
@@ -117,12 +123,18 @@ export default function PhoneSettingsDetailPage() {
       // Auto-fill the form with returned values
       setTwilioPhoneNumber(fullSetupPhone);
       setLivekitSipTrunkId(result.livekit_trunk_id);
+      setTwilioTrunkSid(result.twilio_trunk_sid);
+      setTerminationUri(result.termination_uri);
+      setOriginationUri(result.origination_uri);
 
       // Save settings automatically
       await updateSettings({
         selectedVoice,
         twilioPhoneNumber: fullSetupPhone,
         livekitSipTrunkId: result.livekit_trunk_id,
+        twilioTrunkSid: result.twilio_trunk_sid,
+        terminationUri: result.termination_uri,
+        originationUri: result.origination_uri,
         humanOperatorPhone,
       });
 
@@ -537,7 +549,61 @@ export default function PhoneSettingsDetailPage() {
                 className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Your LiveKit SIP Trunk ID from the LiveKit Console
+                Your LiveKit SIP Trunk ID (automatically set from setup)
+              </p>
+            </div>
+
+            {/* Twilio Trunk SID */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Twilio Trunk SID
+              </label>
+              <input
+                type="text"
+                value={twilioTrunkSid}
+                onChange={(e) => setTwilioTrunkSid(e.target.value)}
+                placeholder="TKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                readOnly
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Twilio Trunk SID (automatically set from setup)
+              </p>
+            </div>
+
+            {/* Termination URI */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Termination URI
+              </label>
+              <input
+                type="text"
+                value={terminationUri}
+                onChange={(e) => setTerminationUri(e.target.value)}
+                placeholder="tkxxxx...pstn.twilio.com"
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                readOnly
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Twilio termination URI (automatically set from setup)
+              </p>
+            </div>
+
+            {/* Origination URI */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Origination URI
+              </label>
+              <input
+                type="text"
+                value={originationUri}
+                onChange={(e) => setOriginationUri(e.target.value)}
+                placeholder="sip:xxxxxx.sip.livekit.cloud"
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                readOnly
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                LiveKit origination SIP URI (automatically set from setup)
               </p>
             </div>
 
