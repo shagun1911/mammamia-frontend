@@ -13,9 +13,14 @@ export function AutoTranslate() {
   const { language } = useLanguage();
 
   useEffect(() => {
+    console.log('🌐 AutoTranslate: Language changed to:', language);
+    
     if (language === "en") {
+      console.log('⏩ AutoTranslate: Skipping - English selected');
       return; // No translation needed for English
     }
+
+    console.log('🔄 AutoTranslate: Starting page translation...');
 
     const translatePage = async () => {
       // Find all text nodes that need translation
@@ -63,7 +68,12 @@ export function AutoTranslate() {
         }
       }
 
-      if (textNodes.length === 0) return;
+      if (textNodes.length === 0) {
+        console.log('⚠️ AutoTranslate: No text nodes found to translate');
+        return;
+      }
+
+      console.log(`📝 AutoTranslate: Found ${textNodes.length} text nodes to translate`);
 
       // Batch translate all texts
       const textsToTranslate = textNodes.map((item) => item.originalText);
@@ -74,17 +84,23 @@ export function AutoTranslate() {
           language
         );
 
+        console.log(`✅ AutoTranslate: Received ${translations.length} translations`);
+
         // Apply translations
+        let appliedCount = 0;
         textNodes.forEach((item, index) => {
           if (translations[index] && item.node.textContent) {
             // Preserve leading/trailing whitespace
             const leadingSpace = item.node.textContent.match(/^\s*/)?.[0] || "";
             const trailingSpace = item.node.textContent.match(/\s*$/)?.[0] || "";
             item.node.textContent = leadingSpace + translations[index] + trailingSpace;
+            appliedCount++;
           }
         });
+        
+        console.log(`🎉 AutoTranslate: Applied ${appliedCount} translations to page`);
       } catch (error) {
-        console.error("Translation failed:", error);
+        console.error("❌ AutoTranslate: Translation failed:", error);
       }
     };
 

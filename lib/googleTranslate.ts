@@ -2,6 +2,11 @@
 const GOOGLE_TRANSLATE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_TRANSLATE_API_KEY || "";
 const TRANSLATE_API_URL = "https://translation.googleapis.com/language/translate/v2";
 
+// Log API key status on load
+console.log('🔧 Google Translate Service initialized');
+console.log('🔑 API Key configured:', GOOGLE_TRANSLATE_API_KEY ? `Yes (${GOOGLE_TRANSLATE_API_KEY.substring(0, 10)}...)` : 'No');
+console.log('🌐 Translation API URL:', TRANSLATE_API_URL);
+
 interface TranslationCache {
   [key: string]: {
     [lang: string]: string;
@@ -33,14 +38,16 @@ class GoogleTranslateService {
     
     // Check if API key is configured
     if (!GOOGLE_TRANSLATE_API_KEY) {
-      console.warn("Google Translate API key not configured");
+      console.warn("❌ Google Translate API key not configured");
       return text;
     }
 
+    console.log(`🌍 Translating to ${targetLang}:`, text.substring(0, 50) + '...');
     const cacheKey = text.trim();
 
     // Check cache first
     if (this.cache[cacheKey]?.[targetLang]) {
+      console.log('💾 Using cached translation');
       return this.cache[cacheKey][targetLang];
     }
 
@@ -64,6 +71,7 @@ class GoogleTranslateService {
 
   private async fetchTranslation(text: string, targetLang: string): Promise<string> {
     try {
+      console.log('📡 Making API request to Google Translate...');
       const response = await fetch(
         `${TRANSLATE_API_URL}?key=${GOOGLE_TRANSLATE_API_KEY}`,
         {
@@ -80,12 +88,18 @@ class GoogleTranslateService {
         }
       );
 
+      console.log('📥 API Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`Translation API error: ${response.status}`);
+        const errorData = await response.text();
+        console.error('❌ Translation API error:', response.status, errorData);
+        throw new Error(`Translation API error: ${response.status} - ${errorData}`);
       }
 
       const data = await response.json();
       const translatedText = data.data?.translations?.[0]?.translatedText || text;
+
+      console.log('✅ Translation successful:', translatedText.substring(0, 50) + '...');
 
       // Cache the translation
       const cacheKey = text.trim();
@@ -99,17 +113,22 @@ class GoogleTranslateService {
 
       return translatedText;
     } catch (error) {
-      console.error("Translation error:", error);
+      console.error("❌ Translation error:", error);
       return text; // Fallback to original text
     }
   }
 
   async translateBatch(texts: string[], targetLang: string): Promise<string[]> {
-    if (targetLang === "en") return texts;
+    console.log(`🔄 Batch translating ${texts.length} texts to ${targetLang}`);
+    
+    if (targetLang === "en") {
+      console.log('⏩ Skipping translation - target is English');
+      return texts;
+    }
     
     // Check if API key is configured
     if (!GOOGLE_TRANSLATE_API_KEY) {
-      console.warn("Google Translate API key not configured");
+      console.warn("❌ Google Translate API key not configured for batch translation");
       return texts;
     }
 
@@ -136,6 +155,7 @@ class GoogleTranslateService {
 
       // Translate uncached texts in one batch
       if (uncachedTexts.length > 0) {
+        console.log(`📡 Translating ${uncachedTexts.length} uncached texts...`);
         const response = await fetch(
           `${TRANSLATE_API_URL}?key=${GOOGLE_TRANSLATE_API_KEY}`,
           {
@@ -155,6 +175,7 @@ class GoogleTranslateService {
         if (response.ok) {
           const data = await response.json();
           const translations = data.data?.translations || [];
+          console.log(`✅ Batch translation successful: ${translations.length} translations received`);
 
           // Cache the translations
           uncachedTexts.forEach((text, idx) => {
@@ -167,7 +188,11 @@ class GoogleTranslateService {
           });
 
           this.saveCache();
+        } else {
+          console.error(`❌ Batch translation API error: ${response.status}`);
         }
+      } else {
+        console.log('💾 All texts found in cache');
       }
 
       // Fill in the results
