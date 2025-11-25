@@ -1,5 +1,5 @@
 // Google Cloud Translation API integration
-const GOOGLE_TRANSLATE_API_KEY = "AIzaSyBgSYoaeuo2iK-cu6TQ4fpRogd8FYyu1-o";
+const GOOGLE_TRANSLATE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_TRANSLATE_API_KEY || "";
 const TRANSLATE_API_URL = "https://translation.googleapis.com/language/translate/v2";
 
 interface TranslationCache {
@@ -30,6 +30,12 @@ class GoogleTranslateService {
   async translate(text: string, targetLang: string): Promise<string> {
     if (!text || !text.trim()) return text;
     if (targetLang === "en") return text;
+    
+    // Check if API key is configured
+    if (!GOOGLE_TRANSLATE_API_KEY) {
+      console.warn("Google Translate API key not configured");
+      return text;
+    }
 
     const cacheKey = text.trim();
 
@@ -100,6 +106,12 @@ class GoogleTranslateService {
 
   async translateBatch(texts: string[], targetLang: string): Promise<string[]> {
     if (targetLang === "en") return texts;
+    
+    // Check if API key is configured
+    if (!GOOGLE_TRANSLATE_API_KEY) {
+      console.warn("Google Translate API key not configured");
+      return texts;
+    }
 
     try {
       // Filter out empty texts and get unique ones

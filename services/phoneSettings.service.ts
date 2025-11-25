@@ -120,7 +120,7 @@ export const phoneSettingsService = {
    * Create LiveKit Trunk - Create LiveKit trunk from existing Twilio setup
    */
   async createLiveKitTrunk(data: CreateLiveKitTrunkRequest): Promise<CreateLiveKitTrunkResponse> {
-    const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'http://localhost:8000';
+    const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-production.up.railway.app';
     const response = await fetch(`${PYTHON_API}/calls/create-livekit-trunk`, {
       method: 'POST',
       headers: {

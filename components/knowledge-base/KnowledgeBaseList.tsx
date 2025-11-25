@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Plus, Database, Upload, Loader2 } from 'lucide-react';
+import { Plus, Database, Upload, Loader2, Trash2 } from 'lucide-react';
 import { useKnowledgeBase } from '@/contexts/KnowledgeBaseContext';
 import { CreateCollectionModal } from './CreateCollectionModal';
 import { IngestDataModal } from './IngestDataModal';
+import { toast } from '@/lib/toast';
 
 export function KnowledgeBaseList() {
-  const { collections, loadCollections } = useKnowledgeBase();
+  const { collections, loadCollections, deleteCollection } = useKnowledgeBase();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isIngestModalOpen, setIsIngestModalOpen] = useState(false);
   const [selectedCollectionForIngest, setSelectedCollectionForIngest] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Load collections on mount
   useEffect(() => {
@@ -26,6 +28,29 @@ export function KnowledgeBaseList() {
   const handleIngestClick = (collectionName: string) => {
     setSelectedCollectionForIngest(collectionName);
     setIsIngestModalOpen(true);
+  };
+
+  const handleDeleteClick = async (kbId: string | undefined, collectionName: string) => {
+    if (!kbId) {
+      toast.error('Invalid knowledge base ID');
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete "${collectionName}"? This action cannot be undone and will delete all associated data.`)) {
+      return;
+    }
+
+    setDeletingId(kbId);
+    try {
+      await deleteCollection(kbId);
+      toast.success('Knowledge base deleted successfully');
+      await loadCollections();
+    } catch (error: any) {
+      console.error('Failed to delete knowledge base:', error);
+      toast.error(error.message || 'Failed to delete knowledge base');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -91,13 +116,27 @@ export function KnowledgeBaseList() {
                 </div>
               </div>
 
-              <button
-                onClick={() => handleIngestClick(collection.collection_name)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                Ingest Data
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleIngestClick(collection.collection_name)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Ingest Data
+                </button>
+                <button
+                  onClick={() => handleDeleteClick(collection._id, collection.collection_name)}
+                  disabled={deletingId === collection._id}
+                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete Knowledge Base"
+                >
+                  {deletingId === collection._id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
             </div>
           ))}
         </div>

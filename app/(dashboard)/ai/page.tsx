@@ -93,7 +93,6 @@ export default function AIPage() {
             <div className="p-6 space-y-6">
               <h2 className="text-2xl font-bold text-foreground mb-4">Voice Agent Configuration</h2>
               <VoiceAgentAnswering />
-              <VoiceHumanOperator />
             </div>
           )}
         </div>

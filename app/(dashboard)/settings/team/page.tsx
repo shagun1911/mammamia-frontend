@@ -16,6 +16,8 @@ export default function TeamSettingsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingOperator, setEditingOperator] = useState<any | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [createdOperator, setCreatedOperator] = useState<any>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -26,6 +28,8 @@ export default function TeamSettingsPage() {
     role: "operator" as "admin" | "operator" | "viewer",
     permissions: [] as string[],
   });
+
+  const [savedPassword, setSavedPassword] = useState("");
 
   const getRoleBadge = (role: string) => {
     const styles: any = {
@@ -98,22 +102,33 @@ export default function TeamSettingsPage() {
         await updateOperator.mutateAsync({
           id: editingOperator._id || editingOperator.id,
           data: {
-            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            firstName: formData.firstName,
+            lastName: formData.lastName,
             email: formData.email,
             role: formData.role,
             ...(formData.password && { password: formData.password }),
           },
         });
+        handleCloseModal();
       } else {
         // Create new operator
-        await createOperator.mutateAsync({
-          name: `${formData.firstName} ${formData.lastName}`.trim(),
+        const newOperator = await createOperator.mutateAsync({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           email: formData.email,
           password: formData.password,
           role: formData.role,
+          permissions: formData.permissions,
         });
+        
+        // Store credentials for display
+        setSavedPassword(formData.password);
+        setCreatedOperator(newOperator);
+        
+        // Close form modal and show credentials modal
+        handleCloseModal();
+        setShowCredentialsModal(true);
       }
-      handleCloseModal();
     } catch (error) {
       // Error already handled by mutation
     }
@@ -145,99 +160,101 @@ export default function TeamSettingsPage() {
 
       {/* Operators table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-secondary">
-              <th className="px-6 py-3 text-left">
-                <span className="text-[13px] font-semibold text-muted-foreground uppercase">Avatar</span>
-              </th>
-              <th className="px-6 py-3 text-left">
-                <span className="text-[13px] font-semibold text-muted-foreground uppercase">Name</span>
-              </th>
-              <th className="px-6 py-3 text-left">
-                <span className="text-[13px] font-semibold text-muted-foreground uppercase">Email</span>
-              </th>
-              <th className="px-6 py-3 text-left">
-                <span className="text-[13px] font-semibold text-muted-foreground uppercase">Role</span>
-              </th>
-              <th className="px-6 py-3 text-left">
-                <span className="text-[13px] font-semibold text-muted-foreground uppercase">Permissions</span>
-              </th>
-              <th className="px-6 py-3 text-right">
-                <span className="text-[13px] font-semibold text-muted-foreground uppercase">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
-                  Loading operators...
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-secondary">
+                <th className="px-6 py-3 text-left">
+                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Avatar</span>
+                </th>
+                <th className="px-6 py-3 text-left">
+                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Name</span>
+                </th>
+                <th className="px-6 py-3 text-left">
+                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Email</span>
+                </th>
+                <th className="px-6 py-3 text-left">
+                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Password</span>
+                </th>
+                <th className="px-6 py-3 text-left">
+                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Role</span>
+                </th>
+                <th className="px-6 py-3 text-right">
+                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Actions</span>
+                </th>
               </tr>
-            ) : operators.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
-                  No operators yet. Add one to get started.
-                </td>
-              </tr>
-            ) : (
-              operators.map((operator: any) => {
-                const avatar = operator.avatar || operator.firstName?.[0]?.toUpperCase() || operator.name?.[0]?.toUpperCase() || "?";
-                const color = operator.color || "#6366f1";
-                const displayName = operator.firstName && operator.lastName 
-                  ? `${operator.firstName} ${operator.lastName}` 
-                  : operator.name || "Unknown";
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                    Loading operators...
+                  </td>
+                </tr>
+              ) : operators.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                    No operators yet. Add one to get started.
+                  </td>
+                </tr>
+              ) : (
+                operators.map((operator: any) => {
+                  const avatar = operator.avatar || operator.firstName?.[0]?.toUpperCase() || operator.name?.[0]?.toUpperCase() || "?";
+                  const color = operator.color || "#6366f1";
+                  const displayName = operator.firstName && operator.lastName 
+                    ? `${operator.firstName} ${operator.lastName}` 
+                    : operator.name || "Unknown";
 
-                return (
-                  <tr
-                    key={operator._id || operator.id}
-                    className="border-b border-border hover:bg-secondary transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-foreground font-semibold text-sm"
-                        style={{ backgroundColor: color }}
-                      >
-                        {avatar}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-foreground">
-                        {displayName}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-muted-foreground">{operator.email}</span>
-                    </td>
-                    <td className="px-6 py-4">{getRoleBadge(operator.role)}</td>
-                    <td className="px-6 py-4">
-                      <span className="text-[13px] text-muted-foreground">
-                        {operator.permissions?.length || 0} sections
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button 
-                          onClick={() => handleOpenModal(operator)}
-                          className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                  return (
+                    <tr
+                      key={operator._id || operator.id}
+                      className="border-b border-border hover:bg-secondary transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-foreground font-semibold text-sm"
+                          style={{ backgroundColor: color }}
                         >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(operator._id || operator.id)}
-                          className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                          {avatar}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-medium text-foreground">
+                          {displayName}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-muted-foreground">{operator.email}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm font-mono text-muted-foreground">
+                          {operator.password || "••••••••"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">{getRoleBadge(operator.role)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleOpenModal(operator)}
+                            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(operator._id || operator.id)}
+                            className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add/Edit Operator Modal */}
@@ -343,6 +360,73 @@ export default function TeamSettingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Credentials Display Modal */}
+      {showCredentialsModal && createdOperator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-[560px] bg-card border border-border rounded-2xl p-6">
+            <h2 className="text-xl font-semibold text-foreground mb-2">
+              Operator Created Successfully! 🎉
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Save these credentials. You can use them to login.
+            </p>
+
+            <div className="space-y-4">
+              <div className="bg-secondary border border-border rounded-lg p-4">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-mono text-foreground">{createdOperator.email}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdOperator.email);
+                      toast.success("Email copied!");
+                    }}
+                    className="text-xs text-primary hover:text-primary/80"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-secondary border border-border rounded-lg p-4">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Password</label>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-mono text-foreground">{savedPassword}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(savedPassword);
+                      toast.success("Password copied!");
+                    }}
+                    className="text-xs text-primary hover:text-primary/80"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <p className="text-xs text-yellow-600 dark:text-yellow-500">
+                  ⚠️ Important: These credentials are stored in plain text for your convenience. Make sure to save them securely.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-6">
+              <button
+                onClick={() => {
+                  setShowCredentialsModal(false);
+                  setCreatedOperator(null);
+                  setSavedPassword("");
+                }}
+                className="px-6 py-3 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

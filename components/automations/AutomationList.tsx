@@ -46,7 +46,7 @@ export function AutomationList({
           <input
             type="text"
             placeholder="Search..."
-            className="w-full h-9 bg-secondary border border-border rounded-lg pl-9 pr-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+            className="w-full h-9 bg-secondary border border-border rounded-lg pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
           />
         </div>
       </div>

@@ -99,7 +99,7 @@ export function CreateCollectionModal({ isOpen, onClose }: CreateCollectionModal
 
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
               <p className="text-sm text-blue-400">
-                <strong>Note:</strong> This creates a collection in your Python RAG service (http://localhost:8000). 
+                <strong>Note:</strong> This creates a collection in your Python RAG service (https://keplerov1-python-production.up.railway.app). 
                 Make sure the service is running before proceeding.
               </p>
             </div>

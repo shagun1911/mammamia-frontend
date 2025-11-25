@@ -64,7 +64,7 @@ export function VoiceHumanOperator() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('accessToken');
         if (!token) return;
 
         const response = await fetch('/api/v1/ai-behavior', {
@@ -282,7 +282,7 @@ export function VoiceHumanOperator() {
                   method: 'PATCH',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                   },
                   body: JSON.stringify({
                     phoneNumber: operatorPhone,

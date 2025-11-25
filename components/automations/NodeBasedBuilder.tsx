@@ -285,7 +285,7 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
         {/* Top bar */}
         <div className="bg-background border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-2 bg-secondary border border-border text-white rounded-lg text-sm font-medium hover:bg-accent transition-colors">
+            <button className="flex items-center gap-2 px-3 py-2 bg-secondary border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors">
               <List className="w-4 h-4" />
               <span>Executions</span>
             </button>
@@ -468,7 +468,7 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
                   setShowNodeSelector(false);
                   setInsertPosition(null);
                 }}
-                className="w-full px-4 py-2 bg-secondary border border-border text-white rounded-lg text-sm font-medium hover:bg-accent transition-colors"
+                className="w-full px-4 py-2 bg-secondary border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
               >
                 Cancel
               </button>

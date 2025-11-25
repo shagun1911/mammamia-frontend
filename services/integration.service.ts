@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 
-const INTEGRATION_API_URL = process.env.NEXT_PUBLIC_INTEGRATION_API_URL || 'http://localhost:8000';
+const INTEGRATION_API_URL = process.env.NEXT_PUBLIC_INTEGRATION_API_URL || 'https://keplerov1-python-production.up.railway.app';
 
 class IntegrationService {
   private api: AxiosInstance;

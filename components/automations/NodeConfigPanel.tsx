@@ -78,7 +78,7 @@ export function NodeConfigPanel({
         {node.service === "delay" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Delay Duration
               </label>
               <input
@@ -87,14 +87,14 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, delay: parseInt(e.target.value) })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="5"
                 min="1"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Unit
               </label>
               <select
@@ -105,7 +105,7 @@ export function NodeConfigPanel({
                     delayUnit: e.target.value as "minutes" | "hours" | "days",
                   })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="minutes">Minutes</option>
                 <option value="hours">Hours</option>
@@ -127,7 +127,7 @@ export function NodeConfigPanel({
               This automation will trigger whenever a new contact is created in your system.
             </p>
             <div className="bg-secondary/50 border border-border rounded-lg p-4">
-              <h4 className="text-sm font-medium text-white mb-2">Available Data:</h4>
+              <h4 className="text-sm font-medium text-foreground mb-2">Available Data:</h4>
               <ul className="text-xs text-muted-foreground space-y-1">
                 <li>• Contact ID</li>
                 <li>• Name</li>
@@ -146,7 +146,7 @@ export function NodeConfigPanel({
               This automation will trigger whenever a contact is deleted from your system.
             </p>
             <div className="bg-secondary/50 border border-border rounded-lg p-4">
-              <h4 className="text-sm font-medium text-white mb-2">Available Data:</h4>
+              <h4 className="text-sm font-medium text-foreground mb-2">Available Data:</h4>
               <ul className="text-xs text-muted-foreground space-y-1">
                 <li>• Contact ID</li>
                 <li>• Name</li>
@@ -161,7 +161,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_contact_moved" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Target List (Optional)
               </label>
               <select
@@ -169,7 +169,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, listId: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 disabled={loading}
               >
                 <option value="">Any List</option>
@@ -190,7 +190,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_mass_sending" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Source Type
               </label>
               <select
@@ -198,7 +198,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, source: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="">Any Source</option>
                 <option value="csv">CSV Import</option>
@@ -215,7 +215,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_outbound_call" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Dynamic Instruction
               </label>
               <textarea
@@ -223,13 +223,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, dynamicInstruction: e.target.value })
                 }
-                className="w-full h-24 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                className="w-full h-24 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                 placeholder="Provide instructions for the AI agent..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Language
               </label>
               <select
@@ -237,7 +237,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, language: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
@@ -247,7 +247,7 @@ export function NodeConfigPanel({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Transfer Number (Optional)
               </label>
               <input
@@ -256,7 +256,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, transferTo: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="+1234567890"
               />
             </div>
@@ -271,7 +271,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_send_sms" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Message
               </label>
               <textarea
@@ -279,7 +279,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, message: e.target.value })
                 }
-                className="w-full h-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                className="w-full h-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                 placeholder="Enter SMS message..."
               />
             </div>
@@ -293,7 +293,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_send_email" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Subject
               </label>
               <input
@@ -302,13 +302,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, subject: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="Email subject..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Body
               </label>
               <textarea
@@ -316,7 +316,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, body: e.target.value })
                 }
-                className="w-full h-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                className="w-full h-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                 placeholder="Email body..."
               />
             </div>
@@ -331,7 +331,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_create_contact" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Name
               </label>
               <input
@@ -340,13 +340,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, name: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="Contact name..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Email
               </label>
               <input
@@ -355,13 +355,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, email: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="contact@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Phone
               </label>
               <input
@@ -370,13 +370,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, phone: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="+1234567890"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Tags (comma-separated)
               </label>
               <input
@@ -388,7 +388,7 @@ export function NodeConfigPanel({
                     tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean)
                   })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="tag1, tag2, tag3"
               />
             </div>
@@ -403,7 +403,7 @@ export function NodeConfigPanel({
         {node.service === "keplero_api_call" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 URL
               </label>
               <input
@@ -412,13 +412,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, url: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="https://api.example.com/endpoint"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Method
               </label>
               <select
@@ -426,7 +426,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, method: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="GET">GET</option>
                 <option value="POST">POST</option>
@@ -437,7 +437,7 @@ export function NodeConfigPanel({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Headers (JSON)
               </label>
               <textarea
@@ -445,13 +445,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, headers: e.target.value })
                 }
-                className="w-full h-24 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none font-mono"
+                className="w-full h-24 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none font-mono"
                 placeholder='{"Authorization": "Bearer token"}'
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Body (JSON)
               </label>
               <textarea
@@ -459,7 +459,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, body: e.target.value })
                 }
-                className="w-full h-24 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none font-mono"
+                className="w-full h-24 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none font-mono"
                 placeholder='{"key": "value"}'
               />
             </div>
@@ -474,7 +474,7 @@ export function NodeConfigPanel({
         {(node.type === "trigger" && !node.service.startsWith("keplero_")) && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Event
               </label>
               <select
@@ -482,7 +482,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, event: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="">Select event...</option>
                 <option value="lead_created">New Lead Created</option>
@@ -501,7 +501,7 @@ export function NodeConfigPanel({
         {node.service === "whatsapp_template" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Template
               </label>
               <select
@@ -509,7 +509,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, template: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="">Select template...</option>
                 <option value="welcome">Welcome Message</option>
@@ -528,7 +528,7 @@ export function NodeConfigPanel({
         {node.service === "send_email" && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Subject
               </label>
               <input
@@ -537,13 +537,13 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, subject: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="Email subject..."
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Template
               </label>
               <select
@@ -551,7 +551,7 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({ ...node.config, template: e.target.value })
                 }
-                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="">Select template...</option>
                 <option value="welcome_email">Welcome Email</option>

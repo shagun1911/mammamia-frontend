@@ -31,6 +31,7 @@ interface KnowledgeBaseContextType {
   collections: Collection[];
   addCollection: (collectionName: string, kbData?: any) => void;
   loadCollections: () => Promise<void>;
+  deleteCollection: (kbId: string) => Promise<void>;
   selectedCollection: string | null;
   setSelectedCollection: (name: string | null) => void;
 
@@ -84,8 +85,7 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-      const response = await fetch(`${API_URL}/knowledge-bases`, {
+      const response = await fetch('/api/v1/knowledge-bases', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -112,6 +112,37 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load knowledge bases:', error);
     }
   }, []);
+
+  const deleteCollection = useCallback(async (kbId: string) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) throw new Error('Not authenticated');
+
+      const response = await fetch(`/api/v1/knowledge-bases/${kbId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to delete knowledge base');
+      }
+
+      // Remove from local state
+      setCollections(prev => prev.filter(c => c._id !== kbId));
+      
+      // Clear selection if the deleted collection was selected
+      const deletedCollection = collections.find(c => c._id === kbId);
+      if (deletedCollection && selectedCollection === deletedCollection.collection_name) {
+        setSelectedCollection(null);
+      }
+    } catch (error: any) {
+      console.error('Failed to delete knowledge base:', error);
+      throw error;
+    }
+  }, [collections, selectedCollection]);
 
   const createNewThread = useCallback((collectionName: string): string => {
     const threadId = uuidv4();
@@ -149,6 +180,7 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
         collections,
         addCollection,
         loadCollections,
+        deleteCollection,
         selectedCollection,
         setSelectedCollection,
         chatThreads,

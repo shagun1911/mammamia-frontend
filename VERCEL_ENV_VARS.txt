@@ -1,5 +1,0 @@
-NEXT_PUBLIC_API_URL=https://kepleroai-backend-v1.onrender.com/api/v1
-NEXT_PUBLIC_SOCKET_URL=https://kepleroai-backend-v1.onrender.com
-NEXT_PUBLIC_RAG_API_URL=http://localhost:8000
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=248167343505-s35tohfpegqmba4i34m692dg6efesdsv.apps.googleusercontent.com
-

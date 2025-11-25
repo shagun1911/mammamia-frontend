@@ -90,7 +90,7 @@ class KnowledgeBaseService {
   async delete(id: string) {
     try {
       const response = await apiClient.delete(`/training/knowledge-bases/${id}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to delete knowledge base');
     }

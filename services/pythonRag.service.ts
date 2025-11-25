@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const PYTHON_RAG_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'http://localhost:8000';
+const PYTHON_RAG_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'https://keplerov1-python-production.up.railway.app';
 
 export interface CreateCollectionRequest {
   collection_name: string;
@@ -57,6 +57,28 @@ export class PythonRagService {
         error.response?.data?.detail || 
         error.response?.data?.message || 
         'Failed to create collection'
+      );
+    }
+  }
+
+  /**
+   * Delete a collection from Python RAG
+   */
+  async deleteCollection(collectionName: string): Promise<RAGResponse> {
+    try {
+      const response = await axios.delete<RAGResponse>(
+        `${PYTHON_RAG_URL}/rag/delete_collection`,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          data: { collection_name: collectionName }
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        'Failed to delete collection'
       );
     }
   }
@@ -160,27 +182,28 @@ export class PythonRagService {
         api_key: apiKey
       };
 
-      console.log('🌐 [Python RAG Service] Making POST request to:', `${PYTHON_RAG_URL}/rag/chat`);
-      console.log('📤 [Python RAG Service] Request body (sanitized):', {
+      const chatUrl = `${PYTHON_RAG_URL}/rag/chat`;
+      
+      console.log('\n========== PYTHON RAG - CHAT REQUEST ==========');
+      console.log('💬 [Python RAG] URL:', chatUrl);
+      console.log('📦 [Python RAG] Full Request Body:', JSON.stringify({
         ...requestBody,
-        api_key: requestBody.api_key ? `${requestBody.api_key.substring(0, 8)}...` : 'MISSING',
-        system_prompt: requestBody.system_prompt?.substring(0, 50) + '...'
-      });
+        api_key: requestBody.api_key ? `${requestBody.api_key.substring(0, 10)}...***` : 'NOT_SET'
+      }, null, 2));
+      console.log('=====================================================\n');
 
       const response = await axios.post<ChatResponse>(
-        `${PYTHON_RAG_URL}/rag/chat`,
+        chatUrl,
         requestBody,
         {
           headers: { 'Content-Type': 'application/json' }
         }
       );
 
-      console.log('✅ [Python RAG Service] Response received:', {
-        status: response.status,
-        hasAnswer: !!response.data.answer,
-        answerLength: response.data.answer?.length || 0,
-        retrievedDocs: response.data.retrieved_docs?.length || 0
-      });
+      console.log('\n========== PYTHON RAG - CHAT RESPONSE ==========');
+      console.log('✅ [Python RAG] Response Status:', response.status);
+      console.log('📦 [Python RAG] Full Response Body:', JSON.stringify(response.data, null, 2));
+      console.log('=====================================================\n');
 
       return response.data;
     } catch (error: any) {

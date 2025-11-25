@@ -41,9 +41,12 @@ export interface UpdateSettingsData {
 
 export interface CreateOperatorData {
   email: string;
-  name: string;
+  firstName: string;
+  lastName?: string;
+  name?: string; // Legacy field
   role: 'admin' | 'operator' | 'viewer';
   password?: string;
+  permissions?: string[];
 }
 
 export interface ChannelConfig {

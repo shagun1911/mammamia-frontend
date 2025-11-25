@@ -16,8 +16,7 @@ export function AIBehaviorLoader() {
         await loadCollections();
 
         // Load AI behavior settings from backend
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-        const response = await fetch(`${API_URL}/ai-behavior`, {
+        const response = await fetch('/api/v1/ai-behavior', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

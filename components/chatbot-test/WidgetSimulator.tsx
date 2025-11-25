@@ -131,7 +131,7 @@ export function WidgetSimulator() {
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         sender: "bot" as const,
-        content: `Error: ${error.message}. Please ensure Python RAG service is running on http://localhost:8000`,
+        content: `Error: ${error.message}. Please ensure Python RAG service is accessible at https://keplerov1-python-production.up.railway.app`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
