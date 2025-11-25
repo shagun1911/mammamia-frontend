@@ -22,7 +22,18 @@ export function AutoTranslate() {
 
     console.log('🔄 AutoTranslate: Starting page translation...');
 
+    // Keep track of already translated nodes
+    const translatedNodes = new WeakSet<Node>();
+    let isTranslating = false;
+
     const translatePage = async () => {
+      if (isTranslating) {
+        console.log('⏸️ Translation already in progress, skipping...');
+        return;
+      }
+
+      isTranslating = true;
+
       // Find all text nodes that need translation
       const textNodes: { node: Text; originalText: string }[] = [];
       const walker = document.createTreeWalker(
@@ -30,6 +41,11 @@ export function AutoTranslate() {
         NodeFilter.SHOW_TEXT,
         {
           acceptNode: (node) => {
+            // Skip already translated nodes
+            if (translatedNodes.has(node)) {
+              return NodeFilter.FILTER_REJECT;
+            }
+
             const text = node.textContent?.trim();
             if (!text) return NodeFilter.FILTER_REJECT;
 
@@ -69,7 +85,8 @@ export function AutoTranslate() {
       }
 
       if (textNodes.length === 0) {
-        console.log('⚠️ AutoTranslate: No text nodes found to translate');
+        console.log('⚠️ AutoTranslate: No new text nodes found to translate');
+        isTranslating = false;
         return;
       }
 
@@ -94,6 +111,7 @@ export function AutoTranslate() {
             const leadingSpace = item.node.textContent.match(/^\s*/)?.[0] || "";
             const trailingSpace = item.node.textContent.match(/\s*$/)?.[0] || "";
             item.node.textContent = leadingSpace + translations[index] + trailingSpace;
+            translatedNodes.add(item.node);
             appliedCount++;
           }
         });
@@ -102,12 +120,40 @@ export function AutoTranslate() {
       } catch (error) {
         console.error("❌ AutoTranslate: Translation failed:", error);
       }
+
+      isTranslating = false;
     };
 
-    // Small delay to ensure DOM is fully loaded
-    const timeout = setTimeout(translatePage, 300);
+    // Initial translation after a delay
+    const initialTimeout = setTimeout(translatePage, 500);
 
-    return () => clearTimeout(timeout);
+    // Watch for DOM changes and translate new content
+    const observer = new MutationObserver((mutations) => {
+      // Check if there are meaningful changes
+      const hasTextChanges = mutations.some(mutation => {
+        return mutation.type === 'childList' && mutation.addedNodes.length > 0;
+      });
+
+      if (hasTextChanges) {
+        console.log('🔄 AutoTranslate: DOM changed, retranslating new content...');
+        // Debounce translation to avoid too many calls
+        setTimeout(translatePage, 200);
+      }
+    });
+
+    // Start observing
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    console.log('👀 AutoTranslate: Watching for DOM changes...');
+
+    return () => {
+      clearTimeout(initialTimeout);
+      observer.disconnect();
+      console.log('🛑 AutoTranslate: Stopped watching');
+    };
   }, [language]);
 
   return null;
