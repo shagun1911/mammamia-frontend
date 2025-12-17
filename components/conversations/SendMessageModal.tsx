@@ -50,7 +50,7 @@ export function SendMessageModal({
 
       if (channel === 'sms') {
         // Send SMS via Python backend
-        const COMM_API = process.env.NEXT_PUBLIC_COMM_API_URL || 'https://keplerov1-python-production.up.railway.app';
+        const COMM_API = process.env.NEXT_PUBLIC_COMM_API_URL || 'https://keplerov1-python-2.onrender.com';
         const response = await fetch(`${COMM_API}/sms/send`, {
           method: 'POST',
           headers: {

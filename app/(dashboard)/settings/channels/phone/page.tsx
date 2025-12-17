@@ -14,7 +14,7 @@ export default function PhoneSettingsDetailPage() {
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
   const { aiBehavior, updateVoiceAgentHumanOperator } = useAIBehavior();
 
-  const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall" | "inbound">("settings");
   const [copied, setCopied] = useState(false);
 
   // Form state
@@ -31,7 +31,7 @@ export default function PhoneSettingsDetailPage() {
 
   // Setup methods state
   const [showSetupMethods, setShowSetupMethods] = useState(false);
-  const [activeSetupMethod, setActiveSetupMethod] = useState<"full" | "livekit" | null>(null);
+  const [activeSetupMethod, setActiveSetupMethod] = useState<"full" | "generic" | null>(null);
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   // Full Setup (Method 1) form state
@@ -40,10 +40,24 @@ export default function PhoneSettingsDetailPage() {
   const [fullSetupTwilioSid, setFullSetupTwilioSid] = useState("");
   const [fullSetupTwilioToken, setFullSetupTwilioToken] = useState("");
 
-  // LiveKit Trunk (Method 2) form state
-  const [livekitSetupLabel, setLivekitSetupLabel] = useState("");
-  const [livekitSetupPhone, setLivekitSetupPhone] = useState("");
-  const [livekitSetupSipAddress, setLivekitSetupSipAddress] = useState("");
+  // Generic SIP Trunk (Method 2) form state
+  const [genericSetupLabel, setGenericSetupLabel] = useState("");
+  const [genericSetupPhone, setGenericSetupPhone] = useState("");
+  const [genericSetupSipAddress, setGenericSetupSipAddress] = useState("");
+  const [genericSetupUsername, setGenericSetupUsername] = useState("");
+  const [genericSetupPassword, setGenericSetupPassword] = useState("");
+  const [genericSetupTransport, setGenericSetupTransport] = useState("udp");
+
+  // Inbound setup state
+  const [inboundStep, setInboundStep] = useState(1);
+  const [inboundName, setInboundName] = useState("");
+  const [inboundPhoneNumbers, setInboundPhoneNumbers] = useState("");
+  const [inboundKrispEnabled, setInboundKrispEnabled] = useState(true);
+  const [inboundTrunkId, setInboundTrunkId] = useState("");
+  const [inboundTrunkName, setInboundTrunkName] = useState("");
+  const [inboundConnectedNumbers, setInboundConnectedNumbers] = useState<string[]>([]);
+  const [isCreatingInbound, setIsCreatingInbound] = useState(false);
+
 
   // Update form state when settings load
   useEffect(() => {
@@ -195,19 +209,165 @@ export default function PhoneSettingsDetailPage() {
     }
   };
 
-  // LiveKit Trunk Setup (Method 2)
-  const handleLiveKitSetup = async () => {
-    if (!livekitSetupLabel || !livekitSetupPhone || !livekitSetupSipAddress) {
+  // Inbound Setup - Step 1: Create Inbound Trunk
+  const handleCreateInboundTrunk = async () => {
+    if (!inboundName || !inboundPhoneNumbers) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setIsCreatingInbound(true);
+    try {
+      const phoneNumbersArray = inboundPhoneNumbers.split(',').map(num => num.trim()).filter(Boolean);
+      
+      const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
+      const url = `${API_URL}/calls/create-inbound-trunk`;
+      const requestBody = {
+        name: inboundName,
+        phone_numbers: phoneNumbersArray,
+        krisp_enabled: inboundKrispEnabled,
+      };
+
+      console.log('\n🚀 [Inbound Trunk] Creating inbound trunk...');
+      console.log('📍 [Inbound Trunk] URL:', url);
+      console.log('📦 [Inbound Trunk] Request Body:', JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('📊 [Inbound Trunk] Response Status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ [Inbound Trunk] Error Response:', JSON.stringify(errorData, null, 2));
+        throw new Error(errorData.detail || 'Failed to create inbound trunk');
+      }
+
+      const data = await response.json();
+      console.log('✅ [Inbound Trunk] Response Body:', JSON.stringify(data, null, 2));
+      
+      // Store trunk info and move to step 2
+      setInboundTrunkId(data.trunk_id);
+      setInboundTrunkName(data.trunk_name);
+      setInboundConnectedNumbers(data.phone_numbers);
+      setInboundStep(2);
+      
+      toast.success('Inbound trunk created successfully!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create inbound trunk');
+      console.error('❌ [Inbound Trunk] Error:', error);
+    } finally {
+      setIsCreatingInbound(false);
+    }
+  };
+
+  // Inbound Setup - Step 2: Create Dispatch Rule
+  const handleCreateDispatchRule = async () => {
+    if (!inboundTrunkId) {
+      toast.error("Trunk ID is missing");
+      return;
+    }
+
+    setIsCreatingInbound(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
+      
+      // Build URL with query parameters
+      const queryParams = new URLSearchParams({
+        sip_trunk_id: inboundTrunkId,
+        name: inboundTrunkName,
+        agent_name: "inbound-agent",
+      });
+      const url = `${API_URL}/calls/create-dispatch-rule?${queryParams.toString()}`;
+
+      console.log('\n🚀 [Dispatch Rule] Creating dispatch rule...');
+      console.log('📍 [Dispatch Rule] URL:', url);
+      console.log('📦 [Dispatch Rule] Query Parameters:', {
+        sip_trunk_id: inboundTrunkId,
+        name: inboundTrunkName,
+        agent_name: "inbound-agent",
+      });
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('📊 [Dispatch Rule] Response Status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ [Dispatch Rule] Error Response:', JSON.stringify(errorData, null, 2));
+        throw new Error(errorData.detail || 'Failed to create dispatch rule');
+      }
+
+      const data = await response.json();
+      console.log('✅ [Dispatch Rule] Response Body:', JSON.stringify(data, null, 2));
+      
+      // Save to database
+      console.log('💾 [Dispatch Rule] Saving to database...');
+      const updateData = {
+        inboundTrunkId: inboundTrunkId,
+        inboundTrunkName: inboundTrunkName,
+        inboundDispatchRuleId: data.dispatch_rule_id,
+        inboundDispatchRuleName: data.dispatch_rule_name,
+        inboundPhoneNumbers: inboundConnectedNumbers,
+      };
+      console.log('💾 [Dispatch Rule] Update data:', JSON.stringify(updateData, null, 2));
+      
+      // Await the mutation to ensure it completes
+      try {
+        await updateSettings(updateData);
+        console.log('✅ [Dispatch Rule] Saved to database successfully');
+        
+        toast.success('Inbound setup completed successfully!');
+        setInboundStep(3); // Success screen
+      } catch (dbError: any) {
+        console.error('❌ [Dispatch Rule] Database save error:', dbError);
+        toast.error('Dispatch rule created but failed to save settings: ' + (dbError.message || 'Unknown error'));
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create dispatch rule');
+      console.error('❌ [Dispatch Rule] Error:', error);
+    } finally {
+      setIsCreatingInbound(false);
+    }
+  };
+
+  // Reset inbound setup
+  const resetInboundSetup = () => {
+    setInboundStep(1);
+    setInboundName("");
+    setInboundPhoneNumbers("");
+    setInboundKrispEnabled(true);
+    setInboundTrunkId("");
+    setInboundTrunkName("");
+    setInboundConnectedNumbers([]);
+  };
+
+  // Generic SIP Trunk Setup (Method 2)
+  const handleGenericSetup = async () => {
+    if (!genericSetupLabel || !genericSetupPhone || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword) {
       toast.error("Please fill in all required fields");
       return;
     }
 
     setIsSettingUp(true);
     try {
-      const result = await phoneSettingsService.createLiveKitTrunk({
-        label: livekitSetupLabel,
-        phone_number: livekitSetupPhone,
-        sip_address: livekitSetupSipAddress,
+      const result = await phoneSettingsService.createGenericSipTrunk({
+        label: genericSetupLabel,
+        phone_number: genericSetupPhone,
+        sip_address: genericSetupSipAddress,
+        username: genericSetupUsername,
+        password: genericSetupPassword,
+        transport: genericSetupTransport,
       });
 
       // Auto-fill the form with returned values
@@ -222,21 +382,25 @@ export default function PhoneSettingsDetailPage() {
         humanOperatorPhone,
       });
 
-      toast.success("LiveKit Trunk created successfully!");
+      toast.success("Generic SIP Trunk created successfully!");
       setShowSetupMethods(false);
       setActiveSetupMethod(null);
       
       // Clear form
-      setLivekitSetupLabel("");
-      setLivekitSetupPhone("");
-      setLivekitSetupSipAddress("");
+      setGenericSetupLabel("");
+      setGenericSetupPhone("");
+      setGenericSetupSipAddress("");
+      setGenericSetupUsername("");
+      setGenericSetupPassword("");
+      setGenericSetupTransport("udp");
     } catch (error: any) {
-      toast.error(error.message || "Failed to create LiveKit trunk");
+      toast.error(error.message || "Failed to create Generic SIP trunk");
       console.error("Setup error:", error);
     } finally {
       setIsSettingUp(false);
     }
   };
+
 
   if (isLoading) {
     return (
@@ -323,6 +487,16 @@ export default function PhoneSettingsDetailPage() {
         >
           End of Call
         </button>
+        <button
+          onClick={() => setActiveTab("inbound")}
+          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
+            activeTab === "inbound"
+              ? "bg-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Inbound
+        </button>
       </div>
 
       {/* Settings Tab */}
@@ -339,8 +513,8 @@ export default function PhoneSettingsDetailPage() {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-lg font-semibold text-foreground">Quick Setup</h3>
-                  <p className="text-sm text-muted-foreground">Automatically configure your SIP trunk</p>
+                  <h3 className="text-lg font-semibold text-foreground">Import Number</h3>
+                  <p className="text-sm text-muted-foreground">Configure your number with automatic SIP trunk setup</p>
                 </div>
               </div>
               {showSetupMethods ? (
@@ -375,23 +549,23 @@ export default function PhoneSettingsDetailPage() {
                     </div>
                   </div>
 
-                  {/* Method 2: LiveKit Trunk Only */}
+                  {/* Method 2: Generic SIP Trunk */}
                   <div
                     className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                      activeSetupMethod === "livekit"
+                      activeSetupMethod === "generic"
                         ? "border-primary bg-primary/5"
                         : "border-border hover:border-primary/50"
                     }`}
-                    onClick={() => setActiveSetupMethod(activeSetupMethod === "livekit" ? null : "livekit")}
+                    onClick={() => setActiveSetupMethod(activeSetupMethod === "generic" ? null : "generic")}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-lg">⚡</span>
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-lg">🔧</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-foreground mb-1">LiveKit Trunk</h4>
+                        <h4 className="font-semibold text-foreground mb-1">Generic SIP Trunk</h4>
                         <p className="text-xs text-muted-foreground">
-                          Create LiveKit trunk from existing Twilio setup
+                          Universal setup for any SIP provider
                         </p>
                       </div>
                     </div>
@@ -466,8 +640,8 @@ export default function PhoneSettingsDetailPage() {
                   </div>
                 )}
 
-                {/* LiveKit Trunk Form */}
-                {activeSetupMethod === "livekit" && (
+                {/* Generic SIP Trunk Form */}
+                {activeSetupMethod === "generic" && (
                   <div className="mt-4 p-4 bg-secondary/50 rounded-lg space-y-4 border border-border">
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
@@ -475,9 +649,9 @@ export default function PhoneSettingsDetailPage() {
                       </label>
                       <input
                         type="text"
-                        value={livekitSetupLabel}
-                        onChange={(e) => setLivekitSetupLabel(e.target.value)}
-                        placeholder="e.g., My Voice Agent"
+                        value={genericSetupLabel}
+                        onChange={(e) => setGenericSetupLabel(e.target.value)}
+                        placeholder="e.g., My SIP Provider"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -487,31 +661,66 @@ export default function PhoneSettingsDetailPage() {
                       </label>
                       <input
                         type="text"
-                        value={livekitSetupPhone}
-                        onChange={(e) => setLivekitSetupPhone(e.target.value)}
+                        value={genericSetupPhone}
+                        onChange={(e) => setGenericSetupPhone(e.target.value)}
                         placeholder="+1234567890"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
-                        Twilio SIP Address <span className="text-red-500">*</span>
+                        SIP Address <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={livekitSetupSipAddress}
-                        onChange={(e) => setLivekitSetupSipAddress(e.target.value)}
-                        placeholder="example.pstn.twilio.com"
+                        value={genericSetupSipAddress}
+                        onChange={(e) => setGenericSetupSipAddress(e.target.value)}
+                        placeholder="sip.provider.com"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Your existing Twilio SIP trunk address
-                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Username <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={genericSetupUsername}
+                        onChange={(e) => setGenericSetupUsername(e.target.value)}
+                        placeholder="your_username"
+                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Password <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={genericSetupPassword}
+                        onChange={(e) => setGenericSetupPassword(e.target.value)}
+                        placeholder="••••••••••••••••"
+                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Transport <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={genericSetupTransport}
+                        onChange={(e) => setGenericSetupTransport(e.target.value)}
+                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="udp">UDP</option>
+                        <option value="tcp">TCP</option>
+                        <option value="tls">TLS</option>
+                      </select>
                     </div>
                     <button
-                      onClick={handleLiveKitSetup}
-                      disabled={isSettingUp || !livekitSetupLabel || !livekitSetupPhone || !livekitSetupSipAddress}
-                      className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      onClick={handleGenericSetup}
+                      disabled={isSettingUp || !genericSetupLabel || !genericSetupPhone || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword}
+                      className="w-full h-10 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isSettingUp ? (
                         <>
@@ -519,7 +728,7 @@ export default function PhoneSettingsDetailPage() {
                           Creating...
                         </>
                       ) : (
-                        "Create LiveKit Trunk"
+                        "Create Generic SIP Trunk"
                       )}
                     </button>
                   </div>
@@ -664,15 +873,15 @@ export default function PhoneSettingsDetailPage() {
               </p>
             </div>
 
-              {/* Save Button */}
-              <div className="flex justify-end pt-4">
-                <button
-                  onClick={handleSaveSettings}
-                  disabled={isUpdating || !selectedVoice || !twilioPhoneNumber || !livekitSipTrunkId}
-                  className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUpdating ? "Saving..." : "Save Settings"}
-                </button>
+            {/* Save Button */}
+            <div className="flex justify-end pt-4">
+              <button
+                onClick={handleSaveSettings}
+                disabled={isUpdating || !selectedVoice || !twilioPhoneNumber || !livekitSipTrunkId}
+                className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUpdating ? "Saving..." : "Save Settings"}
+              </button>
               </div>
             </div>
           </div>
@@ -769,6 +978,222 @@ export default function PhoneSettingsDetailPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Inbound Tab */}
+      {activeTab === "inbound" && (
+        <div className="bg-card border border-border rounded-xl p-6 max-w-3xl">
+          {/* Step Indicator */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center gap-4">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+                inboundStep >= 1 ? 'bg-primary text-foreground' : 'bg-secondary text-muted-foreground'
+              }`}>
+                1
+              </div>
+              <div className={`w-16 h-0.5 ${inboundStep >= 2 ? 'bg-primary' : 'bg-secondary'}`}></div>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+                inboundStep >= 2 ? 'bg-primary text-foreground' : 'bg-secondary text-muted-foreground'
+              }`}>
+                2
+              </div>
+              <div className={`w-16 h-0.5 ${inboundStep >= 3 ? 'bg-primary' : 'bg-secondary'}`}></div>
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
+                inboundStep >= 3 ? 'bg-primary text-foreground' : 'bg-secondary text-muted-foreground'
+              }`}>
+                ✓
+              </div>
+            </div>
+          </div>
+
+          {/* Step 1: Create Inbound Trunk */}
+          {inboundStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-2xl font-bold text-foreground">Setup Inbound Trunk</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Create an inbound SIP trunk to receive calls
+                </p>
+              </div>
+
+              {/* Show existing configured numbers */}
+              {settings?.inboundPhoneNumbers && settings.inboundPhoneNumbers.length > 0 && (
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <h4 className="text-sm font-medium text-green-400 mb-3">Previously Configured Numbers:</h4>
+                  <div className="space-y-2">
+                    {settings.inboundPhoneNumbers.map((num, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-2 bg-background rounded-lg">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span className="font-mono text-foreground text-sm">{num}</span>
+                        <Check className="w-4 h-4 text-green-500 ml-auto" />
+                      </div>
+                    ))}
+                  </div>
+                  {settings.inboundTrunkName && (
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Trunk: <span className="text-foreground">{settings.inboundTrunkName}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Trunk Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={inboundName}
+                  onChange={(e) => setInboundName(e.target.value)}
+                  placeholder="e.g., My Inbound Trunk"
+                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Phone Numbers <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={inboundPhoneNumbers}
+                  onChange={(e) => setInboundPhoneNumbers(e.target.value)}
+                  placeholder="+1234567890, +0987654321"
+                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enter phone numbers in E.164 format, separated by commas
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="krispEnabled"
+                  checked={inboundKrispEnabled}
+                  onChange={(e) => setInboundKrispEnabled(e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <label htmlFor="krispEnabled" className="text-sm text-foreground cursor-pointer">
+                  Enable Krisp noise cancellation
+                </label>
+              </div>
+
+              <button
+                onClick={handleCreateInboundTrunk}
+                disabled={isCreatingInbound || !inboundName || !inboundPhoneNumbers}
+                className="w-full h-11 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isCreatingInbound ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating Trunk...
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Create Dispatch Rule */}
+          {inboundStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-2xl font-bold text-foreground">Create Dispatch Rule</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Configure routing for incoming calls
+                </p>
+              </div>
+
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <h4 className="text-sm font-medium text-green-400 mb-2">Trunk Created Successfully!</h4>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>Trunk ID: <span className="font-mono text-foreground">{inboundTrunkId}</span></p>
+                  <p>Trunk Name: <span className="text-foreground">{inboundTrunkName}</span></p>
+                  <p>Phone Numbers:</p>
+                  <ul className="ml-4 list-disc">
+                    {inboundConnectedNumbers.map((num, idx) => (
+                      <li key={idx} className="font-mono text-foreground">{num}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  The dispatch rule will route incoming calls to the <span className="font-mono text-primary">inbound-agent</span> automatically.
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setInboundStep(1)}
+                  className="flex-1 h-11 bg-secondary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleCreateDispatchRule}
+                  disabled={isCreatingInbound}
+                  className="flex-1 h-11 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isCreatingInbound ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating Rule...
+                    </>
+                  ) : (
+                    "Complete Setup"
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Success */}
+          {inboundStep === 3 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-500" />
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Inbound Setup Complete!</h3>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Your inbound trunk and dispatch rule have been configured successfully
+                </p>
+              </div>
+
+              <div className="p-6 bg-green-500/10 border border-green-500/20 rounded-lg space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-green-400 mb-2">Connected Phone Numbers:</h4>
+                  <div className="space-y-2">
+                    {inboundConnectedNumbers.map((num, idx) => (
+                      <div key={idx} className="flex items-center gap-2 p-3 bg-background rounded-lg">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span className="font-mono text-foreground">{num}</span>
+                        <Check className="w-4 h-4 text-green-500 ml-auto" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-green-500/20">
+                  <p className="text-xs text-muted-foreground">
+                    All incoming calls to these numbers will be automatically routed to your inbound agent.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={resetInboundSetup}
+                className="w-full h-11 bg-secondary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+              >
+                Setup Another Inbound Trunk
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

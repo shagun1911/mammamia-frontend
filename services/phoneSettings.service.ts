@@ -10,6 +10,12 @@ export interface PhoneSettings {
   terminationUri?: string;
   originationUri?: string;
   humanOperatorPhone: string;
+  // Inbound Trunk fields
+  inboundTrunkId?: string;
+  inboundTrunkName?: string;
+  inboundPhoneNumbers?: string[];
+  inboundDispatchRuleId?: string;
+  inboundDispatchRuleName?: string;
   isConfigured: boolean;
   createdAt: string;
   updatedAt: string;
@@ -23,6 +29,12 @@ export interface UpdatePhoneSettingsData {
   terminationUri?: string;
   originationUri?: string;
   humanOperatorPhone?: string;
+  // Inbound Trunk fields
+  inboundTrunkId?: string;
+  inboundTrunkName?: string;
+  inboundPhoneNumbers?: string[];
+  inboundDispatchRuleId?: string;
+  inboundDispatchRuleName?: string;
 }
 
 // SIP Trunk Setup Interfaces
@@ -52,6 +64,7 @@ export interface CreateLiveKitTrunkRequest {
   sip_address: string;
   username?: string;
   password?: string;
+  transport?: string;
 }
 
 export interface CreateLiveKitTrunkResponse {
@@ -60,6 +73,50 @@ export interface CreateLiveKitTrunkResponse {
   livekit_trunk_id: string;
   sip_address: string;
   phone_number: string;
+}
+
+export interface CreateGenericSipTrunkRequest {
+  label: string;
+  phone_number: string;
+  sip_address: string;
+  username: string;
+  password: string;
+  provider_name?: string;
+  transport: string;
+  port?: number;
+}
+
+export interface CreateGenericSipTrunkResponse {
+  status: string;
+  message: string;
+  livekit_trunk_id: string;
+  provider_name: string;
+  sip_address: string;
+  phone_number: string;
+  transport: string;
+}
+
+export interface CreateInboundTrunkRequest {
+  name: string;
+  phone_numbers: string[];
+  allowed_numbers?: string[];
+  krisp_enabled?: boolean;
+}
+
+export interface CreateInboundTrunkResponse {
+  trunk: {
+    status: string;
+    message: string;
+    trunk_id: string;
+    trunk_name: string;
+    phone_numbers: string[];
+  };
+  dispatch_rule: {
+    status: string;
+    message: string;
+    dispatch_rule_id: string;
+    dispatch_rule_name: string;
+  };
 }
 
 export const phoneSettingsService = {
@@ -75,7 +132,14 @@ export const phoneSettingsService = {
    * Update phone settings
    */
   async updateSettings(data: UpdatePhoneSettingsData): Promise<PhoneSettings> {
+    console.log('📡 [Phone Settings Service] Updating settings...');
+    console.log('📦 [Phone Settings Service] Data:', JSON.stringify(data, null, 2));
+    
     const response = await apiClient.put('/phone-settings', data);
+    
+    console.log('✅ [Phone Settings Service] Update successful');
+    console.log('📊 [Phone Settings Service] Response:', JSON.stringify(response.data, null, 2));
+    
     return response.data;
   },
 
@@ -116,29 +180,55 @@ export const phoneSettingsService = {
     return result;
   },
 
+  // /**
+  //  * Create LiveKit Trunk - Create LiveKit trunk from existing Twilio setup
+  //  */
+  // async createLiveKitTrunk(data: CreateLiveKitTrunkRequest): Promise<CreateLiveKitTrunkResponse> {
+  //   const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
+  //   const response = await fetch(`${PYTHON_API}/calls/create-livekit-trunk`, {
+  //     method: 'POST',
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //     },
+  //     body: JSON.stringify({
+  //       ...data,
+  //       username: data.username || 'default_user',
+  //       password: data.password || 'default_password',
+  //       transport: data.transport || 'udp',
+  //     }),
+  //   });
+
+  //   if (!response.ok) {
+  //     const error = await response.json().catch(() => ({ message: 'Failed to create LiveKit trunk' }));
+  //     throw new Error(error.message || 'Failed to create LiveKit trunk');
+  //   }
+
+  //   return response.json();
+  // },
+
   /**
-   * Create LiveKit Trunk - Create LiveKit trunk from existing Twilio setup
+   * Create Generic SIP Trunk - Universal SIP trunk for any provider
    */
-  async createLiveKitTrunk(data: CreateLiveKitTrunkRequest): Promise<CreateLiveKitTrunkResponse> {
-    const PYTHON_API = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-production.up.railway.app';
-    const response = await fetch(`${PYTHON_API}/calls/create-livekit-trunk`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...data,
-        username: data.username || 'default_user',
-        password: data.password || 'default_password',
-      }),
+  async createGenericSipTrunk(data: CreateGenericSipTrunkRequest): Promise<CreateGenericSipTrunkResponse> {
+    const response = await apiClient.post('/phone-settings/create-generic-sip-trunk', {
+      ...data,
+      provider_name: data.provider_name || 'generic',
+      transport: data.transport,
+      port: data.port || 5060
     });
+    return response.data;
+  },
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to create LiveKit trunk' }));
-      throw new Error(error.message || 'Failed to create LiveKit trunk');
-    }
-
-    return response.json();
+  /**
+   * Create Inbound Trunk - For receiving calls with dispatch rules
+   */
+  async createInboundTrunk(data: CreateInboundTrunkRequest): Promise<CreateInboundTrunkResponse> {
+    const response = await apiClient.post('/phone-settings/create-inbound-trunk', {
+      ...data,
+      allowed_numbers: data.allowed_numbers || [],
+      krisp_enabled: data.krisp_enabled !== undefined ? data.krisp_enabled : true
+    });
+    return response.data;
   },
 };
 

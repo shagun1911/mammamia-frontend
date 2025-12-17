@@ -10,6 +10,8 @@ export interface UpdateSettingsData {
   autoReplyMessage?: string;
   defaultKnowledgeBaseId?: string;
   defaultKnowledgeBaseName?: string;
+  defaultKnowledgeBaseIds?: string[]; // Multiple knowledge bases support
+  defaultKnowledgeBaseNames?: string[]; // Multiple collection names for RAG
   businessHours?: any;
   // Conversation Settings
   autoAssign?: boolean;

@@ -96,7 +96,7 @@ export function WidgetSimulator() {
         
         const response = await pythonRagService.chat({
           query: userQuery,
-          collection_name: selectedCollection,
+          collection_names: [selectedCollection], // Updated to array for multiple collections support
           thread_id: threadId,
           system_prompt: systemPrompt,
           top_k: 5
@@ -131,7 +131,7 @@ export function WidgetSimulator() {
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         sender: "bot" as const,
-        content: `Error: ${error.message}. Please ensure Python RAG service is accessible at https://keplerov1-python-production.up.railway.app`,
+        content: `Error: ${error.message}. Please ensure Python RAG service is accessible at https://keplerov1-python-2.onrender.com`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);

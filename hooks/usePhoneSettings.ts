@@ -16,10 +16,12 @@ export function usePhoneSettings() {
     mutationFn: (data: UpdatePhoneSettingsData) => phoneSettingsService.updateSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['phoneSettings'] });
-      toast.success('Phone settings updated successfully');
+      // Don't show toast here - let the caller handle success messages
     },
     onError: (error: any) => {
+      console.error('[usePhoneSettings] Update error:', error);
       toast.error(error.response?.data?.error?.message || 'Failed to update phone settings');
+      throw error; // Re-throw so caller can handle it
     },
   });
 
@@ -27,7 +29,7 @@ export function usePhoneSettings() {
     settings,
     isLoading,
     error,
-    updateSettings: updateMutation.mutate,
+    updateSettings: updateMutation.mutateAsync, // Use mutateAsync to return a promise
     isUpdating: updateMutation.isPending,
   };
 }

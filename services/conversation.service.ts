@@ -164,6 +164,7 @@ class ConversationService {
         folder: conv.folderId || null,
         messages: conv.messages || [],
         transcript: conv.transcript || null,
+        metadata: conv.metadata || {}, // ADD METADATA!
       };
     } catch (error: any) {
       console.error('[ConversationService] Failed to fetch conversation:', error);

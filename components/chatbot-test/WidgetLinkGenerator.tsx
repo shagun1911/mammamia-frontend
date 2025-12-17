@@ -142,7 +142,7 @@ export function WidgetLinkGenerator() {
         <ul className="space-y-1 text-sm text-blue-300">
           <li>• Widget ID: <code className="bg-blue-500/20 px-2 py-0.5 rounded">{widgetId}</code></li>
           <li>• Collection: <code className="bg-blue-500/20 px-2 py-0.5 rounded">{selectedCollection || 'None selected'}</code></li>
-          <li>• RAG Service: <code className="bg-blue-500/20 px-2 py-0.5 rounded">https://keplerov1-python-production.up.railway.app</code></li>
+          <li>• RAG Service: <code className="bg-blue-500/20 px-2 py-0.5 rounded">https://keplerov1-python-2.onrender.com</code></li>
         </ul>
         {!selectedCollection && (
           <p className="text-xs text-amber-400 mt-3">

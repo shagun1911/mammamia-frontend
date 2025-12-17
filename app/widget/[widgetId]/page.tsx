@@ -184,7 +184,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
         
         const response = await pythonRagService.chat({
           query: userQuery,
-          collection_name: selectedCollection,
+          collection_names: [selectedCollection], // Updated to array for multiple collections support
           thread_id: threadId,
           system_prompt: systemPrompt,
           top_k: 5

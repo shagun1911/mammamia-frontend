@@ -77,7 +77,7 @@ export default function SignInPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">
-            Welcome to IslandAIAI
+            Welcome to HelicsAI
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             Sign in to your account to continue
@@ -172,7 +172,7 @@ export default function SignInPage() {
           </form>
           <div className="mt-6 text-center">
             <p className="text-xs text-muted-foreground">
-              Demo credentials: admin@test.com / admin123
+              {/* Demo credentials: admin@test.com / admin123 */}
             </p>
           </div>
         </CardContent>

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const PYTHON_RAG_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'https://keplerov1-python-production.up.railway.app';
+const PYTHON_RAG_URL = process.env.NEXT_PUBLIC_RAG_API_URL || 'https://keplerov1-python-2.onrender.com';
 
 export interface CreateCollectionRequest {
   collection_name: string;
@@ -9,13 +9,13 @@ export interface CreateCollectionRequest {
 export interface DataIngestionRequest {
   collection_name: string;
   url_links?: string;
-  pdf_files?: File[];
-  excel_files?: File[];
+  pdf_files?: File[] | Buffer[];
+  excel_files?: File[] | Buffer[];
 }
 
 export interface ChatRequest {
   query: string;
-  collection_name: string;
+  collection_names: string[]; // Updated to support multiple collections
   top_k?: number;
   thread_id?: string;
   system_prompt?: string;
@@ -101,15 +101,29 @@ export class PythonRagService {
 
       // Add PDF files
       if (params.pdf_files && params.pdf_files.length > 0) {
-        params.pdf_files.forEach((file) => {
-          formData.append('pdf_files', file);
+        params.pdf_files.forEach((file, index) => {
+          // Convert Buffer to Blob if needed (for backend compatibility)
+          if (file instanceof Blob || file instanceof File) {
+            formData.append('pdf_files', file);
+          } else {
+            // Handle Buffer type (though this shouldn't happen in browser context)
+            const blob = new Blob([file as any], { type: 'application/pdf' });
+            formData.append('pdf_files', blob, `file_${index}.pdf`);
+          }
         });
       }
 
       // Add Excel files
       if (params.excel_files && params.excel_files.length > 0) {
-        params.excel_files.forEach((file) => {
-          formData.append('excel_files', file);
+        params.excel_files.forEach((file, index) => {
+          // Convert Buffer to Blob if needed (for backend compatibility)
+          if (file instanceof Blob || file instanceof File) {
+            formData.append('excel_files', file);
+          } else {
+            // Handle Buffer type (though this shouldn't happen in browser context)
+            const blob = new Blob([file as any], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            formData.append('excel_files', blob, `file_${index}.xlsx`);
+          }
         });
       }
 
@@ -139,7 +153,8 @@ export class PythonRagService {
     try {
       console.log('🔧 [Python RAG Service] Chat request initiated');
       console.log('📦 [Python RAG Service] Parameters:', {
-        collection: params.collection_name,
+        collections: params.collection_names,
+        collectionsCount: params.collection_names?.length || 0,
         query: params.query?.substring(0, 50) + '...',
         threadId: params.thread_id,
         topK: params.top_k,
@@ -174,7 +189,7 @@ export class PythonRagService {
 
       const requestBody = {
         query: params.query,
-        collection_name: params.collection_name,
+        collection_names: params.collection_names, // Updated to support multiple collections
         top_k: params.top_k || 5,
         thread_id: params.thread_id,
         system_prompt: params.system_prompt,

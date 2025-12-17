@@ -77,7 +77,7 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
       }
     } catch (error: any) {
       console.error('Failed to ingest data:', error);
-      toast.error(error.message || 'Failed to connect to RAG service. Please check if the Python service is accessible at https://keplerov1-python-production.up.railway.app.');
+      toast.error(error.message || 'Failed to connect to RAG service. Please check if the Python service is accessible at https://keplerov1-python-2.onrender.com.');
     } finally {
       setIsIngesting(false);
       setUploadProgress(0);

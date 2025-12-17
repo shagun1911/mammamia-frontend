@@ -23,25 +23,38 @@ export function RAGChatInterface() {
   const [query, setQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showRetrievedDocs, setShowRetrievedDocs] = useState<string | null>(null);
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]); // Multiple KB selection
+  const [showKBDropdown, setShowKBDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentThread = currentThreadId ? getChatThread(currentThreadId) : null;
+
+  // Sync with single selection for backward compatibility
+  useEffect(() => {
+    if (selectedCollection && !selectedCollections.includes(selectedCollection)) {
+      setSelectedCollections([selectedCollection]);
+    }
+  }, [selectedCollection]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentThread?.messages]);
 
   const handleSend = async () => {
-    if (!query.trim() || !selectedCollection) return;
+    if (!query.trim() || selectedCollections.length === 0) {
+      toast.error('Please select at least one knowledge base');
+      return;
+    }
 
     console.log('🤖 [RAG Chat] Starting conversation...');
-    console.log('📋 [RAG Chat] Collection:', selectedCollection);
+    console.log('📋 [RAG Chat] Collections:', selectedCollections);
     console.log('💬 [RAG Chat] Query:', query);
 
-    // Create new thread if none exists
+    // Create new thread if none exists - use first collection for thread naming
     let threadId = currentThreadId;
-    if (!threadId || currentThread?.collection_name !== selectedCollection) {
-      threadId = createNewThread(selectedCollection);
+    const mainCollection = selectedCollections[0];
+    if (!threadId || currentThread?.collection_name !== mainCollection) {
+      threadId = createNewThread(mainCollection);
       console.log('🆕 [RAG Chat] Created new thread:', threadId);
     } else {
       console.log('🔄 [RAG Chat] Using existing thread:', threadId);
@@ -75,13 +88,13 @@ export function RAGChatInterface() {
       });
 
       // Construct system prompt
-      const systemPrompt = `Knowledge base: ${selectedCollection}. Use documents from this collection to answer questions accurately.\n\n${chatAgentPrompt}`;
+      const systemPrompt = `Knowledge bases: ${selectedCollections.join(', ')}. Use documents from these collections to answer questions accurately.\n\n${chatAgentPrompt}`;
       console.log('📝 [RAG Chat] System prompt length:', systemPrompt.length);
 
       console.log('🚀 [RAG Chat] Sending request to Python RAG service...');
       const response = await pythonRagService.chat({
         query: userQuery,
-        collection_name: selectedCollection,
+        collection_names: selectedCollections, // Updated to support multiple collections
         thread_id: threadId,
         system_prompt: systemPrompt,
         top_k: 5,
@@ -129,35 +142,103 @@ export function RAGChatInterface() {
   };
 
   const handleNewChat = () => {
-    if (selectedCollection) {
-      createNewThread(selectedCollection);
+    if (selectedCollections.length > 0) {
+      createNewThread(selectedCollections[0]);
       toast.success('Started new chat session');
     }
   };
 
+  const toggleCollection = (collectionName: string) => {
+    setSelectedCollections(prev => {
+      if (prev.includes(collectionName)) {
+        return prev.filter(c => c !== collectionName);
+      } else {
+        return [...prev, collectionName];
+      }
+    });
+  };
+
+  const selectAllCollections = () => {
+    const allCollectionNames = Object.keys(collections);
+    setSelectedCollections(allCollectionNames);
+  };
+
+  const clearAllSelections = () => {
+    setSelectedCollections([]);
+  };
+
   return (
     <div className="flex flex-col h-full">
-      {/* Collection Selection */}
+      {/* Multiple Collection Selection */}
       <div className="bg-card border border-border rounded-xl p-4 mb-4">
-        <label className="block text-sm font-medium text-foreground mb-2">
-          Select Knowledge Base
-        </label>
-        <div className="flex gap-3">
-          <select
-            value={selectedCollection || ''}
-            onChange={(e) => setSelectedCollection(e.target.value || null)}
-            className="flex-1 bg-secondary border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-primary transition-colors"
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm font-medium text-foreground">
+            Select Knowledge Bases ({selectedCollections.length} selected)
+          </label>
+          <div className="flex gap-2">
+            <button
+              onClick={selectAllCollections}
+              className="text-xs text-primary hover:underline"
+            >
+              Select All
+            </button>
+            <button
+              onClick={clearAllSelections}
+              className="text-xs text-muted-foreground hover:underline"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+        
+        <div className="relative">
+          <button
+            onClick={() => setShowKBDropdown(!showKBDropdown)}
+            className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-left text-foreground focus:outline-none focus:border-primary transition-colors flex items-center justify-between"
           >
-            <option value="">-- Select a collection --</option>
-            {collections.map((collection) => (
-              <option key={collection.collection_name} value={collection.collection_name}>
-                {collection.collection_name}
-              </option>
-            ))}
-          </select>
+            <span className="truncate">
+              {selectedCollections.length === 0 
+                ? 'Select knowledge bases...'
+                : selectedCollections.length === 1
+                ? selectedCollections[0]
+                : `${selectedCollections.length} knowledge bases selected`
+              }
+            </span>
+            <ChevronDown className={`w-4 h-4 transition-transform ${showKBDropdown ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {showKBDropdown && (
+            <div className="absolute z-10 w-full mt-1 bg-secondary border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {collections.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-muted-foreground">
+                  No knowledge bases available. Create one first.
+                </div>
+              ) : (
+                collections.map((collection) => (
+                  <label
+                    key={collection.collection_name}
+                    className="flex items-center px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCollections.includes(collection.collection_name)}
+                      onChange={() => toggleCollection(collection.collection_name)}
+                      className="mr-3 h-4 w-4 text-primary focus:ring-primary border-border rounded"
+                    />
+                    <span className="text-sm text-foreground">
+                      {collection.collection_name}
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 mt-3">
           <button
             onClick={handleNewChat}
-            disabled={!selectedCollection}
+            disabled={selectedCollections.length === 0}
             className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Start new chat"
           >
@@ -165,6 +246,7 @@ export function RAGChatInterface() {
             New Chat
           </button>
         </div>
+        
         {collections.length === 0 && (
           <p className="text-xs text-amber-500 mt-2">
             No collections available. Please create a knowledge base first.
@@ -182,9 +264,9 @@ export function RAGChatInterface() {
                 Ready to Chat
               </h3>
               <p className="text-sm text-muted-foreground max-w-md">
-                {selectedCollection
-                  ? `Ask questions about your ${selectedCollection} knowledge base`
-                  : 'Select a knowledge base collection to start chatting'}
+                {selectedCollections.length > 0
+                  ? `Ask questions across ${selectedCollections.length} selected knowledge base${selectedCollections.length > 1 ? 's' : ''}`
+                  : 'Select one or more knowledge bases to start chatting'}
               </p>
             </div>
           ) : (
@@ -273,16 +355,16 @@ export function RAGChatInterface() {
                 }
               }}
               placeholder={
-                selectedCollection
+                selectedCollections.length > 0
                   ? 'Ask a question...'
-                  : 'Select a collection first...'
+                  : 'Select knowledge bases first...'
               }
-              disabled={!selectedCollection || isSending}
+              disabled={selectedCollections.length === 0 || isSending}
               className="flex-1 bg-secondary border border-border rounded-lg px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-50"
             />
             <button
               onClick={handleSend}
-              disabled={!query.trim() || !selectedCollection || isSending}
+              disabled={!query.trim() || selectedCollections.length === 0 || isSending}
               className="px-6 py-3 bg-primary text-foreground rounded-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[100px]"
             >
               {isSending ? (

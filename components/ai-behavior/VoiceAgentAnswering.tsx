@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Phone, ChevronDown, ChevronUp, TestTube2 } from "lucide-react";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api";
 
 const LANGUAGE_OPTIONS = [
   { code: 'en', name: 'English' },
@@ -102,21 +103,13 @@ export function VoiceAgentAnswering() {
 
     setIsTesting(true);
     try {
-      const response = await fetch('/api/v1/ai-behavior/voice-agent/test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        },
-        body: JSON.stringify({
-          phoneNumber: testPhoneNumber
-        })
+      const result = await apiClient.post('/ai-behavior/voice-agent/test', {
+        phoneNumber: testPhoneNumber
       });
 
-      const result = await response.json();
       console.log('✅ Test call response:', result);
 
-      if (response.ok && result.success) {
+      if (result.success) {
         toast.success(result.data?.message || 'Test call initiated! You should receive a call shortly.');
         setShowTestModal(false);
         setTestPhoneNumber("");
@@ -124,9 +117,9 @@ export function VoiceAgentAnswering() {
         const errorMessage = result.error?.message || result.message || 'Failed to initiate test call';
         toast.error(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error testing voice agent:', error);
-      toast.error('Failed to initiate test call');
+      toast.error(error.message || 'Failed to initiate test call');
     } finally {
       setIsTesting(false);
     }

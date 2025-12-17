@@ -28,11 +28,24 @@ export function ConversationDetail({
   const [folderSelectModalOpen, setFolderSelectModalOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<'sms' | 'whatsapp' | null>(null);
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
+  const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
   
   const updateStatus = useUpdateConversationStatus();
   const assignOperator = useAssignOperator();
   const moveToFolder = useMoveToFolder();
   const { socket, isConnected } = useSocket();
+
+  // Debug: Log conversation metadata
+  useEffect(() => {
+    console.log('[ConversationDetail] Conversation loaded:', {
+      id: conversation.id,
+      channel: conversation.channel,
+      // @ts-ignore
+      metadata: conversation.metadata,
+      // @ts-ignore
+      hasCallerId: !!conversation.metadata?.callerId
+    });
+  }, [conversation]);
 
   // Listen for real-time messages
   useEffect(() => {
@@ -47,7 +60,6 @@ export function ConversationDetail({
     const handleNewMessage = (data: any) => {
       console.log('[Real-time] New message received:', data);
       setRealtimeMessages(prev => [...prev, data]);
-      
       // Show notification
       if (data.sender === 'ai') {
         toast.success('AI replied to the conversation');
@@ -165,21 +177,67 @@ export function ConversationDetail({
     setShowChannelsMenu(false);
   };
 
+  const handleFetchTranscript = async () => {
+    // @ts-ignore - metadata.callerId may exist
+    const callerId = conversation.metadata?.callerId;
+    
+    if (!callerId) {
+      toast.error('No caller ID found for this conversation');
+      return;
+    }
+
+    setIsFetchingTranscript(true);
+    
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+      
+      const response = await fetch(
+        `${API_URL}/conversations/transcript/${callerId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Failed to fetch transcript');
+      }
+
+      const data = await response.json();
+      console.log('Transcript fetched successfully:', data);
+      toast.success('Transcript loaded! Refreshing...');
+      
+      // Reload the page to show updated transcript
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error: any) {
+      console.error('Error fetching transcript:', error);
+      toast.error(error.message || 'Failed to fetch transcript');
+    } finally {
+      setIsFetchingTranscript(false);
+    }
+  };
+
   // Convert messages to the format expected by MessageThread
   const messages = useMemo(() => {
     // @ts-ignore - messages may come from API with different structure
-    if (conversation.messages && Array.isArray(conversation.messages)) {
+    if (conversation.messages && Array.isArray(conversation.messages) && conversation.messages.length > 0) {
       // @ts-ignore
       return conversation.messages.map((msg: any) => ({
         id: msg._id || msg.id,
-        sender: (msg.sender === 'customer' ? 'customer' : 'agent') as 'customer' | 'agent',
+        sender: (msg.sender === 'customer' || msg.sender === 'user' ? 'customer' : 'agent') as 'customer' | 'agent',
         content: msg.text || msg.content,
         timestamp: msg.timestamp || msg.createdAt || new Date().toISOString(),
         type: 'text' as const,
       }));
     }
     
-    // Fallback to transcript if no messages (shouldn't happen with new implementation)
+    // Fallback to transcript if no messages
     // @ts-ignore - transcript may exist on conversation
     if (conversation.transcript) {
       // @ts-ignore
@@ -188,10 +246,30 @@ export function ConversationDetail({
       
       // Parse transcript object and convert to message format
       // Transcript format can be:
-      // 1. { "0": { role: "user", content: "..." }, "1": { role: "assistant", content: "..." } }
-      // 2. Array: [{ role: "user", content: "..." }, { role: "assistant", content: "..." }]
+      // 1. { items: [{ type: "message", role: "user", content: [...] }] } - New Python service format
+      // 2. { "0": { role: "user", content: "..." }, "1": { role: "assistant", content: "..." } }
+      // 3. Array: [{ role: "user", content: "..." }, { role: "assistant", content: "..." }]
       
-      if (Array.isArray(transcript)) {
+      // Handle new Python service format with items array
+      if (transcript.items && Array.isArray(transcript.items)) {
+        for (let i = 0; i < transcript.items.length; i++) {
+          const item = transcript.items[i];
+          // Only process message items, skip function calls and other types
+          if (item && item.type === 'message' && item.role && item.content) {
+            const role = item.role;
+            const content = Array.isArray(item.content) ? item.content.join(' ') : item.content;
+            transcriptMessages.push({
+              id: item.id || `transcript-${i}`,
+              sender: (role === 'user' || role === 'customer' ? 'customer' : 'agent') as 'customer' | 'agent',
+              content,
+              timestamp: conversation.timestamp || new Date().toISOString(),
+              type: 'text' as const,
+            });
+          }
+        }
+      }
+      // Handle old array format
+      else if (Array.isArray(transcript)) {
         for (let i = 0; i < transcript.length; i++) {
           const item = transcript[i];
           if (item && (item.role || item.sender) && (item.content || item.text || item.message)) {
@@ -380,6 +458,70 @@ export function ConversationDetail({
           </button>
         </div>
       </div>
+
+      {/* Outbound Call Info - Always show if callerId exists */}
+      {/* @ts-ignore - metadata may exist */}
+      {conversation.metadata?.callerId && (
+        <div className="px-4 py-3 bg-blue-500/10 border-b border-blue-500/20">
+          <div className="flex flex-col gap-2">
+            {/* Caller ID */}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Phone className="w-3 h-3" />
+              {/* @ts-ignore */}
+              <span>Caller ID: {conversation.metadata.callerId}</span>
+            </div>
+            
+            {/* Fetch Transcript Button */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-foreground">
+                {/* @ts-ignore */}
+                {conversation.transcript ? 'Transcript loaded. Click to refresh.' : 'Click to fetch transcript and recording'}
+              </span>
+              <button
+                onClick={handleFetchTranscript}
+                disabled={isFetchingTranscript}
+                className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {/* @ts-ignore */}
+                {isFetchingTranscript ? 'Loading...' : conversation.transcript ? 'Refresh Transcript' : 'Get Transcript & Recording'}
+              </button>
+            </div>
+
+            {/* Show call duration and recording if available */}
+            {/* @ts-ignore */}
+            {conversation.transcript && (
+              <div className="flex flex-col gap-1 pt-2 border-t border-blue-500/20">
+                {/* @ts-ignore */}
+                {conversation.metadata?.duration && (
+                  <span className="text-xs text-foreground">
+                    {/* @ts-ignore */}
+                    Duration: {conversation.metadata.duration}
+                  </span>
+                )}
+                {/* Recording URL */}
+                {(() => {
+                  // @ts-ignore - metadata may exist
+                  const recordingUrl = conversation.metadata?.recording_url;
+                  return recordingUrl ? (
+                    <a
+                      href={recordingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 underline text-xs"
+                    >
+                      🎙️ Play Call Recording
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">
+                      No recording found
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Message thread */}
       <MessageThread
