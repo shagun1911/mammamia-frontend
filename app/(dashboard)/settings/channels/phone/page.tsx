@@ -19,6 +19,7 @@ export default function PhoneSettingsDetailPage() {
 
   // Form state
   const [selectedVoice, setSelectedVoice] = useState(settings?.selectedVoice || "adam");
+  const [customVoiceId, setCustomVoiceId] = useState(settings?.customVoiceId || "");
   const [twilioPhoneNumber, setTwilioPhoneNumber] = useState(settings?.twilioPhoneNumber || "");
   const [livekitSipTrunkId, setLivekitSipTrunkId] = useState(settings?.livekitSipTrunkId || "");
   const [twilioTrunkSid, setTwilioTrunkSid] = useState(settings?.twilioTrunkSid || "");
@@ -63,6 +64,7 @@ export default function PhoneSettingsDetailPage() {
   useEffect(() => {
     if (settings) {
       setSelectedVoice(settings.selectedVoice);
+      setCustomVoiceId(settings.customVoiceId || "");
       setTwilioPhoneNumber(settings.twilioPhoneNumber);
       setLivekitSipTrunkId(settings.livekitSipTrunkId);
       setTwilioTrunkSid(settings.twilioTrunkSid || "");
@@ -81,6 +83,7 @@ export default function PhoneSettingsDetailPage() {
   const handleSaveSettings = () => {
     updateSettings({
       selectedVoice,
+      customVoiceId,
       twilioPhoneNumber,
       livekitSipTrunkId,
       humanOperatorPhone,
@@ -765,6 +768,23 @@ export default function PhoneSettingsDetailPage() {
               </select>
               <p className="text-xs text-muted-foreground mt-2">
                 Select the voice for your AI agent. Go to the <button onClick={() => setActiveTab("voice")} className="text-primary hover:underline font-medium">Voice Playground</button> tab to preview all voices.
+              </p>
+            </div>
+
+            {/* Custom Voice ID */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Custom Voice ID (Optional)
+              </label>
+              <input
+                type="text"
+                value={customVoiceId}
+                onChange={(e) => setCustomVoiceId(e.target.value)}
+                placeholder="Enter custom ElevenLabs voice ID"
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Override the selected voice by providing a custom ElevenLabs voice ID. If provided, this will be used instead of the selected voice above.
               </p>
             </div>
 

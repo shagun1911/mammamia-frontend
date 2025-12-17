@@ -4,6 +4,7 @@ export interface PhoneSettings {
   _id: string;
   userId: string;
   selectedVoice: string;
+  customVoiceId?: string;
   twilioPhoneNumber: string;
   livekitSipTrunkId: string;
   twilioTrunkSid?: string;
@@ -23,6 +24,7 @@ export interface PhoneSettings {
 
 export interface UpdatePhoneSettingsData {
   selectedVoice?: string;
+  customVoiceId?: string;
   twilioPhoneNumber?: string;
   livekitSipTrunkId?: string;
   twilioTrunkSid?: string;
