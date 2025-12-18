@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles } fro
 import { useRouter } from "next/navigation";
 import { usePhoneSettings } from "@/hooks/usePhoneSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
+import { useInboundAgentConfig } from "@/hooks/useInboundAgentConfig";
 import { VOICE_OPTIONS, phoneSettingsService } from "@/services/phoneSettings.service";
 import { toast } from "sonner";
 import { VoicePlayground } from "@/components/settings/VoicePlayground";
@@ -13,6 +14,7 @@ export default function PhoneSettingsDetailPage() {
   const router = useRouter();
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
   const { aiBehavior, updateVoiceAgentHumanOperator } = useAIBehavior();
+  const { configs: inboundConfigs, syncConfig } = useInboundAgentConfig();
 
   const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall" | "inbound">("settings");
   const [copied, setCopied] = useState(false);
@@ -316,12 +318,23 @@ export default function PhoneSettingsDetailPage() {
       
       // Save to database
       console.log('💾 [Dispatch Rule] Saving to database...');
+      
+      // Merge with existing phone numbers instead of replacing
+      const existingNumbers = settings?.inboundPhoneNumbers || [];
+      const newNumbers = inboundConnectedNumbers.filter(num => !existingNumbers.includes(num));
+      const allPhoneNumbers = [...existingNumbers, ...newNumbers];
+      
+      console.log('📞 [Dispatch Rule] Existing numbers:', existingNumbers);
+      console.log('📞 [Dispatch Rule] New numbers from trunk:', inboundConnectedNumbers);
+      console.log('📞 [Dispatch Rule] Numbers to add:', newNumbers);
+      console.log('📞 [Dispatch Rule] Combined numbers:', allPhoneNumbers);
+      
       const updateData = {
         inboundTrunkId: inboundTrunkId,
         inboundTrunkName: inboundTrunkName,
         inboundDispatchRuleId: data.dispatch_rule_id,
         inboundDispatchRuleName: data.dispatch_rule_name,
-        inboundPhoneNumbers: inboundConnectedNumbers,
+        inboundPhoneNumbers: allPhoneNumbers,
       };
       console.log('💾 [Dispatch Rule] Update data:', JSON.stringify(updateData, null, 2));
       
@@ -329,9 +342,16 @@ export default function PhoneSettingsDetailPage() {
       try {
         await updateSettings(updateData);
         console.log('✅ [Dispatch Rule] Saved to database successfully');
+        console.log('ℹ️ [Dispatch Rule] Auto-sync will trigger from phoneSettings.service.ts');
         
         toast.success('Inbound setup completed successfully!');
         setInboundStep(3); // Success screen
+        
+        // Refresh configs to show the synced data
+        setTimeout(() => {
+          console.log('🔄 [Dispatch Rule] Refreshing inbound agent configs display...');
+          syncConfig.mutate();
+        }, 2000);
       } catch (dbError: any) {
         console.error('❌ [Dispatch Rule] Database save error:', dbError);
         toast.error('Dispatch rule created but failed to save settings: ' + (dbError.message || 'Unknown error'));
@@ -1003,7 +1023,86 @@ export default function PhoneSettingsDetailPage() {
 
       {/* Inbound Tab */}
       {activeTab === "inbound" && (
-        <div className="bg-card border border-border rounded-xl p-6 max-w-3xl">
+        <div className="space-y-6 max-w-3xl">
+          {/* Current Inbound Agent Configs */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Inbound Agent Configurations {inboundConfigs && inboundConfigs.length > 0 && `(${inboundConfigs.length})`}
+              </h3>
+              <button
+                onClick={() => syncConfig.mutate()}
+                disabled={syncConfig.isPending}
+                className="h-9 px-4 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {syncConfig.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  "Sync All Configs"
+                )}
+              </button>
+            </div>
+            
+            {!inboundConfigs || inboundConfigs.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground text-sm mb-4">
+                  No inbound agent configurations found.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Add inbound phone numbers below and configurations will be created automatically.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {inboundConfigs.map((config, index) => (
+                  <div key={config._id} className="border border-border rounded-lg p-4 bg-secondary/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs">
+                          {index + 1}
+                        </span>
+                        {config.calledNumber}
+                      </h4>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
+                        <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Voice ID:</div>
+                        <div className="text-xs text-foreground font-mono">{config.voice_id || 'Not set'}</div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
+                        <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Language:</div>
+                        <div className="text-xs text-foreground">{config.language || 'Not set'}</div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
+                        <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Collections:</div>
+                        <div className="text-xs text-foreground">
+                          {config.collections && config.collections.length > 0 
+                            ? config.collections.join(', ') 
+                            : 'No collections'}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
+                        <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Agent Instruction:</div>
+                        <div className="text-xs text-foreground line-clamp-2">
+                          {config.agent_instruction || 'No instruction set'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Setup Inbound Trunk */}
+          <div className="bg-card border border-border rounded-xl p-6">
           {/* Step Indicator */}
           <div className="flex items-center justify-center mb-8">
             <div className="flex items-center gap-4">
@@ -1214,6 +1313,7 @@ export default function PhoneSettingsDetailPage() {
               </button>
             </div>
           )}
+          </div>
         </div>
       )}
     </div>
