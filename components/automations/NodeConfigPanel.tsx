@@ -120,7 +120,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - CONTACT CREATED TRIGGER */}
+        {/* AISTEIN-IT - CONTACT CREATED TRIGGER */}
         {node.service === "keplero_contact_created" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -139,7 +139,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - CONTACT DELETED TRIGGER */}
+        {/* AISTEIN-IT - CONTACT DELETED TRIGGER */}
         {node.service === "keplero_contact_deleted" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -157,7 +157,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - CONTACT MOVED TRIGGER */}
+        {/* AISTEIN-IT - CONTACT MOVED TRIGGER */}
         {node.service === "keplero_contact_moved" && (
           <div className="space-y-4">
             <div>
@@ -186,7 +186,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - MASS SENDING TRIGGER */}
+        {/* AISTEIN-IT - MASS SENDING TRIGGER */}
         {node.service === "keplero_mass_sending" && (
           <div className="space-y-4">
             <div>
@@ -211,7 +211,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - OUTBOUND CALL ACTION */}
+        {/* AISTEIN-IT - OUTBOUND CALL ACTION */}
         {node.service === "keplero_outbound_call" && (
           <div className="space-y-4">
             <div>
@@ -267,7 +267,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - SEND SMS ACTION */}
+        {/* AISTEIN-IT - SEND SMS ACTION */}
         {node.service === "keplero_send_sms" && (
           <div className="space-y-4">
             <div>
@@ -289,7 +289,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - SEND EMAIL ACTION */}
+        {/* AISTEIN-IT - SEND EMAIL ACTION */}
         {node.service === "keplero_send_email" && (
           <div className="space-y-4">
             <div>
@@ -327,7 +327,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - CREATE CONTACT ACTION */}
+        {/* AISTEIN-IT - CREATE CONTACT ACTION */}
         {node.service === "keplero_create_contact" && (
           <div className="space-y-4">
             <div>
@@ -399,7 +399,7 @@ export function NodeConfigPanel({
           </div>
         )}
 
-        {/* KEPLERO AI - API CALL ACTION */}
+        {/* AISTEIN-IT - API CALL ACTION */}
         {node.service === "keplero_api_call" && (
           <div className="space-y-4">
             <div>
