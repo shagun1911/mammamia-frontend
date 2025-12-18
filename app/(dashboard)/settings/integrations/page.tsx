@@ -218,11 +218,11 @@ export default function IntegrationsPage() {
       setUploadingToDrive(true);
       const token = localStorage.getItem('accessToken');
       
-      const sampleContent = `KepleroAI - Sample File\n\nThis is a test file uploaded from KepleroAI integrations.\nTimestamp: ${new Date().toISOString()}\n`;
+      const sampleContent = `Aistein-It - Sample File\n\nThis is a test file uploaded from Aistein-It integrations.\nTimestamp: ${new Date().toISOString()}\n`;
       const blob = new Blob([sampleContent], { type: 'text/plain' });
       const formData = new FormData();
       formData.append('file', blob, 'kepleroai-test.txt');
-      formData.append('name', `KepleroAI Test - ${new Date().toLocaleDateString()}`);
+      formData.append('name', `Aistein-It Test - ${new Date().toLocaleDateString()}`);
       
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/drive/upload`,

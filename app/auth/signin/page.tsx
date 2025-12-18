@@ -77,7 +77,7 @@ export default function SignInPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">
-            Welcome to HelicsAI
+            Welcome to Aistein-It
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             Sign in to your account to continue

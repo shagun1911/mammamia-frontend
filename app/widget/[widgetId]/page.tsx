@@ -374,7 +374,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
         {/* Powered by */}
         <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-center">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Powered by <span className="font-semibold" style={{ color: widgetSettings.primaryColor }}>KepleroAI</span>
+            Powered by <span className="font-semibold" style={{ color: widgetSettings.primaryColor }}>Aistein-It</span>
           </p>
         </div>
       </div>
