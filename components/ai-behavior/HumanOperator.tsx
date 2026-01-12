@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserCircle, Plus, Trash2, Clock } from "lucide-react";
+import { UserCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface EscalationRule {
@@ -13,16 +13,6 @@ export function HumanOperator() {
   const [escalationRules, setEscalationRules] = useState<EscalationRule[]>([
     { id: "1", condition: "" }
   ]);
-  const [alwaysAvailable, setAlwaysAvailable] = useState(false);
-  const [schedule, setSchedule] = useState({
-    monday: { enabled: true, from: "09:00", to: "17:00" },
-    tuesday: { enabled: true, from: "09:00", to: "17:00" },
-    wednesday: { enabled: true, from: "09:00", to: "17:00" },
-    thursday: { enabled: true, from: "09:00", to: "17:00" },
-    friday: { enabled: true, from: "09:00", to: "17:00" },
-    saturday: { enabled: false, from: "09:00", to: "17:00" },
-    sunday: { enabled: false, from: "09:00", to: "17:00" },
-  });
 
   const addEscalationRule = () => {
     setEscalationRules([
@@ -43,20 +33,6 @@ export function HumanOperator() {
         rule.id === id ? { ...rule, condition } : rule
       )
     );
-  };
-
-  const toggleDay = (day: keyof typeof schedule) => {
-    setSchedule({
-      ...schedule,
-      [day]: { ...schedule[day], enabled: !schedule[day].enabled }
-    });
-  };
-
-  const updateTime = (day: keyof typeof schedule, field: 'from' | 'to', value: string) => {
-    setSchedule({
-      ...schedule,
-      [day]: { ...schedule[day], [field]: value }
-    });
   };
 
   // Load saved settings from backend
@@ -82,13 +58,6 @@ export function HumanOperator() {
                   condition: rule
                 }))
               );
-            }
-
-            if (chatOperator.availability) {
-              setAlwaysAvailable(chatOperator.availability.alwaysAvailable || false);
-              if (chatOperator.availability.schedule) {
-                setSchedule(chatOperator.availability.schedule);
-              }
             }
           }
         }
@@ -149,96 +118,11 @@ export function HumanOperator() {
           <Plus className="w-4 h-4" />
           Add Another Condition
         </button>
-      </div>
-
-      {/* Schedule Configuration */}
-      <div className="bg-card border border-border rounded-xl p-6">
-        <div className="flex items-start gap-3 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5 text-blue-500" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              Availability Schedule
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Configure when human operators are available for escalations
-            </p>
-          </div>
-        </div>
-
-        {/* Always Available Toggle */}
-        <div className="flex items-center justify-between p-4 bg-secondary rounded-lg mb-4">
-          <div>
-            <div className="font-medium text-foreground text-sm">Always Available (24/7)</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Operators can receive escalations at any time
-            </div>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={alwaysAvailable}
-              onChange={(e) => setAlwaysAvailable(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-secondary-foreground/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-          </label>
-        </div>
-
-        {/* Day Schedule */}
-        {!alwaysAvailable && (
-          <div className="space-y-3">
-            {Object.entries(schedule).map(([day, config]) => (
-              <div key={day} className="flex items-center gap-4">
-                <label className="flex items-center gap-3 min-w-[140px]">
-                  <input
-                    type="checkbox"
-                    checked={config.enabled}
-                    onChange={() => toggleDay(day as keyof typeof schedule)}
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
-                  />
-                  <span className="text-sm font-medium text-foreground capitalize">
-                    {day}
-                  </span>
-                </label>
-
-                {config.enabled && (
-                  <div className="flex items-center gap-3 flex-1">
-                    <input
-                      type="time"
-                      value={config.from}
-                      onChange={(e) => updateTime(day as keyof typeof schedule, 'from', e.target.value)}
-                      className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                    />
-                    <span className="text-muted-foreground text-sm">to</span>
-                    <input
-                      type="time"
-                      value={config.to}
-                      onChange={(e) => updateTime(day as keyof typeof schedule, 'to', e.target.value)}
-                      className="bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
 
         <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-border">
           <button 
             onClick={() => {
               setEscalationRules([{ id: "1", condition: "" }]);
-              setAlwaysAvailable(false);
-              setSchedule({
-                monday: { enabled: true, from: "09:00", to: "17:00" },
-                tuesday: { enabled: true, from: "09:00", to: "17:00" },
-                wednesday: { enabled: true, from: "09:00", to: "17:00" },
-                thursday: { enabled: true, from: "09:00", to: "17:00" },
-                friday: { enabled: true, from: "09:00", to: "17:00" },
-                saturday: { enabled: false, from: "09:00", to: "17:00" },
-                sunday: { enabled: false, from: "09:00", to: "17:00" },
-              });
             }}
             className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -254,13 +138,7 @@ export function HumanOperator() {
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
                   },
                   body: JSON.stringify({
-                    escalationRules: escalationRules.map(r => r.condition).filter(c => c.trim()),
-                    availability: {
-                      alwaysAvailable,
-                      schedule: Object.fromEntries(
-                        Object.entries(schedule).map(([day, config]) => [day, config])
-                      )
-                    }
+                    escalationRules: escalationRules.map(r => r.condition).filter(c => c.trim())
                   })
                 });
                 

@@ -8,6 +8,7 @@ export interface InboundAgentConfig {
   language: string;
   calledNumber: string;
   agent_instruction: string;
+  greeting_message: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +19,7 @@ export interface UpdateInboundAgentConfigData {
   collections?: string[];
   language?: string;
   agent_instruction?: string;
+  greeting_message?: string;
 }
 
 class InboundAgentConfigService {
@@ -81,7 +83,15 @@ class InboundAgentConfigService {
    */
   async update(data: UpdateInboundAgentConfigData): Promise<InboundAgentConfig> {
     try {
+      console.log('[InboundAgentConfig Service] ==========================================');
+      console.log('[InboundAgentConfig Service] UPDATE REQUEST');
+      console.log('[InboundAgentConfig Service] Data:', JSON.stringify(data, null, 2));
+      console.log('[InboundAgentConfig Service] ==========================================');
+      
       const response = await apiClient.put('/inbound-agent-config', data);
+      
+      console.log('[InboundAgentConfig Service] Update response:', JSON.stringify(response.data, null, 2));
+      
       if (!response || !response.data || !response.data.config) {
         throw new Error('Invalid response from server');
       }

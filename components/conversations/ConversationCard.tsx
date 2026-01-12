@@ -1,7 +1,7 @@
 "use client";
 
 import { Conversation } from "@/data/mockConversations";
-import { Phone } from "lucide-react";
+import { Phone, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ConversationCardProps {
@@ -23,6 +23,8 @@ export function ConversationCard({
   };
 
   const isVoiceMessage = conversation.messages?.some((m) => m.type === "voice") || conversation.channel === "phone";
+  // @ts-ignore - metadata may exist
+  const hasRecording = conversation.metadata?.recording_url;
 
   return (
     <div
@@ -54,6 +56,9 @@ export function ConversationCard({
               </span>
               {isVoiceMessage && (
                 <Phone className="w-3.5 h-3.5 text-indigo-400" />
+              )}
+              {hasRecording && (
+                <Mic className="w-3.5 h-3.5 text-green-400" />
               )}
             </div>
           </div>

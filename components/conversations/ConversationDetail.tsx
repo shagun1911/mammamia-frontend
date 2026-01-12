@@ -75,6 +75,92 @@ export function ConversationDetail({
     };
   }, [socket, conversation.id]);
 
+  // Auto-fetch transcript for phone calls with caller_id
+  useEffect(() => {
+    // @ts-ignore
+    const callerId = conversation.metadata?.callerId;
+    const hasTranscript = conversation.messages && conversation.messages.length > 1; // More than just the initial note
+    // @ts-ignore
+    const hasRecording = conversation.metadata?.recording_url;
+    
+    // Only poll if it's a phone call with callerId but no transcript yet
+    if (conversation.channel === 'phone' && callerId && !hasTranscript && !hasRecording) {
+      console.log('[ConversationDetail] Starting automatic transcript polling for:', callerId);
+      
+      let pollCount = 0;
+      const maxPolls = 60; // Poll for up to 10 minutes (60 * 10 seconds)
+      
+      const pollTranscript = async () => {
+        try {
+          const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+          const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+          
+          console.log(`[ConversationDetail] Polling attempt ${pollCount + 1}/${maxPolls} for callerId: ${callerId}`);
+          
+          const response = await fetch(
+            `${API_URL}/conversations/transcript/${callerId}`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[ConversationDetail] ✅ Transcript found! Reloading conversation...');
+            toast.success('Call transcript ready!');
+            
+            // Reload the page to show the transcript
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+            
+            return true; // Stop polling
+          } else if (response.status === 404) {
+            // Transcript not ready yet, continue polling
+            console.log('[ConversationDetail] Transcript not ready yet, will retry...');
+            return false;
+          } else {
+            console.error('[ConversationDetail] Error fetching transcript:', response.statusText);
+            return false;
+          }
+        } catch (error: any) {
+          console.error('[ConversationDetail] Poll error:', error.message);
+          return false;
+        }
+      };
+      
+      // Initial poll after 5 seconds
+      const initialTimeout = setTimeout(async () => {
+        const found = await pollTranscript();
+        if (found) return;
+        
+        // Continue polling every 10 seconds
+        const interval = setInterval(async () => {
+          pollCount++;
+          
+          if (pollCount >= maxPolls) {
+            console.log('[ConversationDetail] Max polls reached, stopping');
+            clearInterval(interval);
+            return;
+          }
+          
+          const found = await pollTranscript();
+          if (found) {
+            clearInterval(interval);
+          }
+        }, 10000); // Poll every 10 seconds
+        
+        return () => clearInterval(interval);
+      }, 5000); // Start after 5 seconds
+      
+      return () => clearTimeout(initialTimeout);
+    }
+    // @ts-ignore - metadata may exist
+  }, [conversation.id, conversation.channel, conversation.metadata, conversation.messages]);
+
   // Merge real-time messages with conversation messages
   const allMessages = useMemo(() => {
     const existing = conversation.messages || [];

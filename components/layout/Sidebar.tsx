@@ -20,7 +20,7 @@ import {
   Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mockUser } from "@/data/mockUser";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage, languageNames, Language } from "@/contexts/LanguageContext";
 
 interface NavItem {
@@ -54,6 +54,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
   const { language, setLanguage } = useLanguage();
+  const { user } = useAuth();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
 
   useEffect(() => {
@@ -66,6 +67,16 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
 
   const handleToggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
+  };
+
+  // Get user initials for avatar
+  const getInitials = (name?: string) => {
+    if (!name) return "U";
+    const names = name.split(" ");
+    if (names.length >= 2) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return name[0].toUpperCase();
   };
 
   return (
@@ -138,7 +149,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
             >
               {item.icon === User ? (
                 <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0">
-                  {mockUser.avatar}
+                  {getInitials(user?.name)}
                 </div>
               ) : (
                 <Icon className="w-5 h-5 shrink-0" />

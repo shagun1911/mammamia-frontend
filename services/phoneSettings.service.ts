@@ -11,6 +11,8 @@ export interface PhoneSettings {
   terminationUri?: string;
   originationUri?: string;
   humanOperatorPhone: string;
+  greetingMessage?: string;
+  language?: string;
   // Inbound Trunk fields
   inboundTrunkId?: string;
   inboundTrunkName?: string;
@@ -31,6 +33,8 @@ export interface UpdatePhoneSettingsData {
   terminationUri?: string;
   originationUri?: string;
   humanOperatorPhone?: string;
+  greetingMessage?: string;
+  language?: string;
   // Inbound Trunk fields
   inboundTrunkId?: string;
   inboundTrunkName?: string;

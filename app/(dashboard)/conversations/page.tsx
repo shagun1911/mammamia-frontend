@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { ConversationFilters } from "@/components/conversations/ConversationFilters";
 import { ConversationList } from "@/components/conversations/ConversationList";
@@ -9,9 +10,13 @@ import { useConversations, useConversation } from "@/hooks/useConversations";
 import { ConversationListSkeleton } from "@/components/LoadingSkeleton";
 import { NoConversations } from "@/components/EmptyState";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { useSocket } from "@/hooks/useSocket";
+import { toast } from "sonner";
 
 export default function ConversationsPage() {
   const { getSidebarWidth } = useSidebar();
+  const queryClient = useQueryClient();
+  const { socket } = useSocket();
   const [selectedConversationId, setSelectedConversationId] = useState<
     string | null
   >(null);
@@ -42,6 +47,55 @@ export default function ConversationsPage() {
 
   const conversations = conversationsData?.conversations || [];
   const selectedConversation = selectedConversationData || null;
+
+  // Listen for new conversations via WebSocket
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log('[ConversationsPage] Setting up WebSocket listeners...');
+
+    const handleNewConversation = (data: any) => {
+      console.log('[ConversationsPage] 🆕 New conversation received:', data);
+      
+      // Show toast notification
+      toast.success('New conversation created!', {
+        description: `From ${data.customerId?.name || 'Unknown'}`
+      });
+      
+      // Invalidate conversations query to trigger refetch
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
+      console.log('[ConversationsPage] ✅ Invalidated conversations query');
+    };
+
+    const handleTranscriptUpdated = (data: any) => {
+      console.log('[ConversationsPage] 📝 Transcript updated:', data);
+      
+      // Show toast notification
+      toast.success('Call transcript ready!');
+      
+      // Invalidate conversations query to show updated data
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
+      // If this conversation is currently selected, invalidate it too
+      if (data.conversationId === selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+      }
+    };
+
+    // Subscribe to events
+    socket.onNewConversation(handleNewConversation);
+    socket.onTranscriptUpdated(handleTranscriptUpdated);
+
+    console.log('[ConversationsPage] ✅ WebSocket listeners registered');
+
+    // Cleanup
+    return () => {
+      console.log('[ConversationsPage] 🧹 Cleaning up WebSocket listeners');
+      socket.off('conversation:new', handleNewConversation);
+      socket.off('conversation:transcript-updated', handleTranscriptUpdated);
+    };
+  }, [socket, queryClient, selectedConversationId]);
 
   const handleCloseDetail = () => {
     setSelectedConversationId(null);

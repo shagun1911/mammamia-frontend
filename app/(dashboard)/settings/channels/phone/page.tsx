@@ -14,9 +14,9 @@ export default function PhoneSettingsDetailPage() {
   const router = useRouter();
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
   const { aiBehavior, updateVoiceAgentHumanOperator } = useAIBehavior();
-  const { configs: inboundConfigs, syncConfig } = useInboundAgentConfig();
+  const { configs: inboundConfigs, syncConfig, updateConfig } = useInboundAgentConfig();
 
-  const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall" | "inbound">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall" | "inbound" | "greeting">("settings");
   const [copied, setCopied] = useState(false);
 
   // Form state
@@ -61,6 +61,16 @@ export default function PhoneSettingsDetailPage() {
   const [inboundConnectedNumbers, setInboundConnectedNumbers] = useState<string[]>([]);
   const [isCreatingInbound, setIsCreatingInbound] = useState(false);
 
+  // Greeting message and language settings (for Settings tab)
+  const [greetingMessage, setGreetingMessage] = useState("");
+  const [language, setLanguage] = useState("en");
+
+  // Edit mode for inbound configs
+  const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
+  const [editGreetingMessage, setEditGreetingMessage] = useState("");
+  const [editLanguage, setEditLanguage] = useState("en");
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+
 
   // Update form state when settings load
   useEffect(() => {
@@ -82,14 +92,104 @@ export default function PhoneSettingsDetailPage() {
     }
   }, [aiBehavior]);
 
-  const handleSaveSettings = () => {
-    updateSettings({
-      selectedVoice,
-      customVoiceId,
-      twilioPhoneNumber,
-      livekitSipTrunkId,
-      humanOperatorPhone,
-    });
+  // Load greeting message and language from first inbound config
+  useEffect(() => {
+    if (inboundConfigs && inboundConfigs.length > 0) {
+      const firstConfig = inboundConfigs[0];
+      setGreetingMessage(firstConfig.greeting_message || "Hello! How can I help you today?");
+      setLanguage(firstConfig.language || "en");
+      console.log('📝 [Phone Settings] Loaded greeting message and language from first inbound config:', {
+        greeting_message: firstConfig.greeting_message,
+        language: firstConfig.language
+      });
+    }
+  }, [inboundConfigs]);
+
+  const handleSaveSettings = async () => {
+    console.log('💾 [Phone Settings] ==========================================');
+    console.log('💾 [Phone Settings] SAVE SETTINGS CALLED');
+    console.log('📝 [Phone Settings] Greeting message:', greetingMessage);
+    console.log('🌍 [Phone Settings] Language:', language);
+    console.log('🎤 [Phone Settings] Selected voice:', selectedVoice);
+    console.log('💾 [Phone Settings] ==========================================');
+    
+    try {
+      // Save phone settings (including greeting message for outbound calls)
+      console.log('📞 [Phone Settings] Step 1: Saving phone settings...');
+      await updateSettings({
+        selectedVoice,
+        customVoiceId,
+        twilioPhoneNumber,
+        livekitSipTrunkId,
+        humanOperatorPhone,
+        greetingMessage,
+        language,
+      });
+      console.log('✅ [Phone Settings] Phone settings saved (outbound-call-config updated)');
+
+      // Update greeting message and language for all inbound configs
+      if (inboundConfigs && inboundConfigs.length > 0) {
+        console.log(`📞 [Phone Settings] Step 2: Updating ${inboundConfigs.length} inbound configs`);
+        
+        const updatePromises = inboundConfigs.map(async (config) => {
+          console.log(`🔄 [Phone Settings] Updating config for ${config.calledNumber}`);
+          console.log(`📦 [Phone Settings] Update data:`, {
+            calledNumber: config.calledNumber,
+            greeting_message: greetingMessage,
+            language: language,
+          });
+          
+          try {
+            const result = await updateConfig.mutateAsync({
+              calledNumber: config.calledNumber,
+              greeting_message: greetingMessage,
+              language: language,
+            });
+            console.log(`✅ [Phone Settings] Successfully updated ${config.calledNumber}`, result);
+            return { success: true, calledNumber: config.calledNumber };
+          } catch (error: any) {
+            console.error(`❌ [Phone Settings] Failed to update ${config.calledNumber}:`, error);
+            console.error(`📊 [Phone Settings] Error details:`, {
+              message: error.message,
+              response: error.response?.data
+            });
+            return { success: false, calledNumber: config.calledNumber, error: error.message };
+          }
+        });
+        
+        const results = await Promise.all(updatePromises);
+        
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+        
+        console.log('📊 [Phone Settings] Update results:', {
+          total: results.length,
+          success: successCount,
+          failed: failCount,
+          details: results
+        });
+        
+        if (successCount > 0) {
+          toast.success(`Greeting message saved! Updated in both outbound-call-config and ${successCount} inbound-agent-config(s)`);
+        }
+        
+        if (failCount > 0) {
+          toast.error(`Failed to update ${failCount} inbound config(s). Check console for details.`);
+        }
+        
+        // Refresh the configs to show updated values
+        console.log('🔄 [Phone Settings] Refreshing configs...');
+        await syncConfig.mutateAsync();
+        console.log('✅ [Phone Settings] Configs refreshed');
+        
+      } else {
+        console.warn('⚠️  [Phone Settings] No inbound configs found to update');
+        toast.success('Greeting message saved to outbound-call-config (phone settings)!');
+      }
+    } catch (error: any) {
+      console.error('❌ [Phone Settings] Save failed:', error);
+      toast.error(error.message || 'Failed to save settings');
+    }
   };
 
   const handleSaveEscalationRules = () => {
@@ -375,6 +475,67 @@ export default function PhoneSettingsDetailPage() {
     setInboundConnectedNumbers([]);
   };
 
+  // Handle edit config
+  const handleEditConfig = (config: any) => {
+    console.log('🖊️ [Edit Config] Starting edit for config:', config._id);
+    console.log('📋 [Edit Config] Current values:', {
+      greeting_message: config.greeting_message,
+      language: config.language
+    });
+    
+    setEditingConfigId(config._id);
+    setEditGreetingMessage(config.greeting_message || "Hello! How can I help you today?");
+    setEditLanguage(config.language || "en");
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    console.log('❌ [Edit Config] Canceling edit');
+    setEditingConfigId(null);
+    setEditGreetingMessage("");
+    setEditLanguage("en");
+  };
+
+  // Handle save config
+  const handleSaveConfig = async (config: any) => {
+    console.log('💾 [Save Config] ==========================================');
+    console.log('💾 [Save Config] SAVE CONFIG CALLED');
+    console.log('💾 [Save Config] Config ID:', config._id);
+    console.log('💾 [Save Config] Called Number:', config.calledNumber);
+    console.log('💾 [Save Config] New greeting message:', editGreetingMessage);
+    console.log('💾 [Save Config] New language:', editLanguage);
+    console.log('💾 [Save Config] ==========================================');
+    
+    setIsSavingConfig(true);
+    try {
+      const updateData = {
+        calledNumber: config.calledNumber,
+        greeting_message: editGreetingMessage,
+        language: editLanguage,
+      };
+      
+      console.log('📤 [Save Config] Sending update request with data:', JSON.stringify(updateData, null, 2));
+      
+      await updateConfig.mutateAsync(updateData);
+      
+      console.log('✅ [Save Config] Config updated successfully');
+      
+      toast.success('Configuration updated successfully');
+      setEditingConfigId(null);
+      setEditGreetingMessage("");
+      setEditLanguage("en");
+    } catch (error: any) {
+      console.error('❌ [Save Config] Error updating config:', error);
+      console.error('📊 [Save Config] Error details:', {
+        message: error.message,
+        response: error.response?.data
+      });
+      toast.error(error.message || 'Failed to update configuration');
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
   // Generic SIP Trunk Setup (Method 2)
   const handleGenericSetup = async () => {
     if (!genericSetupLabel || !genericSetupPhone || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword) {
@@ -519,6 +680,16 @@ export default function PhoneSettingsDetailPage() {
           }`}
         >
           Inbound
+        </button>
+        <button
+          onClick={() => setActiveTab("greeting")}
+          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all ${
+            activeTab === "greeting"
+              ? "bg-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Greeting Message
         </button>
       </div>
 
@@ -913,14 +1084,57 @@ export default function PhoneSettingsDetailPage() {
               </p>
             </div>
 
+            {/* Language Selection */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Language <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="it">Italian</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="pt">Portuguese</option>
+                <option value="ar">Arabic</option>
+                <option value="zh">Chinese</option>
+                <option value="ja">Japanese</option>
+                <option value="ko">Korean</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Default language for voice agent conversations. This will be applied to all inbound numbers.
+              </p>
+            </div>
+
+            {/* Greeting Message */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Greeting Message <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={greetingMessage}
+                onChange={(e) => setGreetingMessage(e.target.value)}
+                placeholder="Hello! How can I help you today?"
+                rows={3}
+                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Default greeting message for outbound calls. This will be applied to all inbound numbers.
+              </p>
+            </div>
+
             {/* Save Button */}
             <div className="flex justify-end pt-4">
               <button
                 onClick={handleSaveSettings}
-                disabled={isUpdating || !selectedVoice || !twilioPhoneNumber || !livekitSipTrunkId}
+                disabled={isUpdating || !selectedVoice}
                 className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isUpdating ? "Saving..." : "Save Settings"}
+                {isUpdating ? "Saving..." : "Save Configuration"}
               </button>
               </div>
             </div>
@@ -1066,17 +1280,98 @@ export default function PhoneSettingsDetailPage() {
                         </span>
                         {config.calledNumber}
                       </h4>
+                      {editingConfigId === config._id ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleSaveConfig(config)}
+                            disabled={isSavingConfig}
+                            className="h-8 px-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                          >
+                            {isSavingConfig ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="w-3 h-3" />
+                                Save
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            disabled={isSavingConfig}
+                            className="h-8 px-3 bg-secondary text-foreground rounded-lg text-xs font-medium hover:brightness-110 transition-colors disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleEditConfig(config)}
+                          className="h-8 px-3 bg-primary text-foreground rounded-lg text-xs font-medium hover:brightness-110 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
+                      {editingConfigId === config._id ? (
+                        <>
+                          {/* Editable Language */}
+                          <div className="p-2 bg-background/50 rounded">
+                            <label className="text-xs font-medium text-muted-foreground block mb-1">Language:</label>
+                            <select
+                              value={editLanguage}
+                              onChange={(e) => setEditLanguage(e.target.value)}
+                              className="w-full h-9 bg-secondary border border-border rounded-lg px-3 text-xs text-foreground focus:outline-none focus:border-primary transition-colors"
+                            >
+                              <option value="en">English</option>
+                              <option value="es">Spanish</option>
+                              <option value="it">Italian</option>
+                              <option value="fr">French</option>
+                              <option value="de">German</option>
+                              <option value="pt">Portuguese</option>
+                              <option value="ar">Arabic</option>
+                              <option value="zh">Chinese</option>
+                              <option value="ja">Japanese</option>
+                              <option value="ko">Korean</option>
+                            </select>
+                          </div>
+
+                          {/* Editable Greeting Message */}
+                          <div className="p-2 bg-background/50 rounded">
+                            <label className="text-xs font-medium text-muted-foreground block mb-1">Greeting Message:</label>
+                            <textarea
+                              value={editGreetingMessage}
+                              onChange={(e) => setEditGreetingMessage(e.target.value)}
+                              placeholder="Enter greeting message..."
+                              rows={3}
+                              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Read-only Language */}
+                          <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
+                            <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Language:</div>
+                            <div className="text-xs text-foreground">{config.language || 'en'}</div>
+                          </div>
+
+                          {/* Read-only Greeting Message */}
+                          <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
+                            <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Greeting Message:</div>
+                            <div className="text-xs text-foreground">{config.greeting_message || 'Hello! How can I help you today?'}</div>
+                          </div>
+                        </>
+                      )}
+                      
                       <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
                         <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Voice ID:</div>
                         <div className="text-xs text-foreground font-mono">{config.voice_id || 'Not set'}</div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
-                        <div className="text-xs font-medium text-muted-foreground min-w-[120px]">Language:</div>
-                        <div className="text-xs text-foreground">{config.language || 'Not set'}</div>
                       </div>
                       
                       <div className="flex items-start gap-3 p-2 bg-background/50 rounded">
@@ -1313,6 +1608,69 @@ export default function PhoneSettingsDetailPage() {
               </button>
             </div>
           )}
+          </div>
+        </div>
+      )}
+
+      {/* Greeting Message Tab */}
+      {activeTab === "greeting" && (
+        <div className="bg-card border border-border rounded-xl p-6 max-w-2xl">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-foreground">Greeting Message Configuration</h3>
+          </div>
+
+          <div className="space-y-6">
+            {/* Greeting Message */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Greeting Message <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={greetingMessage}
+                onChange={(e) => setGreetingMessage(e.target.value)}
+                placeholder="Hello! How can I help you today?"
+                rows={4}
+                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                This greeting message will be saved to both <span className="font-semibold">outbound-call-config</span> and <span className="font-semibold">inbound-agent-config</span> collections in the database.
+              </p>
+            </div>
+
+            {/* Language Selection */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Language
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              >
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="it">Italian</option>
+                <option value="pt">Portuguese</option>
+                <option value="ar">Arabic</option>
+                <option value="tr">Turkish</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Select the language for the greeting message
+              </p>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end pt-4">
+              <button
+                onClick={handleSaveSettings}
+                disabled={isUpdating || !greetingMessage.trim()}
+                className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isUpdating ? "Saving..." : "Save Greeting Message"}
+              </button>
+            </div>
           </div>
         </div>
       )}

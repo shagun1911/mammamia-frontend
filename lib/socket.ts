@@ -164,6 +164,13 @@ class SocketClient {
   }
 
   /**
+   * Listen for transcript updates
+   */
+  onTranscriptUpdated(callback: (data: any) => void): void {
+    this.socket?.on('conversation:transcript-updated', callback);
+  }
+
+  /**
    * Listen for typing indicators
    */
   onTyping(callback: (data: { conversationId: string; user: any }) => void): void {

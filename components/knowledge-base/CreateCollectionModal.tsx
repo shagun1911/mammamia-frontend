@@ -17,7 +17,7 @@ export function CreateCollectionModal({ isOpen, onClose }: CreateCollectionModal
   const [pdfFiles, setPdfFiles] = useState<FileList | null>(null);
   const [excelFiles, setExcelFiles] = useState<FileList | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const { addCollection } = useKnowledgeBase();
+  const { addCollection, loadCollections } = useKnowledgeBase();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +74,9 @@ export function CreateCollectionModal({ isOpen, onClose }: CreateCollectionModal
       const kb = data.data;
       
       toast.success(`Knowledge base "${collectionName}" created successfully!`);
-      addCollection(kb.collectionName, kb);
+      
+      // Reload collections from server to ensure the list is up to date
+      await loadCollections();
       
       // Reset form
       setCollectionName('');

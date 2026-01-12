@@ -2,13 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Camera, CreditCard, Download, Check } from "lucide-react";
-import { mockUser } from "@/data/mockUser";
+import { useAuth } from "@/contexts/AuthContext";
 import { currentPlan, usageStats, invoices, paymentMethod } from "@/data/mockBilling";
 import { toast } from "sonner";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 
 export default function ProfilePage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"account" | "billing" | "security">("account");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -16,22 +17,31 @@ export default function ProfilePage() {
   const [secret, setSecret] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
-    name: mockUser.name || "",
-    email: mockUser.email,
-    phone: mockUser.phone || "",
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
-  // Load avatar from localStorage on mount
+  // Load avatar from localStorage on mount and sync form data with user
   useEffect(() => {
     const savedAvatar = localStorage.getItem("userAvatar");
     if (savedAvatar) {
       setAvatarUrl(savedAvatar);
     }
-  }, []);
+    
+    // Update form data when user changes
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+      }));
+    }
+  }, [user]);
 
   // Generate 2FA QR code when enabled
   useEffect(() => {
@@ -135,7 +145,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="w-[120px] h-[120px] rounded-full bg-primary flex items-center justify-center text-foreground text-4xl font-bold">
-                    {mockUser.avatar}
+                    {user?.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase() : "U"}
                   </div>
                 )}
                 <button
