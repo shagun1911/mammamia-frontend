@@ -54,7 +54,7 @@ export function ChatAgentAnswering() {
       <div className="flex gap-3">
         <button
           onClick={() => setShowChat(false)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
             !showChat
               ? "bg-primary text-foreground"
               : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -65,7 +65,7 @@ export function ChatAgentAnswering() {
         </button>
         <button
           onClick={() => setShowChat(true)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
             showChat
               ? "bg-primary text-foreground"
               : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -105,13 +105,13 @@ export function ChatAgentAnswering() {
             <div className="flex justify-end gap-3 mt-4">
               <button 
                 onClick={handleReset}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 Reset
               </button>
               <button 
                 onClick={handleSavePrompt}
-                className="px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+                className="px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer"
               >
                 Save Prompt
               </button>
@@ -122,7 +122,7 @@ export function ChatAgentAnswering() {
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent transition-colors"
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <div className="text-sm font-medium text-foreground">Advanced Settings</div>

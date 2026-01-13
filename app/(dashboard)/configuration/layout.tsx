@@ -1,9 +1,9 @@
 "use client";
 
-import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
+import { ConfigurationSidebar } from "@/components/configuration/ConfigurationSidebar";
 import { useSidebar } from "@/contexts/SidebarContext";
 
-export default function SettingsLayout({
+export default function ConfigurationLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -12,9 +12,8 @@ export default function SettingsLayout({
 
   return (
     <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      <SettingsSidebar />
+      <ConfigurationSidebar />
       <div className="flex-1 overflow-auto">{children}</div>
     </div>
   );
 }
-

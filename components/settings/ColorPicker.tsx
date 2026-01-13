@@ -11,7 +11,7 @@ interface ColorPickerProps {
 export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-white mb-3">
+      <label className="block text-sm font-medium text-foreground mb-3">
         Widget Color
       </label>
 
@@ -21,7 +21,7 @@ export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) 
             key={color}
             onClick={() => onColorChange(color)}
             className={cn(
-              "w-8 h-8 rounded-full transition-all",
+              "w-8 h-8 rounded-full transition-all cursor-pointer",
               selectedColor === color && "ring-2 ring-white ring-offset-2 ring-offset-[#141414]"
             )}
             style={{ backgroundColor: color }}
@@ -34,7 +34,7 @@ export function ColorPicker({ selectedColor, onColorChange }: ColorPickerProps) 
         value={selectedColor}
         onChange={(e) => onColorChange(e.target.value)}
         placeholder="#6366f1"
-        className="w-[120px] bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+        className="w-[120px] bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
       />
     </div>
   );

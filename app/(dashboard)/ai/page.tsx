@@ -21,11 +21,11 @@ export default function AIPage() {
       <TrainingSidebar />
       <div className="flex-1 flex flex-col">
         {/* Tab Navigation */}
-        <div className="border-b border-border bg-card">
+        <div className="border-b border-border bg-card shadow-sm">
           <div className="flex gap-1 px-6">
             <button
               onClick={() => setActiveTab("knowledge")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative cursor-pointer ${
                 activeTab === "knowledge"
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -39,7 +39,7 @@ export default function AIPage() {
             </button>
             <button
               onClick={() => setActiveTab("chat")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative cursor-pointer ${
                 activeTab === "chat"
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -53,7 +53,7 @@ export default function AIPage() {
             </button>
             <button
               onClick={() => setActiveTab("voice")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative cursor-pointer ${
                 activeTab === "voice"
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"

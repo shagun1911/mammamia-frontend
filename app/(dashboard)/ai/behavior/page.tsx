@@ -26,12 +26,12 @@ export default function AIBehaviorPage() {
       
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Section Tabs */}
-        <div className="border-b border-border bg-card">
+        <div className="border-b border-border bg-card shadow-sm">
           <div className="flex items-center px-6">
             <button
               onClick={() => setActiveSection("knowledge")}
               className={cn(
-                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors",
+                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                 activeSection === "knowledge"
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -40,10 +40,10 @@ export default function AIBehaviorPage() {
               <BookOpen className="w-4 h-4" />
               Knowledge Base
             </button>
-              <button
+            <button
               onClick={() => setActiveSection("chat-agent")}
-                className={cn(
-                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors",
+              className={cn(
+                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                 activeSection === "chat-agent"
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -51,11 +51,11 @@ export default function AIBehaviorPage() {
             >
               <MessageSquare className="w-4 h-4" />
               Chat Agent
-              </button>
-              <button
+            </button>
+            <button
               onClick={() => setActiveSection("voice-agent")}
-                className={cn(
-                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors",
+              className={cn(
+                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                 activeSection === "voice-agent"
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
@@ -63,7 +63,7 @@ export default function AIBehaviorPage() {
             >
               <Phone className="w-4 h-4" />
               Voice Agent
-              </button>
+            </button>
             </div>
           </div>
 
@@ -100,7 +100,7 @@ export default function AIBehaviorPage() {
                   <button
                     onClick={() => setChatAgentTab("answering")}
                     className={cn(
-                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                       chatAgentTab === "answering"
                         ? "border-primary text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -111,7 +111,7 @@ export default function AIBehaviorPage() {
                   <button
                     onClick={() => setChatAgentTab("human-operator")}
                     className={cn(
-                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                       chatAgentTab === "human-operator"
                         ? "border-primary text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -144,7 +144,7 @@ export default function AIBehaviorPage() {
                   <button
                     onClick={() => setVoiceAgentTab("answering")}
                     className={cn(
-                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                       voiceAgentTab === "answering"
                         ? "border-primary text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"
@@ -155,7 +155,7 @@ export default function AIBehaviorPage() {
                   <button
                     onClick={() => setVoiceAgentTab("human-operator")}
                     className={cn(
-                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors",
+                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer",
                       voiceAgentTab === "human-operator"
                         ? "border-primary text-foreground"
                         : "border-transparent text-muted-foreground hover:text-foreground"

@@ -163,7 +163,7 @@ export function VoiceHumanOperator() {
               {escalationRules.length > 1 && (
                 <button
                   onClick={() => removeEscalationRule(rule.id)}
-                  className="w-10 h-10 flex items-center justify-center rounded-lg border border-border hover:border-red-500 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors"
+                  className="w-10 h-10 flex items-center justify-center rounded-lg border border-border hover:border-red-500 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -174,7 +174,7 @@ export function VoiceHumanOperator() {
 
         <button
           onClick={addEscalationRule}
-          className="mt-3 flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+          className="mt-3 flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Add Another Condition
@@ -271,7 +271,7 @@ export function VoiceHumanOperator() {
                 sunday: { enabled: false, from: "09:00", to: "17:00" },
               });
             }}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Reset
           </button>
@@ -305,7 +305,7 @@ export function VoiceHumanOperator() {
                 console.error('Error saving voice human operator settings:', error);
               }
             }}
-            className="px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+            className="px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer"
           >
             Save Configuration
           </button>

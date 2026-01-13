@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Globe,
+  Cog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ const mainNavItems: NavItem[] = [
   { icon: Megaphone, label: "Campaigns", href: "/campaigns" },
   { icon: FlaskConical, label: "Chatbot Test", href: "/chatbot-test" },
   { icon: BarChart3, label: "Analytics", href: "/analytics" },
+  { icon: Cog, label: "Configuration", href: "/configuration" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 

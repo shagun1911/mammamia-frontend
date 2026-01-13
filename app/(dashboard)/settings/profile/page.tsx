@@ -266,7 +266,7 @@ export default function ProfilePage() {
             {profiles.map((profile) => (
               <Card
                 key={profile.type}
-                className={`relative overflow-hidden transition-all hover:shadow-lg ${
+                className={`relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full ${
                   selectedProfile === profile.type
                     ? "border-primary border-2 shadow-xl"
                     : "border-border"
@@ -287,12 +287,12 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Features */}
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-4 flex flex-col flex-1">
                   <p className="text-sm text-muted-foreground mb-4">
                     {profile.description}
                   </p>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 flex-1">
                     <div className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <div>
@@ -321,7 +321,7 @@ export default function ProfilePage() {
                   <Button
                     onClick={() => handleSelectProfile(profile.type)}
                     disabled={selectedProfile === profile.type}
-                    className="w-full mt-6"
+                    className="w-full mt-auto cursor-pointer"
                     variant={selectedProfile === profile.type ? "outline" : "default"}
                   >
                     {selectedProfile === profile.type ? "Current Plan" : "Select Plan"}

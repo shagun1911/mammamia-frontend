@@ -48,7 +48,7 @@ export default function ChannelsSettingsPage() {
 
           <button
             onClick={handleConfigure}
-            className="w-full mt-4 h-10 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+            className="w-full mt-3 px-3 py-2 bg-primary cursor-pointer text-primary-foreground rounded-lg text-sm font-semibold shadow-lg shadow-primary/20  hover:bg-primary/90 active:scale-[0.98] transition-all duration-200 border border-primary/20"
           >
             Configure
           </button>

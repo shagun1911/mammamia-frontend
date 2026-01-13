@@ -192,29 +192,29 @@ export default function SocialIntegrations() {
     const hasError = integration?.status === 'error';
 
     return (
-      <Card className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
+      <Card className="p-6 border-border">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="p-3 bg-primary/10 rounded-lg flex-shrink-0">
               {icon}
             </div>
-            <div>
-              <h3 className="font-semibold text-lg">{title}</h3>
-              <p className="text-sm text-muted-foreground">{description}</p>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-lg text-foreground mb-1.5">{title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
             {isConnected && (
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
             )}
             {hasError && (
-              <XCircle className="h-5 w-5 text-red-500" />
+              <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
             )}
           </div>
         </div>
 
         {hasError && integration?.errorMessage && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <div className="mb-5 p-3.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
             <p className="text-sm text-red-800 dark:text-red-200">
               Error: {integration.errorMessage}
             </p>
@@ -222,7 +222,7 @@ export default function SocialIntegrations() {
         )}
 
         {isConnected && (
-          <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="mb-6 p-3.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <p className="text-sm text-green-800 dark:text-green-200">
               ✓ Connected and active
               {integration?.lastSyncedAt && (
@@ -235,23 +235,27 @@ export default function SocialIntegrations() {
         )}
 
         {!showForm && !isConnected && (
-          <Button onClick={() => setShowForm(true)} className="w-full">
+          <Button 
+            onClick={() => setShowForm(true)} 
+            className="w-full cursor-pointer mt-2"
+          >
             Connect {title}
           </Button>
         )}
 
         {!showForm && isConnected && (
-          <div className="flex gap-2">
+          <div className="flex gap-3 mt-2">
             <Button 
               onClick={() => setShowForm(true)} 
               variant="outline" 
-              className="flex-1"
+              className="flex-1 cursor-pointer"
             >
               Update Credentials
             </Button>
             <Button 
               onClick={() => disconnectPlatform(platform)} 
               variant="destructive"
+              className="cursor-pointer"
             >
               Disconnect
             </Button>
@@ -259,20 +263,23 @@ export default function SocialIntegrations() {
         )}
 
         {showForm && (
-          <div className="space-y-4 mt-4 pt-4 border-t">
+          <div className="space-y-5 mt-6 pt-6 border-t border-border">
             {/* WhatsApp uses 360dialog */}
             {platform === 'whatsapp' && (
               <>
-                <div>
-                  <Label htmlFor={`${platform}-api-key`}>360dialog API Key *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor={`${platform}-api-key`} className="text-sm font-medium text-foreground">
+                    360dialog API Key *
+                  </Label>
                   <Input
                     id={`${platform}-api-key`}
                     type="password"
                     placeholder="Enter your 360dialog API key"
                     value={formData.apiKey}
                     onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
+                    className="w-full"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     Get this from your 360dialog dashboard
                   </p>
                 </div>
@@ -282,8 +289,8 @@ export default function SocialIntegrations() {
             {/* Instagram & Facebook use Meta Graph API */}
             {(platform === 'instagram' || platform === 'facebook') && (
               <>
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
-                  <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
                     📘 Need help getting these credentials?
                   </p>
                   <Button
@@ -291,40 +298,50 @@ export default function SocialIntegrations() {
                     variant="outline"
                     size="sm"
                     onClick={() => window.open(`/docs/connect-${platform}`, '_blank')}
+                    className="cursor-pointer"
                   >
                     View Setup Guide →
                   </Button>
                 </div>
 
-                <div>
-                  <Label htmlFor={`${platform}-access-token`}>Meta Access Token *</Label>
+                <div className="space-y-2 mt-1">
+                  <Label htmlFor={`${platform}-access-token`} className="text-sm font-medium text-foreground">
+                    Meta Access Token *
+                  </Label>
                   <Input
                     id={`${platform}-access-token`}
                     type="password"
                     placeholder="Enter your Meta Graph API access token"
                     value={formData.accessToken || ''}
                     onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
+                    className="w-full"
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor={`${platform}-app-id`}>Meta App ID *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor={`${platform}-app-id`} className="text-sm font-medium text-foreground">
+                    Meta App ID *
+                  </Label>
                   <Input
                     id={`${platform}-app-id`}
                     placeholder="Enter your Meta App ID"
                     value={formData.appId || ''}
                     onChange={(e) => setFormData({ ...formData, appId: e.target.value })}
+                    className="w-full"
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor={`${platform}-app-secret`}>Meta App Secret *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor={`${platform}-app-secret`} className="text-sm font-medium text-foreground">
+                    Meta App Secret *
+                  </Label>
                   <Input
                     id={`${platform}-app-secret`}
                     type="password"
                     placeholder="Enter your Meta App Secret"
                     value={formData.appSecret || ''}
                     onChange={(e) => setFormData({ ...formData, appSecret: e.target.value })}
+                    className="w-full"
                   />
                 </div>
               </>
@@ -332,62 +349,74 @@ export default function SocialIntegrations() {
 
             {platform === 'whatsapp' && (
               <>
-                <div>
-                  <Label htmlFor="phone-number-id">Phone Number ID *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="phone-number-id" className="text-sm font-medium text-foreground">
+                    Phone Number ID *
+                  </Label>
                   <Input
                     id="phone-number-id"
                     placeholder="Enter WhatsApp Phone Number ID"
                     value={formData.phoneNumberId || ''}
                     onChange={(e) => setFormData({ ...formData, phoneNumberId: e.target.value })}
+                    className="w-full"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="waba-id">WhatsApp Business Account ID (Optional)</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="waba-id" className="text-sm font-medium text-foreground">
+                    WhatsApp Business Account ID (Optional)
+                  </Label>
                   <Input
                     id="waba-id"
                     placeholder="Enter WABA ID"
                     value={formData.wabaId || ''}
                     onChange={(e) => setFormData({ ...formData, wabaId: e.target.value })}
+                    className="w-full"
                   />
                 </div>
               </>
             )}
 
             {platform === 'instagram' && (
-              <div>
-                <Label htmlFor="instagram-account-id">Instagram Business Account ID *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="instagram-account-id" className="text-sm font-medium text-foreground">
+                  Instagram Business Account ID *
+                </Label>
                 <Input
                   id="instagram-account-id"
                   placeholder="Enter Instagram Business Account ID"
                   value={formData.instagramAccountId || ''}
                   onChange={(e) => setFormData({ ...formData, instagramAccountId: e.target.value })}
+                  className="w-full"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1.5">
                   Found in Meta Business Suite → Instagram Accounts
                 </p>
               </div>
             )}
 
             {platform === 'facebook' && (
-              <div>
-                <Label htmlFor="facebook-page-id">Facebook Page ID *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="facebook-page-id" className="text-sm font-medium text-foreground">
+                  Facebook Page ID *
+                </Label>
                 <Input
                   id="facebook-page-id"
                   placeholder="Enter Facebook Page ID"
                   value={formData.facebookPageId || ''}
                   onChange={(e) => setFormData({ ...formData, facebookPageId: e.target.value })}
+                  className="w-full"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1.5">
                   Found in Page Settings → About
                 </p>
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-4 mt-2">
               <Button
                 onClick={() => connectPlatform(platform, formData)}
                 disabled={connecting === platform}
-                className="flex-1"
+                className="flex-1 cursor-pointer"
               >
                 {connecting === platform ? (
                   <>
@@ -402,6 +431,7 @@ export default function SocialIntegrations() {
                 onClick={() => setShowForm(false)}
                 variant="outline"
                 disabled={connecting === platform}
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
@@ -421,15 +451,18 @@ export default function SocialIntegrations() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold mb-2">Social Integrations</h2>
-        <p className="text-muted-foreground">
-          Connect your WhatsApp, Instagram, and Facebook accounts to manage all conversations in one place using 360dialog.
-        </p>
-      </div>
+    <div className="h-full overflow-auto">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-2">Social Integrations</h2>
+          <p className="text-sm text-muted-foreground">
+            Connect your WhatsApp, Instagram, and Facebook accounts to manage all conversations in one place using 360dialog.
+          </p>
+        </div>
 
-      <div className="space-y-4">
+        {/* Integration Cards */}
+        <div className="space-y-6 mb-8">
         {renderIntegrationCard(
           'whatsapp',
           <MessageSquare className="h-6 w-6 text-green-600" />,
@@ -467,40 +500,42 @@ export default function SocialIntegrations() {
         )}
       </div>
 
-      <Card className="p-6 bg-muted/50">
-        <h3 className="font-semibold mb-2">📚 Quick Setup Guide</h3>
-        
-        <div className="space-y-4 text-sm">
-          <div>
-            <h4 className="font-semibold text-green-600 mb-2">WhatsApp (via 360dialog):</h4>
-            <ol className="text-muted-foreground space-y-1 list-decimal list-inside ml-2">
-              <li>Sign up at <a href="https://hub.360dialog.com/" target="_blank" className="text-primary hover:underline">360dialog</a></li>
-              <li>Get your API Key and Phone Number ID from dashboard</li>
-              <li>Enter credentials above → Click "Save & Connect"</li>
-            </ol>
-          </div>
+        {/* Quick Setup Guide */}
+        <Card className="p-6 bg-muted/50 border-border">
+          <h3 className="font-semibold text-lg text-foreground mb-5">📚 Quick Setup Guide</h3>
+          
+          <div className="space-y-6 text-sm">
+            <div>
+              <h4 className="font-semibold text-green-600 mb-3">WhatsApp (via 360dialog):</h4>
+              <ol className="text-muted-foreground space-y-2 list-decimal list-inside ml-2">
+                <li>Sign up at <a href="https://hub.360dialog.com/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline cursor-pointer">360dialog</a></li>
+                <li>Get your API Key and Phone Number ID from dashboard</li>
+                <li>Enter credentials above → Click "Save & Connect"</li>
+              </ol>
+            </div>
 
-          <div>
-            <h4 className="font-semibold text-pink-600 mb-2">Instagram (via Meta Graph API):</h4>
-            <p className="text-muted-foreground mb-1">
-              Click the <strong>"View Setup Guide"</strong> button in the Instagram connection form above for detailed instructions.
-            </p>
-          </div>
+            <div>
+              <h4 className="font-semibold text-pink-600 mb-3">Instagram (via Meta Graph API):</h4>
+              <p className="text-muted-foreground">
+                Click the <strong>"View Setup Guide"</strong> button in the Instagram connection form above for detailed instructions.
+              </p>
+            </div>
 
-          <div>
-            <h4 className="font-semibold text-blue-600 mb-2">Facebook Messenger (via Meta Graph API):</h4>
-            <p className="text-muted-foreground mb-1">
-              Click the <strong>"View Setup Guide"</strong> button in the Facebook connection form above for detailed instructions.
-            </p>
-          </div>
+            <div>
+              <h4 className="font-semibold text-blue-600 mb-3">Facebook Messenger (via Meta Graph API):</h4>
+              <p className="text-muted-foreground">
+                Click the <strong>"View Setup Guide"</strong> button in the Facebook connection form above for detailed instructions.
+              </p>
+            </div>
 
-          <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground">
-              <strong>Webhook URL:</strong> <code className="bg-background px-2 py-1 rounded">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/webhooks/360dialog</code>
-            </p>
+            <div className="pt-5 mt-5 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                <strong>Webhook URL:</strong> <code className="bg-background px-2 py-1 rounded text-xs ml-2">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/webhooks/360dialog</code>
+              </p>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

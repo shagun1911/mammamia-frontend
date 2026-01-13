@@ -7,15 +7,12 @@ import { cn } from "@/lib/utils";
 
 const menuItems = [
   { href: "/settings/profile", label: "Profile & Subscription", icon: UserCircle },
-  { href: "/settings/chatbot", label: "Chatbot", icon: MessageSquare },
   { href: "/settings/conversations", label: "Conversations", icon: MessagesSquare },
   { href: "/settings/contacts", label: "Contacts", icon: Users },
   { href: "/settings/team", label: "Team", icon: UsersRound },
   { href: "/settings/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings/language-privacy", label: "Language & Privacy", icon: Globe },
-  { href: "/settings/channels", label: "Channels", icon: Radio },
   { href: "/settings/socials", label: "Socials", icon: Share2 },
-  { href: "/settings/api-keys", label: "API Keys", icon: Key },
   { href: "/settings/integrations", label: "Integrations", icon: Plug },
 ];
 

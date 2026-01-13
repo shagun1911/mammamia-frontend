@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Folder, Plus, LayoutList, Kanban as KanbanIcon } from "lucide-react";
+import { Lock, Folder, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Contact } from "@/data/mockContacts";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
-import { KanbanBoard } from "@/components/contacts/KanbanBoard";
 import { ContactModal } from "@/components/contacts/ContactModal";
 import { CSVImportModal } from "@/components/contacts/CSVImportModal";
 import { AddListModal } from "@/components/contacts/AddListModal";
@@ -25,10 +24,11 @@ import { ContactCardSkeleton } from "@/components/LoadingSkeleton";
 import { NoContacts } from "@/components/EmptyState";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 export default function ContactsPage() {
+  const { getSidebarWidth } = useSidebar();
   const [selectedList, setSelectedList] = useState("all");
-  const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCSVImportOpen, setIsCSVImportOpen] = useState(false);
@@ -133,7 +133,7 @@ export default function ContactsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="fixed inset-0 flex" style={{ left: "240px" }}>
+      <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
         <div className="w-60 bg-card border-r border-border" />
         <div className="flex-1 p-6">
           <ContactCardSkeleton count={6} />
@@ -145,13 +145,13 @@ export default function ContactsPage() {
   // Error state
   if (isError) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ left: "240px" }}>
+      <div className="fixed inset-0 flex items-center justify-center transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
         <div className="text-center">
           <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Contacts</h2>
           <p className="text-muted-foreground">Failed to load contacts. Please try again.</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-blue-600 text-foreground rounded-lg hover:bg-blue-700"
+            className="mt-4 px-4 py-2 bg-blue-600 text-foreground rounded-lg hover:bg-blue-700 cursor-pointer"
           >
             Retry
           </button>
@@ -161,7 +161,7 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="fixed inset-0 flex" style={{ left: "240px" }}>
+    <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
       {/* Left sidebar - Lists */}
       <div className="w-60 bg-card border-r border-border flex flex-col">
         <div className="px-3 py-4">
@@ -218,46 +218,19 @@ export default function ContactsPage() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <div className="h-16 px-6 flex items-center justify-between border-b border-border">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode("table")}
-              className={cn(
-                "w-9 h-9 flex items-center justify-center rounded-md transition-colors",
-                viewMode === "table"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Table View"
-            >
-              <LayoutList className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setViewMode("kanban")}
-              className={cn(
-                "w-9 h-9 flex items-center justify-center rounded-md transition-colors",
-                viewMode === "kanban"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              title="Kanban View"
-            >
-              <KanbanIcon className="w-5 h-5" />
-            </button>
-          </div>
-
           <div className="flex gap-3">
             {selectedList !== "all" && (
-              <button
-                onClick={() => setIsCSVImportOpen(true)}
-                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Import CSV</span>
-              </button>
+            <button
+              onClick={() => setIsCSVImportOpen(true)}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Import CSV</span>
+            </button>
             )}
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add Contact</span>
@@ -274,13 +247,13 @@ export default function ContactsPage() {
             <div className="flex gap-3">
               <button 
                 onClick={() => setIsAddToListModalOpen(true)}
-                className="px-4 py-2 bg-white/10 text-foreground rounded-lg text-sm font-medium hover:bg-white/20 transition-colors"
+                className="px-4 py-2 bg-white/10 text-foreground rounded-lg text-sm font-medium hover:bg-white/20 transition-colors cursor-pointer"
               >
                 Add to list
               </button>
               <button
                 onClick={handleDeleteSelected}
-                className="px-4 py-2 bg-red-500 text-foreground rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
+                className="px-4 py-2 bg-red-500 text-foreground rounded-lg text-sm font-medium hover:bg-red-600 transition-colors cursor-pointer"
               >
                 Delete
               </button>
@@ -290,20 +263,16 @@ export default function ContactsPage() {
 
         {/* Content */}
         <div className="flex-1 overflow-auto">
-          {viewMode === "table" ? (
-            <div className="p-6">
-              <ContactsTable
-                contacts={contacts}
-                selectedIds={selectedIds}
-                onToggleSelect={handleToggleSelect}
-                onToggleSelectAll={handleToggleSelectAll}
-                onEdit={handleEditContact}
-                onDelete={handleDeleteContact}
-              />
-            </div>
-          ) : (
-            <KanbanBoard contacts={contacts} />
-          )}
+          <div className="p-6">
+            <ContactsTable
+              contacts={contacts}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onToggleSelectAll={handleToggleSelectAll}
+              onEdit={handleEditContact}
+              onDelete={handleDeleteContact}
+            />
+          </div>
         </div>
       </div>
 

@@ -96,9 +96,10 @@ export default function IntegrationsPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="fixed inset-0 flex" style={{ left: "240px" }}>
       <TrainingSidebar />
-      <div className="flex-1 p-8 overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -110,7 +111,7 @@ export default function IntegrationsPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={fetchIntegrations}
-              className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-xl font-medium hover:bg-accent transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-xl font-medium hover:bg-accent transition-colors cursor-pointer"
               disabled={isLoading}
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -118,7 +119,7 @@ export default function IntegrationsPage() {
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-2 bg-primary text-foreground rounded-xl font-medium hover:brightness-110 transition-all"
+              className="flex items-center gap-2 px-6 py-2 bg-primary text-foreground rounded-xl font-medium hover:brightness-110 transition-all cursor-pointer"
             >
               <Plus className="w-5 h-5" />
               New Integration
@@ -149,6 +150,7 @@ export default function IntegrationsPage() {
           editingTool={editingTool}
           isLoading={isSubmitting}
         />
+        </div>
       </div>
     </div>
   );

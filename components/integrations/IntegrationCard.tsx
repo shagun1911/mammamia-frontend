@@ -29,34 +29,36 @@ export function IntegrationCard({
   isLoading = false,
 }: IntegrationCardProps) {
   return (
-    <Card className="border-border hover:border-primary/50 transition-colors">
-      <CardHeader>
+    <Card className="border-border hover:border-primary/50 transition-colors p-6">
+      <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               {icon}
             </div>
-            <div>
-              <CardTitle className="text-lg">{name}</CardTitle>
-              <CardDescription className="text-sm mt-1">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-lg mb-1.5">{name}</CardTitle>
+              <CardDescription className="text-sm leading-relaxed">
                 {description}
               </CardDescription>
             </div>
           </div>
-          {connected ? (
-            <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
-              <CheckCircle2 className="h-3 w-3 mr-1" />
-              Connected
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-muted-foreground">
-              <XCircle className="h-3 w-3 mr-1" />
-              Not Setup
-            </Badge>
-          )}
+          <div className="flex-shrink-0 ml-4">
+            {connected ? (
+              <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Connected
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                <XCircle className="h-3 w-3 mr-1" />
+                Not Setup
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-4">
         <div className="flex items-center justify-between">
           <Badge variant="secondary" className="text-xs">
             {category}
@@ -68,6 +70,7 @@ export function IntegrationCard({
                 variant="outline"
                 onClick={onTest}
                 disabled={isLoading}
+                className="cursor-pointer"
               >
                 <ExternalLink className="h-4 w-4 mr-1" />
                 Test
@@ -79,6 +82,7 @@ export function IntegrationCard({
                 variant="ghost"
                 onClick={onDisconnect}
                 disabled={isLoading}
+                className="cursor-pointer"
               >
                 Disconnect
               </Button>
@@ -87,6 +91,7 @@ export function IntegrationCard({
                 size="sm"
                 onClick={onSetup}
                 disabled={isLoading}
+                className="cursor-pointer"
               >
                 <Settings className="h-4 w-4 mr-1" />
                 Setup

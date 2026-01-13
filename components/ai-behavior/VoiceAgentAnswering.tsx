@@ -158,13 +158,13 @@ export function VoiceAgentAnswering() {
               setImprovements(defaultPrompt);
               setVoiceAgentPrompt(defaultPrompt);
             }}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Reset
           </button>
           <button 
             onClick={handleSavePrompt}
-            className="px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+            className="px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer"
           >
             Save Prompt
           </button>
@@ -218,7 +218,7 @@ export function VoiceAgentAnswering() {
           </div>
           <button 
             onClick={() => setShowTestModal(true)}
-            className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all"
+            className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all cursor-pointer"
           >
             Test Now
           </button>
@@ -229,7 +229,7 @@ export function VoiceAgentAnswering() {
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent transition-colors"
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-3">
             <div className="text-sm font-medium text-foreground">Advanced Settings</div>
@@ -280,14 +280,14 @@ export function VoiceAgentAnswering() {
                   setTestPhoneNumber("");
                 }}
                 disabled={isTesting}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={handleTestVoiceAgent}
                 disabled={isTesting}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isTesting ? 'Calling...' : 'Start Test Call'}
               </button>
