@@ -188,14 +188,14 @@ export default function TeamSettingsPage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Team</h2>
+          <p className="text-sm text-muted-foreground mt-1">Manage your team members and their permissions</p>
+        </div>
+
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Team</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage your team members and their permissions
-            </p>
-          </div>
+          <div></div>
           <button
             onClick={() => handleOpenModal()}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"

@@ -282,30 +282,34 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
       />
 
       <div className="flex-1 flex flex-col">
-        {/* Top bar */}
-        <div className="bg-background border-b border-border px-6 py-4 flex items-center justify-between">
+        {/* Enhanced Top bar */}
+        <div className="bg-gradient-to-r from-card via-card to-background border-b border-border px-6 py-4 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-3 py-2 bg-secondary border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors">
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border text-foreground rounded-xl text-sm font-semibold hover:bg-accent hover:shadow-md transition-all cursor-pointer">
               <List className="w-4 h-4" />
               <span>Executions</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-secondary/50 rounded-xl border border-border/50">
+              <span className={`text-sm font-semibold ${
+                selectedAutomation?.status === "enabled"
+                  ? "text-green-600"
+                  : "text-muted-foreground"
+              }`}>
                 {selectedAutomation?.status === "enabled"
                   ? "Enabled"
                   : "Disabled"}
               </span>
               <button
                 onClick={handleToggleStatus}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all cursor-pointer shadow-sm ${
                   selectedAutomation?.status === "enabled"
                     ? "bg-primary"
                     : "bg-border"
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md ${
                     selectedAutomation?.status === "enabled"
                       ? "translate-x-6"
                       : "translate-x-1"
@@ -315,20 +319,20 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
             </div>
           </div>
 
-          <button className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors">
+          <button className="p-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all cursor-pointer hover:shadow-md">
             <MoreVertical className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Canvas */}
-        <div className="flex-1 overflow-y-auto p-10 bg-background">
+        {/* Enhanced Canvas */}
+        <div className="flex-1 overflow-y-auto p-10 bg-gradient-to-b from-background to-background/95">
           <div className="flex flex-col items-center gap-0">
             {selectedAutomation?.nodes.length === 0 && (
               <button
                 onClick={() => handleAddNode(0)}
-                className="w-12 h-12 border-2 border-dashed border-border rounded-full flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-secondary transition-all"
+                className="w-14 h-14 border-2 border-dashed border-border rounded-full flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/10 transition-all cursor-pointer hover:scale-110 shadow-sm hover:shadow-md"
               >
-                <Plus className="w-6 h-6" />
+                <Plus className="w-7 h-7" />
               </button>
             )}
 
@@ -356,20 +360,20 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
             {selectedAutomation && selectedAutomation.nodes.length > 0 && (
               <button
                 onClick={() => handleAddNode(selectedAutomation.nodes.length)}
-                className="mt-6 w-12 h-12 border-2 border-dashed border-border rounded-full flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-secondary transition-all"
+                className="mt-6 w-14 h-14 border-2 border-dashed border-border rounded-full flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/10 transition-all cursor-pointer hover:scale-110 shadow-sm hover:shadow-md"
               >
-                <Plus className="w-6 h-6" />
+                <Plus className="w-7 h-7" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="bg-card border-t border-border px-6 py-4 flex items-center justify-end gap-3">
+        {/* Enhanced Bottom bar */}
+        <div className="bg-gradient-to-r from-card via-card to-background border-t border-border px-6 py-4 flex items-center justify-end gap-3 shadow-lg">
           <button 
             onClick={handleDeleteAutomation}
             disabled={deleting || !selectedAutomation}
-            className="flex items-center gap-2 px-4 py-2 border border-red-600 text-red-600 rounded-lg text-sm font-medium hover:bg-red-600/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 border-2 border-red-600 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-600/10 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Trash2 className="w-4 h-4" />
             <span>{deleting ? 'Deleting...' : 'Delete'}</span>
@@ -377,7 +381,7 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
           <button 
             onClick={handleSaveAutomation}
             disabled={saving || !selectedAutomation}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl text-sm font-semibold hover:brightness-110 hover:shadow-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Check className="w-4 h-4" />
             <span>{saving ? 'Saving...' : 'Save'}</span>

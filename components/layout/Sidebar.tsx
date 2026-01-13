@@ -94,15 +94,22 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
         backgroundSize: '20px 20px'
       }}></div>
 
-      {/* Top section - Logo */}
-      <div className="p-3 relative z-10">
+      {/* Top section - Enhanced Logo */}
+      <div className="p-4 relative z-10 border-b border-sidebar-border/40">
         <div
           className={cn(
-            "flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm transition-all duration-300 shadow-md",
-            isCollapsed ? "mx-auto" : "mx-0"
+            "flex items-center gap-3 transition-all duration-300",
+            isCollapsed ? "justify-center" : "justify-start"
           )}
         >
-          I
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-primary/30 ring-2 ring-primary/20 flex-shrink-0">
+            <span className="text-lg">I</span>
+          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col min-w-0">
+              <span className="text-base font-bold text-sidebar-foreground leading-tight">IslandAI</span>
+            </div>
+          )}
         </div>
       </div>
 

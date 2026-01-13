@@ -600,22 +600,29 @@ export default function PhoneSettingsDetailPage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push("/configuration/phone")}
-            className="w-10 h-10 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Phone (Voice) Settings</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure your voice agent and phone integration
-            </p>
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Phone Settings</h2>
+          <p className="text-sm text-muted-foreground mt-1">Configure AI-powered voice conversations with SIP providers and LiveKit</p>
+        </div>
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => router.push("/configuration/phone")}
+              className="w-10 h-10 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5 text-foreground" />
+            </button>
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">Phone Settings</h2>
+              <p className="text-sm text-muted-foreground mt-1">Configure your voice agent and phone integration</p>
+            </div>
           </div>
         </div>
+
+        <div className="flex items-center justify-between mb-6">
+          <div></div>
 
         {settings?.isConfigured && settings.twilioPhoneNumber && (
           <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2.5">

@@ -7,6 +7,9 @@ import { ChannelChart } from "@/components/analytics/ChannelChart";
 import { TopicsChart } from "@/components/analytics/TopicsChart";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7);
@@ -98,15 +101,23 @@ export default function AnalyticsPage() {
   if (isLoading) {
     return (
       <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-white" />
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+              <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
-              <p className="text-sm text-muted-foreground">Track your performance metrics</p>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                Analytics
+                <Activity className="w-5 h-5 text-primary" />
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Track your performance metrics and insights</p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <UserMenu />
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center bg-background">
@@ -123,15 +134,23 @@ export default function AnalyticsPage() {
   if (error) {
     return (
       <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-white" />
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+              <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
-              <p className="text-sm text-muted-foreground">Track your performance metrics</p>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                Analytics
+                <Activity className="w-5 h-5 text-primary" />
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Track your performance metrics and insights</p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <UserMenu />
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center bg-background">
@@ -155,15 +174,15 @@ export default function AnalyticsPage() {
 
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      {/* Enhanced Header */}
-      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm">
+      {/* Enhanced Professional Navbar */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
             <BarChart3 className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              Analytics Dashboard
+              Analytics
               <Activity className="w-5 h-5 text-primary" />
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">Track your performance metrics and insights</p>
@@ -194,6 +213,10 @@ export default function AnalyticsPage() {
             </select>
             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           </div>
+
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
         </div>
       </div>
 

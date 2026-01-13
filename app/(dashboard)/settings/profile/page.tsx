@@ -181,14 +181,10 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Profile & Subscription
-          </h1>
-          <p className="text-muted-foreground">
-            Choose the perfect plan for your AI communication needs
-          </p>
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Profile & Subscription</h2>
+          <p className="text-sm text-muted-foreground mt-1">Choose the perfect plan for your AI communication needs</p>
         </div>
 
         {/* Current Usage Stats */}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Folder, Plus } from "lucide-react";
+import { Lock, Folder, Plus, Users, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Contact } from "@/data/mockContacts";
 import { ContactsTable } from "@/components/contacts/ContactsTable";
@@ -25,6 +25,9 @@ import { NoContacts } from "@/components/EmptyState";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function ContactsPage() {
   const { getSidebarWidth } = useSidebar();
@@ -133,10 +136,32 @@ export default function ContactsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-        <div className="w-60 bg-card border-r border-border" />
-        <div className="flex-1 p-6">
-          <ContactCardSkeleton count={6} />
+      <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+        {/* Navbar */}
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                Contacts
+                <Activity className="w-5 h-5 text-primary" />
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Manage your contact database</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+        </div>
+        <div className="flex-1 flex overflow-hidden">
+          <div className="w-60 bg-card border-r border-border" />
+          <div className="flex-1 p-6 overflow-auto">
+            <ContactCardSkeleton count={6} />
+          </div>
         </div>
       </div>
     );
@@ -145,23 +170,68 @@ export default function ContactsPage() {
   // Error state
   if (isError) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Contacts</h2>
-          <p className="text-muted-foreground">Failed to load contacts. Please try again.</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-4 px-4 py-2 bg-blue-600 text-foreground rounded-lg hover:bg-blue-700 cursor-pointer"
-          >
-            Retry
-          </button>
+      <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+        {/* Navbar */}
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                Contacts
+                <Activity className="w-5 h-5 text-primary" />
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Manage your contact database</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-red-500 mb-2">Error Loading Contacts</h2>
+            <p className="text-muted-foreground">Failed to load contacts. Please try again.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+    <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+      {/* Enhanced Professional Navbar */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+            <Users className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              Contacts
+              <Activity className="w-5 h-5 text-primary" />
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your contact database</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
       {/* Left sidebar - Lists */}
       <div className="w-60 bg-card border-r border-border flex flex-col">
         <div className="px-3 py-4">
@@ -214,29 +284,29 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Main area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="h-16 px-6 flex items-center justify-between border-b border-border">
-          <div className="flex gap-3">
-            {selectedList !== "all" && (
-            <button
-              onClick={() => setIsCSVImportOpen(true)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Import CSV</span>
-            </button>
-            )}
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Contact</span>
-            </button>
+        {/* Main area */}
+        <div className="flex-1 flex flex-col">
+          {/* Action Header */}
+          <div className="h-16 px-6 flex items-center justify-between border-b border-border bg-card/50">
+            <div className="flex gap-3">
+              {selectedList !== "all" && (
+              <button
+                onClick={() => setIsCSVImportOpen(true)}
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Import CSV</span>
+              </button>
+              )}
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Contact</span>
+              </button>
+            </div>
           </div>
-        </div>
 
         {/* Bulk actions toolbar */}
         {selectedIds.length > 0 && (
@@ -273,6 +343,7 @@ export default function ContactsPage() {
               onDelete={handleDeleteContact}
             />
           </div>
+        </div>
         </div>
       </div>
 

@@ -110,6 +110,12 @@ export default function ChatbotSettingsPage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Chatbot</h2>
+          <p className="text-sm text-muted-foreground mt-1">Configure your chatbot widget appearance and behavior</p>
+        </div>
+
         <div className="max-w-[900px] mx-auto space-y-6">
         {/* Section 1 - General */}
         <div className="bg-card border border-border rounded-xl p-6">
