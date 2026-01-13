@@ -5,9 +5,14 @@ import { TrainingSidebar } from "@/components/training/TrainingSidebar";
 import { IntegrationModal } from "@/components/integrations/IntegrationModal";
 import { IntegrationList } from "@/components/integrations/IntegrationList";
 import { toolService, Tool } from "@/services/tool.service";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Brain, Activity } from "lucide-react";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function IntegrationsPage() {
+  const { getSidebarWidth } = useSidebar();
   const [integrations, setIntegrations] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -96,36 +101,59 @@ export default function IntegrationsPage() {
   };
 
   return (
-    <div className="fixed inset-0 flex" style={{ left: "240px" }}>
-      <TrainingSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground mb-2">Integrations</h1>
-            <p className="text-muted-foreground">
-              Create and manage custom integrations and automation tools
-            </p>
+    <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+      {/* Full Navbar Header */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+            <Brain className="w-6 h-6 text-white" />
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={fetchIntegrations}
-              className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-xl font-medium hover:bg-accent transition-colors cursor-pointer"
-              disabled={isLoading}
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-2 bg-primary text-foreground rounded-xl font-medium hover:brightness-110 transition-all cursor-pointer"
-            >
-              <Plus className="w-5 h-5" />
-              New Integration
-            </button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              AI Dashboard
+              <Activity className="w-5 h-5 text-primary" />
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Configure and manage your AI agents</p>
           </div>
         </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        <TrainingSidebar />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-8">
+            {/* Page Header */}
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">Integrations</h2>
+                <p className="text-muted-foreground">
+                  Create and manage custom integrations and automation tools
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchIntegrations}
+                  className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-xl font-medium hover:bg-accent transition-colors cursor-pointer"
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-foreground rounded-xl font-medium hover:brightness-110 transition-all cursor-pointer"
+                >
+                  <Plus className="w-5 h-5" />
+                  New Integration
+                </button>
+              </div>
+            </div>
 
         {/* Error Message */}
         {error && (
@@ -150,9 +178,9 @@ export default function IntegrationsPage() {
           editingTool={editingTool}
           isLoading={isSubmitting}
         />
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -55,11 +55,10 @@ export default function ApiKeysSettingsPage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">API Keys</h1>
-          <p className="text-muted-foreground mt-2">
-            Configure your AI model provider and API keys for chat and voice features
-          </p>
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">API Keys</h2>
+          <p className="text-sm text-muted-foreground mt-1">Configure your AI model provider and API keys for chat and voice features</p>
         </div>
 
         <div className="max-w-3xl">

@@ -15,11 +15,10 @@ export default function PhoneConfigurationPage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Phone Settings</h1>
-          <p className="text-muted-foreground mt-2">
-            Configure AI-powered voice conversations with SIP providers and LiveKit
-          </p>
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Phone Settings</h2>
+          <p className="text-sm text-muted-foreground mt-1">Configure AI-powered voice conversations with SIP providers and LiveKit</p>
         </div>
 
         <div className="max-w-md">

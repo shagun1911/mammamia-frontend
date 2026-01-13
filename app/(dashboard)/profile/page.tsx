@@ -1,14 +1,19 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Camera, CreditCard, Download, Check } from "lucide-react";
+import { Camera, CreditCard, Download, Check, User, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { currentPlan, usageStats, invoices, paymentMethod } from "@/data/mockBilling";
 import { toast } from "sonner";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+import { useSidebar } from "@/contexts/SidebarContext";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function ProfilePage() {
+  const { getSidebarWidth } = useSidebar();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"account" | "billing" | "security">("account");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -96,35 +101,56 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="p-8">
-      <div className="max-w-[800px] mx-auto">
-        <h1 className="text-2xl font-bold text-foreground mb-8">Profile Settings</h1>
-
-        {/* Tabs */}
-        <div className="border-b border-border mb-8">
-          <div className="flex gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-3 text-sm font-medium transition-colors relative ${
-                  activeTab === tab.id
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {tab.label}
-                {activeTab === tab.id && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                )}
-              </button>
-            ))}
+    <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+      {/* Enhanced Professional Navbar */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+            <User className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              Profile
+              <Activity className="w-5 h-5 text-primary" />
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your account settings and preferences</p>
           </div>
         </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
+        </div>
+      </div>
 
-        {/* Account Tab */}
-        {activeTab === "account" && (
-          <div className="bg-card border border-border rounded-xl p-8">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-[900px] mx-auto p-8">
+          {/* Enhanced Tabs */}
+          <div className="border-b border-border mb-8 bg-card/50 rounded-xl p-2">
+            <div className="flex gap-2">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-6 py-3 text-sm font-semibold transition-all relative rounded-lg cursor-pointer ${
+                    activeTab === tab.id
+                      ? "text-foreground bg-primary/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  {tab.label}
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Account Tab */}
+          {activeTab === "account" && (
+            <div className="bg-card border border-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow">
             {/* Avatar upload */}
             <div className="flex flex-col items-center mb-8">
               <input
@@ -218,7 +244,7 @@ export default function ProfilePage() {
 
               <button
                 type="submit"
-                className="w-full h-12 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all mt-8"
+                className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl text-sm font-semibold hover:shadow-lg shadow-md transition-all mt-8 cursor-pointer"
               >
                 Save Changes
               </button>
@@ -226,11 +252,11 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Billing Tab */}
-        {activeTab === "billing" && (
-          <div className="space-y-6">
-            {/* Current Plan */}
-            <div className="bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] rounded-xl p-8">
+          {/* Billing Tab */}
+          {activeTab === "billing" && (
+            <div className="space-y-6">
+              {/* Current Plan */}
+              <div className="bg-gradient-to-br from-primary via-primary/90 to-primary/80 rounded-xl p-8 shadow-xl hover:shadow-2xl transition-shadow">
               <h2 className="text-2xl font-bold text-foreground mb-2">
                 {currentPlan.name}
               </h2>
@@ -250,15 +276,15 @@ export default function ProfilePage() {
               </ul>
             </div>
 
-            {/* Usage Stats */}
-            <div className="grid grid-cols-3 gap-4">
-              {usageStats.map((stat, index) => {
-                const percentage = (stat.value / stat.limit) * 100;
-                return (
-                  <div
-                    key={index}
-                    className="bg-card border border-border rounded-xl p-5"
-                  >
+              {/* Usage Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {usageStats.map((stat, index) => {
+                  const percentage = (stat.value / stat.limit) * 100;
+                  return (
+                    <div
+                      key={index}
+                      className="bg-card border border-border rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow"
+                    >
                     <p className="text-[13px] text-muted-foreground mb-1">
                       {stat.label}
                     </p>
@@ -279,8 +305,8 @@ export default function ProfilePage() {
               })}
             </div>
 
-            {/* Payment Method */}
-            <div className="bg-card border border-border rounded-xl p-6">
+              {/* Payment Method */}
+              <div className="bg-card border border-border rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
               <h3 className="text-lg font-semibold text-foreground mb-4">
                 Payment Method
               </h3>
@@ -298,14 +324,14 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
-                <button className="px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors">
+                <button className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:shadow-lg shadow-md transition-all cursor-pointer">
                   Update
                 </button>
               </div>
             </div>
 
-            {/* Invoice History */}
-            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              {/* Invoice History */}
+              <div className="bg-card border border-border rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
               <div className="p-6 border-b border-border">
                 <h3 className="text-lg font-semibold text-foreground">
                   Invoice History
@@ -356,7 +382,7 @@ export default function ProfilePage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button className="text-primary hover:text-primary/80 transition-colors">
+                          <button className="text-primary hover:text-primary/80 transition-colors cursor-pointer hover:scale-110">
                             <Download className="w-4 h-4" />
                           </button>
                         </td>
@@ -369,11 +395,11 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Security Tab */}
-        {activeTab === "security" && (
-          <div className="space-y-6">
-            {/* Change Password */}
-            <div className="bg-card border border-border rounded-xl p-6">
+          {/* Security Tab */}
+          {activeTab === "security" && (
+            <div className="space-y-6">
+              {/* Change Password */}
+              <div className="bg-card border border-border rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
               <h3 className="text-lg font-semibold text-foreground mb-4">
                 Change Password
               </h3>
@@ -440,15 +466,15 @@ export default function ProfilePage() {
 
                 <button
                   type="submit"
-                  className="w-full h-12 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+                  className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl text-sm font-semibold hover:shadow-lg shadow-md transition-all cursor-pointer"
                 >
                   Update Password
                 </button>
               </form>
             </div>
 
-            {/* Two-Factor Authentication */}
-            <div className="bg-card border border-border rounded-xl p-6">
+              {/* Two-Factor Authentication */}
+              <div className="bg-card border border-border rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">
@@ -460,7 +486,7 @@ export default function ProfilePage() {
                 </div>
                 <button
                   onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all cursor-pointer shadow-sm ${
                     twoFactorEnabled ? "bg-primary" : "bg-border"
                   }`}
                 >
@@ -520,8 +546,9 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

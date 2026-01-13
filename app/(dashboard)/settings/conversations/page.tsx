@@ -33,12 +33,15 @@ export default function ConversationsSettingsPage() {
   };
 
   return (
-    <div className="p-8">
-      <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-foreground mb-2">Conversations Settings</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Manage how conversations are assigned and handled
-        </p>
+    <div className="h-full overflow-auto">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Small Header */}
+        <div className="mb-6 pb-4 border-b border-border">
+          <h2 className="text-xl font-semibold text-foreground">Conversations</h2>
+          <p className="text-sm text-muted-foreground mt-1">Manage how conversations are assigned and handled</p>
+        </div>
+
+        <div className="max-w-3xl">
 
         <div className="space-y-6">
           {/* Auto Assignment */}
@@ -182,6 +185,7 @@ export default function ConversationsSettingsPage() {
           >
             {updateSettings.isPending ? "Saving..." : "Save Settings"}
           </button>
+        </div>
         </div>
       </div>
     </div>

@@ -10,19 +10,45 @@ import { HumanOperator } from "@/components/ai-behavior/HumanOperator";
 import { VoiceHumanOperator } from "@/components/ai-behavior/VoiceHumanOperator";
 import { AIBehaviorLoader } from "@/components/ai-behavior/AIBehaviorLoader";
 import { useSidebar } from "@/contexts/SidebarContext";
-import { MessageSquare, Phone, BookOpen } from "lucide-react";
+import { MessageSquare, Phone, BookOpen, Brain, Activity } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function AIPage() {
   const { getSidebarWidth } = useSidebar();
   const [activeTab, setActiveTab] = useState<"knowledge" | "chat" | "voice">("knowledge");
 
   return (
-    <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      <TrainingSidebar />
-      <div className="flex-1 flex flex-col">
-        {/* Tab Navigation */}
-        <div className="border-b border-border bg-card shadow-sm">
-          <div className="flex gap-1 px-6">
+    <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+      {/* Full Navbar Header */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+            <Brain className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              AI Dashboard
+              <Activity className="w-5 h-5 text-primary" />
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Configure and manage your AI agents</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
+        <TrainingSidebar />
+        <div className="flex-1 flex flex-col">
+          {/* Tab Navigation */}
+          <div className="border-b border-border bg-card shadow-sm">
+            <div className="flex gap-1 px-6">
             <button
               onClick={() => setActiveTab("knowledge")}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative cursor-pointer ${
@@ -95,6 +121,7 @@ export default function AIPage() {
               <VoiceAgentAnswering />
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

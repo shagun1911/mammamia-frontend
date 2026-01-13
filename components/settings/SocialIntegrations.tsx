@@ -453,13 +453,6 @@ export default function SocialIntegrations() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-foreground mb-2">Social Integrations</h2>
-          <p className="text-sm text-muted-foreground">
-            Connect your WhatsApp, Instagram, and Facebook accounts to manage all conversations in one place using 360dialog.
-          </p>
-        </div>
 
         {/* Integration Cards */}
         <div className="space-y-6 mb-8">

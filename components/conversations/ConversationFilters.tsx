@@ -42,11 +42,19 @@ export function ConversationFilters({
     <div className="w-[300px] bg-card border-r border-border h-full flex flex-col overflow-hidden shadow-lg">
       {/* Enhanced Header with Search */}
       <div className="px-5 py-4 border-b border-border bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex-shrink-0">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
-            <Filter className="w-4 h-4 text-white" />
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
+              <Filter className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="text-lg font-bold text-foreground">Filters</h2>
           </div>
-          <h2 className="text-lg font-bold text-foreground">Filters</h2>
+          <button 
+            className="p-1.5 rounded-lg text-foreground hover:bg-secondary transition-colors cursor-pointer hover:scale-110 active:scale-95"
+            title="Create new conversation"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
