@@ -55,26 +55,26 @@ export function ConversationList({
   }, [conversations, searchQuery, statusFilter, sortBy]);
 
   return (
-    <div className="w-[360px] bg-card border-r border-border h-full flex flex-col">
-      {/* Header */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-border">
-        <button className="flex items-center gap-2 text-sm font-medium text-foreground hover:opacity-80 transition-opacity">
-          <UserCircle2 className="w-4 h-4" />
+    <div className="w-[380px] bg-card border-r border-border h-full flex flex-col shadow-sm overflow-hidden">
+      {/* Enhanced Header */}
+      <div className="h-16 px-5 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+        <button className="flex items-center gap-2.5 text-sm font-semibold text-foreground hover:opacity-80 transition-opacity cursor-pointer px-3 py-1.5 rounded-lg hover:bg-secondary">
+          <UserCircle2 className="w-4.5 h-4.5" />
           <span>Assigned to me</span>
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => setShowSearch(!showSearch)}
-            className={`hover:text-foreground transition-colors ${
-              showSearch ? "text-foreground" : "text-muted-foreground"
+            className={`p-2 rounded-lg hover:bg-secondary transition-all cursor-pointer ${
+              showSearch ? "text-foreground bg-secondary" : "text-muted-foreground"
             }`}
           >
             <Search className="w-[18px] h-[18px]" />
           </button>
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className={`hover:text-foreground transition-colors ${
-              showFilters ? "text-foreground" : "text-muted-foreground"
+            className={`p-2 rounded-lg hover:bg-secondary transition-all cursor-pointer ${
+              showFilters ? "text-foreground bg-secondary" : "text-muted-foreground"
             }`}
           >
             <SlidersHorizontal className="w-[18px] h-[18px]" />
@@ -82,27 +82,30 @@ export function ConversationList({
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Enhanced Search Bar */}
       {showSearch && (
-        <div className="px-4 py-2 border-b border-border">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search conversations..."
-            className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-          />
+        <div className="px-4 py-3 border-b border-border bg-background/50">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full bg-secondary border border-border rounded-lg pl-10 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+          </div>
         </div>
       )}
 
-      {/* Filter Row */}
+      {/* Enhanced Filter Row */}
       {showFilters && (
-        <div className="px-4 py-3 border-b border-border space-y-2">
+        <div className="px-4 py-3 border-b border-border bg-background/50 space-y-2">
           <div className="flex items-center gap-2">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex-1 px-3 py-2 bg-secondary border border-border rounded-md text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              className="flex-1 px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
             >
               <option value="all">All Status</option>
               <option value="open">Open</option>
@@ -113,7 +116,7 @@ export function ConversationList({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="flex-1 px-3 py-2 bg-secondary border border-border rounded-md text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              className="flex-1 px-3 py-2.5 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
             >
               <option value="recent">Most Recent</option>
               <option value="oldest">Oldest First</option>
@@ -135,10 +138,18 @@ export function ConversationList({
             />
           ))
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col items-center justify-center h-full px-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+              <Search className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground mb-1">
               {searchQuery ? "No conversations match your search" : "No conversations found"}
             </p>
+            {searchQuery && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Try adjusting your search or filters
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -738,7 +738,7 @@ export default function PhoneSettingsDetailPage() {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-foreground mb-1">Full Setup</h4>
                         <p className="text-xs text-muted-foreground">
-                          Complete setup from scratch with Twilio credentials
+                          Complete setup from scratch with SIP provider credentials
                         </p>
                       </div>
                     </div>
@@ -796,7 +796,7 @@ export default function PhoneSettingsDetailPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
-                        Twilio Account SID <span className="text-red-500">*</span>
+                        Provider Account SID <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -808,7 +808,7 @@ export default function PhoneSettingsDetailPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
-                        Twilio Auth Token <span className="text-red-500">*</span>
+                        Provider Auth Token <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="password"
@@ -980,10 +980,10 @@ export default function PhoneSettingsDetailPage() {
               </p>
             </div>
 
-            {/* Twilio Phone Number */}
+            {/* Phone Number */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-3">
-                Twilio Phone Number <span className="text-red-500">*</span>
+                Phone Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -993,7 +993,7 @@ export default function PhoneSettingsDetailPage() {
                 className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Enter your Twilio phone number in E.164 format (e.g., +1234567890)
+                Enter your phone number in E.164 format (e.g., +1234567890)
               </p>
             </div>
 
@@ -1014,10 +1014,10 @@ export default function PhoneSettingsDetailPage() {
               </p>
             </div>
 
-            {/* Twilio Trunk SID */}
+            {/* Trunk SID */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-3">
-                Twilio Trunk SID
+                Trunk SID
               </label>
               <input
                 type="text"
@@ -1028,7 +1028,7 @@ export default function PhoneSettingsDetailPage() {
                 readOnly
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Twilio Trunk SID (automatically set from setup)
+                SIP Trunk SID (automatically set from setup)
               </p>
             </div>
 
@@ -1041,12 +1041,12 @@ export default function PhoneSettingsDetailPage() {
                 type="text"
                 value={terminationUri}
                 onChange={(e) => setTerminationUri(e.target.value)}
-                placeholder="tkxxxx...pstn.twilio.com"
+                placeholder="sip.provider.com"
                 className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 readOnly
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Twilio termination URI (automatically set from setup)
+                SIP termination URI (automatically set from setup)
               </p>
             </div>
 

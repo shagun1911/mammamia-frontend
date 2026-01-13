@@ -37,7 +37,7 @@ export default function ChannelsSettingsPage() {
 
           <h3 className="text-lg font-semibold text-foreground mb-2">Phone (Voice)</h3>
           <p className="text-sm text-muted-foreground mb-auto">
-            AI-powered voice conversations with Twilio and LiveKit
+            AI-powered voice conversations with SIP providers and LiveKit
           </p>
 
           {settings?.isConfigured && settings.twilioPhoneNumber && (

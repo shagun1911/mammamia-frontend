@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Calendar, RefreshCw } from "lucide-react";
+import { Calendar, RefreshCw, TrendingUp, BarChart3, Activity } from "lucide-react";
 import { MetricsGrid } from "@/components/analytics/MetricsGrid";
 import { ChannelChart } from "@/components/analytics/ChannelChart";
 import { TopicsChart } from "@/components/analytics/TopicsChart";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7);
@@ -91,17 +92,27 @@ export default function AnalyticsPage() {
     90: "Last 90 days",
   };
 
+  const { getSidebarWidth } = useSidebar();
+
   // Show loading state
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="h-16 px-6 flex items-center justify-between border-b border-border">
-          <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+      <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+              <p className="text-sm text-muted-foreground">Track your performance metrics</p>
+            </div>
+          </div>
         </div>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center bg-background">
           <div className="text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading analytics...</p>
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground font-medium">Loading analytics...</p>
           </div>
         </div>
       </div>
@@ -111,20 +122,28 @@ export default function AnalyticsPage() {
   // Show error state
   if (error) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="h-16 px-6 flex items-center justify-between border-b border-border">
-          <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">⚠️</span>
+      <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">Failed to Load Analytics</h2>
-            <p className="text-muted-foreground mb-4">{error}</p>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+              <p className="text-sm text-muted-foreground">Track your performance metrics</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center bg-background">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl">⚠️</span>
+            </div>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">Failed to Load Analytics</h2>
+            <p className="text-muted-foreground mb-6">{error}</p>
             <button
               onClick={refresh}
-              className="px-6 py-2 bg-primary text-foreground rounded-lg font-medium hover:brightness-110 transition-all"
+              className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:brightness-110 transition-all shadow-lg shadow-primary/20 cursor-pointer"
             >
               Try Again
             </button>
@@ -135,55 +154,75 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="h-16 px-6 flex items-center justify-between border-b border-border">
-        <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+    <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+      {/* Enhanced Header */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+            <BarChart3 className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              Analytics Dashboard
+              <Activity className="w-5 h-5 text-primary" />
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Track your performance metrics and insights</p>
+          </div>
+        </div>
         
-        {/* Controls */}
+        {/* Enhanced Controls */}
         <div className="flex items-center gap-3">
           <button
             onClick={refresh}
             disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent hover:border-primary/20 transition-all disabled:opacity-50 shadow-sm cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           
-          {/* Date range selector */}
+          {/* Enhanced Date range selector */}
           <div className="relative">
             <select
               value={dateRange}
               onChange={(e) => setDateRange(Number(e.target.value) as 7 | 30 | 90)}
-              className="appearance-none flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors cursor-pointer pl-10"
+              className="appearance-none flex items-center gap-2 px-4 py-2.5 pr-10 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent hover:border-primary/20 transition-all cursor-pointer shadow-sm"
             >
               <option value={7}>Last 7 days</option>
               <option value={30}>Last 30 days</option>
               <option value={90}>Last 90 days</option>
             </select>
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
+      {/* Enhanced Content */}
+      <div className="flex-1 overflow-auto bg-gradient-to-b from-background to-background/95 p-8">
         {metrics && (
           <>
             {/* Metrics Grid */}
             <MetricsGrid metrics={metrics} chartData={chartData} />
 
             {/* Charts Section */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
               <ChannelChart data={channelData} />
               {topicData.length > 0 ? (
                 <TopicsChart data={topicData} />
               ) : (
-                <div className="bg-card border border-border rounded-xl p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-4">Top Topics</h2>
-                  <div className="flex items-center justify-center h-64 text-muted-foreground">
-                    <p>No topic data available yet</p>
+                <div className="bg-card border border-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-foreground">Top Topics</h2>
+                  </div>
+                  <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                    <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+                      <BarChart3 className="w-8 h-8 text-muted-foreground/50" />
+                    </div>
+                    <p className="font-medium">No topic data available yet</p>
+                    <p className="text-sm mt-1">Topics will appear here as conversations grow</p>
                   </div>
                 </div>
               )}

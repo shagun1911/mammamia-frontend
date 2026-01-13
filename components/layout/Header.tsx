@@ -16,19 +16,18 @@ interface HeaderProps {
 
 export function Header({ title, breadcrumbs, actions }: HeaderProps) {
   return (
-    <div className="mb-8">
-      {breadcrumbs && breadcrumbs.length > 0 && (
-        <Breadcrumb items={breadcrumbs} />
-      )}
-      
-      <div className="flex items-center justify-between">
+    <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm">
+      <div className="flex items-center gap-4">
+        {breadcrumbs && breadcrumbs.length > 0 && (
+          <Breadcrumb items={breadcrumbs} />
+        )}
         <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-        <div className="flex items-center gap-4">
-          {actions}
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <UserMenu />
-        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        {actions}
+        <LanguageSwitcher />
+        <ThemeToggle />
+        <UserMenu />
       </div>
     </div>
   );

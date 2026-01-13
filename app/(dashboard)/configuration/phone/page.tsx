@@ -18,7 +18,7 @@ export default function PhoneConfigurationPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground">Phone Settings</h1>
           <p className="text-muted-foreground mt-2">
-            Configure AI-powered voice conversations with Twilio and LiveKit
+            Configure AI-powered voice conversations with SIP providers and LiveKit
           </p>
         </div>
 
@@ -43,7 +43,7 @@ export default function PhoneConfigurationPage() {
 
             <h3 className="text-lg font-semibold text-foreground mb-2">Phone (Voice)</h3>
             <p className="text-sm text-muted-foreground mb-auto">
-              AI-powered voice conversations with Twilio and LiveKit
+              AI-powered voice conversations with SIP providers and LiveKit
             </p>
 
             {settings?.isConfigured && settings.twilioPhoneNumber && (

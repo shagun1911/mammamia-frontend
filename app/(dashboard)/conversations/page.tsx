@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Header } from "@/components/layout/Header";
 import { ConversationFilters } from "@/components/conversations/ConversationFilters";
 import { ConversationList } from "@/components/conversations/ConversationList";
 import { ConversationDetail } from "@/components/conversations/ConversationDetail";
@@ -12,6 +11,9 @@ import { NoConversations } from "@/components/EmptyState";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { useSocket } from "@/hooks/useSocket";
 import { toast } from "sonner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function ConversationsPage() {
   const { getSidebarWidth } = useSidebar();
@@ -47,6 +49,11 @@ export default function ConversationsPage() {
 
   const conversations = conversationsData?.conversations || [];
   const selectedConversation = selectedConversationData || null;
+
+  // Close selected conversation when filter changes
+  useEffect(() => {
+    setSelectedConversationId(null);
+  }, [filter]);
 
   // Listen for new conversations via WebSocket
   useEffect(() => {
@@ -104,49 +111,65 @@ export default function ConversationsPage() {
   // Loading state
   if (isLoading) {
     return (
-      <>
-        <Header title="Conversations" />
-        <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px`, top: "80px" }}>
+      <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0">
+          <h1 className="text-2xl font-bold text-foreground">Conversations</h1>
+        </div>
+        <div className="flex-1 flex overflow-hidden">
           <ConversationFilters onFilterChange={setFilter} />
-          <div className="flex-1 p-4">
+          <div className="flex-1 p-4 overflow-auto">
             <ConversationListSkeleton count={5} />
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   // Error state
   if (isError) {
     return (
-      <>
-        <Header title="Conversations" />
-        <div className="fixed inset-0 flex items-center justify-center transition-all duration-300" style={{ left: `${getSidebarWidth()}px`, top: "80px" }}>
+      <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+        <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0">
+          <h1 className="text-2xl font-bold text-foreground">Conversations</h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
           <div className="text-center">
             <h2 className="text-xl font-bold text-destructive mb-2">Error Loading Conversations</h2>
             <p className="text-muted-foreground">{error?.message || 'Failed to load conversations'}</p>
             <button 
               onClick={() => window.location.reload()} 
-              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 cursor-pointer"
             >
               Retry
             </button>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
-      <Header title="Conversations" />
-      <div className="fixed inset-0 flex transition-all duration-300" style={{ left: `${getSidebarWidth()}px`, top: "80px" }}>
+    <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
+      {/* Fixed Header */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-foreground">Conversations</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden">
         {/* Column 1 - Filters */}
         <ConversationFilters onFilterChange={setFilter} />
 
         {/* Column 2 - Conversation List */}
         {conversations.length === 0 ? (
-          <div className="flex-1">
+          <div className="flex-1 overflow-hidden">
             <NoConversations />
           </div>
         ) : (
@@ -163,16 +186,34 @@ export default function ConversationsPage() {
             conversation={selectedConversation}
             onClose={handleCloseDetail}
           />
-        ) : (
-          <div className="flex-1 bg-background flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-muted-foreground">
+        ) : conversations.length > 0 ? (
+          <div className="flex-1 bg-background flex items-center justify-center overflow-hidden">
+            <div className="text-center max-w-md px-6">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
+                <svg
+                  className="w-10 h-10 text-primary"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
                 Select a conversation to view details
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Choose a conversation from the list to see messages, customer details, and more
               </p>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
-    </>
+    </div>
   );
 }

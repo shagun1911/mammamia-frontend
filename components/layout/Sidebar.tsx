@@ -84,16 +84,22 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex flex-col z-50",
+        "fixed left-0 top-0 h-screen bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95 border-r border-sidebar-border/60 transition-all duration-300 ease-in-out flex flex-col z-50 shadow-xl",
         isCollapsed ? "w-[60px]" : "w-[240px]"
       )}
     >
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{
+        backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+        backgroundSize: '20px 20px'
+      }}></div>
+
       {/* Top section - Logo */}
-      <div className="p-3">
+      <div className="p-3 relative z-10">
         <div
           className={cn(
-            "flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm mb-6 transition-all duration-300",
-            !isCollapsed && "mx-0"
+            "flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm transition-all duration-300 shadow-md",
+            isCollapsed ? "mx-auto" : "mx-0"
           )}
         >
           I
@@ -101,29 +107,32 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       </div>
 
       {/* Main navigation */}
-      <nav className="flex-1 px-3 space-y-1">
+      <nav className="flex-1 px-3 space-y-1.5 overflow-y-auto relative z-10">
         {mainNavItems.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.href);
+          const active = isActive(item.href) || pathname.startsWith(item.href + "/");
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center h-10 rounded-lg transition-all duration-200 relative min-w-0",
+                "flex items-center h-11 rounded-xl transition-all duration-200 relative min-w-0 group cursor-pointer",
                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
                 active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  ? "bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground shadow-lg shadow-primary/20 ring-2 ring-primary/20"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-md hover:scale-[1.02]"
               )}
               title={isCollapsed ? item.label : undefined}
             >
               <Icon className="w-5 h-5 shrink-0 flex-shrink-0" />
               {!isCollapsed && (
-                <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">
+                <span className="text-sm font-semibold truncate min-w-0 flex-1 overflow-hidden text-ellipsis">
                   {item.label}
                 </span>
+              )}
+              {active && !isCollapsed && (
+                <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 animate-pulse shrink-0"></div>
               )}
             </Link>
           );
@@ -131,7 +140,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       </nav>
 
       {/* Bottom navigation */}
-      <div className="px-3 space-y-2 pb-3">
+      <div className="px-3 space-y-2 pb-3 relative z-10">
         {bottomNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -141,11 +150,11 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center h-10 rounded-lg transition-all duration-200 relative min-w-0",
+                "flex items-center h-11 rounded-xl transition-all duration-200 relative min-w-0 group cursor-pointer",
                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
                 active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  ? "bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground shadow-lg shadow-primary/20 ring-2 ring-primary/20"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-md hover:scale-[1.02]"
               )}
               title={isCollapsed ? item.label : undefined}
             >
@@ -162,9 +171,12 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                 <Icon className="w-5 h-5 shrink-0 flex-shrink-0" />
               )}
               {!isCollapsed && (
-                <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">
+                <span className="text-sm font-semibold truncate min-w-0 flex-1 overflow-hidden text-ellipsis">
                   {item.label}
                 </span>
+              )}
+              {active && !isCollapsed && (
+                <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground/60 animate-pulse shrink-0"></div>
               )}
             </Link>
           );
@@ -172,18 +184,19 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       </div>
 
       {/* Language Switcher */}
-      <div className="border-t border-sidebar-border p-3 relative">
+      <div className="border-t border-sidebar-border/60 p-3 relative z-10 bg-sidebar/50 backdrop-blur-sm">
         <button
           onClick={() => setShowLanguageMenu(!showLanguageMenu)}
           className={cn(
-            "flex items-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 min-w-0",
-            isCollapsed ? "justify-center px-0" : "px-3 gap-3"
+            "flex items-center h-11 w-full rounded-xl text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-md hover:scale-[1.02] transition-all duration-200 min-w-0 group cursor-pointer",
+            isCollapsed ? "justify-center px-0" : "px-3 gap-3",
+            showLanguageMenu && "bg-sidebar-accent/80"
           )}
           title={isCollapsed ? languageNames[language] : undefined}
         >
           <Globe className="w-5 h-5 shrink-0 flex-shrink-0" />
           {!isCollapsed && (
-            <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">{languageNames[language]}</span>
+            <span className="text-sm font-semibold truncate min-w-0 flex-1 overflow-hidden text-ellipsis">{languageNames[language]}</span>
           )}
         </button>
 
@@ -194,7 +207,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               className="fixed inset-0 z-40"
               onClick={() => setShowLanguageMenu(false)}
             />
-            <div className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+            <div className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-card border border-border/60 rounded-xl shadow-xl overflow-hidden backdrop-blur-sm">
               {(Object.keys(languageNames) as Language[]).map((lang) => (
                 <button
                   key={lang}
@@ -203,8 +216,10 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                     setShowLanguageMenu(false);
                   }}
                   className={cn(
-                    "w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors",
-                    language === lang ? "bg-primary/10 text-primary font-medium" : "text-foreground"
+                    "w-full px-4 py-2.5 text-left text-sm hover:bg-accent transition-all duration-200 cursor-pointer",
+                    language === lang 
+                      ? "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-semibold border-l-2 border-primary" 
+                      : "text-foreground hover:translate-x-1"
                   )}
                 >
                   {languageNames[lang]}
@@ -216,11 +231,11 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       </div>
 
       {/* Collapse/Expand button */}
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border/60 p-3 relative z-10 bg-sidebar/50 backdrop-blur-sm">
         <button
           onClick={handleToggleCollapse}
           className={cn(
-            "flex items-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 min-w-0",
+            "flex items-center h-11 w-full rounded-xl text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-md hover:scale-[1.02] transition-all duration-200 min-w-0 group cursor-pointer",
             isCollapsed ? "justify-center px-0" : "px-3 gap-3"
           )}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -230,7 +245,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
           ) : (
             <>
               <ChevronLeft className="w-5 h-5 shrink-0 flex-shrink-0" />
-              <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">Collapse</span>
+              <span className="text-sm font-semibold truncate min-w-0 flex-1 overflow-hidden text-ellipsis">Collapse</span>
             </>
           )}
         </button>

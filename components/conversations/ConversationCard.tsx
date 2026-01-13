@@ -30,39 +30,43 @@ export function ConversationCard({
     <div
       onClick={onClick}
       className={cn(
-        "h-[72px] px-4 py-3 border-b border-border cursor-pointer transition-colors",
-        "hover:bg-accent",
-        isSelected && "bg-accent"
+        "h-[80px] px-5 py-4 border-b border-border cursor-pointer transition-all duration-200",
+        "hover:bg-accent/50 hover:shadow-sm",
+        isSelected && "bg-accent border-l-4 border-l-primary shadow-sm"
       )}
     >
-      <div className="flex items-center gap-3 h-full">
-        {/* Avatar */}
+      <div className="flex items-center gap-3.5 h-full">
+        {/* Enhanced Avatar */}
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
+          className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 shadow-sm ring-2 ring-background"
           style={{ backgroundColor: conversation.customer.color }}
         >
           {conversation.customer.avatar}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 flex flex-col gap-1">
+        {/* Enhanced Content */}
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-foreground truncate">
               {conversation.customer.name}
             </span>
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs text-muted-foreground font-medium">
                 {formatTime(conversation.timestamp)}
               </span>
               {isVoiceMessage && (
-                <Phone className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="p-1 rounded bg-indigo-500/10">
+                  <Phone className="w-3 h-3 text-indigo-500" />
+                </div>
               )}
               {hasRecording && (
-                <Mic className="w-3.5 h-3.5 text-green-400" />
+                <div className="p-1 rounded bg-green-500/10">
+                  <Mic className="w-3 h-3 text-green-500" />
+                </div>
               )}
             </div>
           </div>
-          <p className="text-[13px] text-muted-foreground truncate">
+          <p className="text-[13px] text-muted-foreground truncate leading-relaxed">
             {conversation.lastMessage}
           </p>
         </div>
