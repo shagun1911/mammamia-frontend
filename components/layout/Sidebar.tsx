@@ -109,7 +109,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center h-10 rounded-lg transition-all duration-200",
+                "flex items-center h-10 rounded-lg transition-all duration-200 relative min-w-0",
                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
                 active
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
@@ -117,9 +117,9 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               )}
               title={isCollapsed ? item.label : undefined}
             >
-              <Icon className="w-5 h-5 shrink-0" />
+              <Icon className="w-5 h-5 shrink-0 flex-shrink-0" />
               {!isCollapsed && (
-                <span className="text-sm font-medium truncate">
+                <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">
                   {item.label}
                 </span>
               )}
@@ -139,7 +139,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center h-10 rounded-lg transition-all duration-200",
+                "flex items-center h-10 rounded-lg transition-all duration-200 relative min-w-0",
                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
                 active
                   ? "bg-sidebar-primary text-sidebar-primary-foreground"
@@ -148,14 +148,19 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               title={isCollapsed ? item.label : undefined}
             >
               {item.icon === User ? (
-                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0">
-                  {getInitials(user?.name)}
+                <div 
+                  className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0 flex-shrink-0 overflow-hidden"
+                  data-no-translate
+                >
+                  <span className="text-[10px] leading-none select-none truncate max-w-full">
+                    {getInitials(user?.name)}
+                  </span>
                 </div>
               ) : (
-                <Icon className="w-5 h-5 shrink-0" />
+                <Icon className="w-5 h-5 shrink-0 flex-shrink-0" />
               )}
               {!isCollapsed && (
-                <span className="text-sm font-medium truncate">
+                <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">
                   {item.label}
                 </span>
               )}
@@ -169,14 +174,14 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
         <button
           onClick={() => setShowLanguageMenu(!showLanguageMenu)}
           className={cn(
-            "flex items-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200",
+            "flex items-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 min-w-0",
             isCollapsed ? "justify-center px-0" : "px-3 gap-3"
           )}
           title={isCollapsed ? languageNames[language] : undefined}
         >
-          <Globe className="w-5 h-5 shrink-0" />
+          <Globe className="w-5 h-5 shrink-0 flex-shrink-0" />
           {!isCollapsed && (
-            <span className="text-sm font-medium truncate">{languageNames[language]}</span>
+            <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">{languageNames[language]}</span>
           )}
         </button>
 
@@ -213,17 +218,17 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
         <button
           onClick={handleToggleCollapse}
           className={cn(
-            "flex items-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200",
+            "flex items-center h-10 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 min-w-0",
             isCollapsed ? "justify-center px-0" : "px-3 gap-3"
           )}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? (
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-5 h-5 shrink-0 flex-shrink-0" />
           ) : (
             <>
-              <ChevronLeft className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-medium">Collapse</span>
+              <ChevronLeft className="w-5 h-5 shrink-0 flex-shrink-0" />
+              <span className="text-sm font-medium truncate min-w-0 flex-1 overflow-hidden">Collapse</span>
             </>
           )}
         </button>

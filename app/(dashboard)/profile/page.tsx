@@ -144,8 +144,20 @@ export default function ProfilePage() {
                     />
                   </div>
                 ) : (
-                  <div className="w-[120px] h-[120px] rounded-full bg-primary flex items-center justify-center text-foreground text-4xl font-bold">
-                    {user?.name ? user.name.split(" ").map(n => n[0]).join("").toUpperCase() : "U"}
+                  <div 
+                    className="w-[120px] h-[120px] rounded-full bg-primary flex items-center justify-center text-white font-bold overflow-hidden"
+                    data-no-translate
+                  >
+                    <span className="text-4xl leading-none select-none" style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)' }}>
+                      {(() => {
+                        if (!user?.name) return "U";
+                        const names = user.name.trim().split(" ");
+                        if (names.length >= 2) {
+                          return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+                        }
+                        return user.name[0].toUpperCase();
+                      })()}
+                    </span>
                   </div>
                 )}
                 <button

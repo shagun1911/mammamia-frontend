@@ -1,11 +1,52 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, UsersRound } from "lucide-react";
 import { mockOperators, Operator, availablePermissions } from "@/data/mockOperators";
 import { cn } from "@/lib/utils";
 import { useOperators, useCreateOperator, useDeleteOperator, useUpdateOperator } from "@/hooks/useSettings";
 import { toast } from "sonner";
+
+// Avatar Image Component with proper error handling
+// NEVER renders URLs as text - only uses them as image src
+function AvatarImage({ 
+  src, 
+  alt, 
+  fallbackInitials, 
+  fallbackColor 
+}: { 
+  src: string; 
+  alt: string; 
+  fallbackInitials: string; 
+  fallbackColor: string;
+}) {
+  const [imageError, setImageError] = useState(false);
+
+  // Always fallback to initials if image fails - never show URL as text
+  if (imageError || !src) {
+    return (
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+        style={{ backgroundColor: fallbackColor }}
+      >
+        {fallbackInitials}
+      </div>
+    );
+  }
+
+  // Only render image if src is valid - URL is only used in img src attribute, never as text
+  return (
+    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-border bg-secondary">
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover"
+        onError={() => setImageError(true)}
+        loading="lazy"
+      />
+    </div>
+  );
+}
 
 export default function TeamSettingsPage() {
   const { data: operators = [], isLoading } = useOperators();
@@ -33,13 +74,13 @@ export default function TeamSettingsPage() {
 
   const getRoleBadge = (role: string) => {
     const styles: any = {
-      admin: "bg-purple-500",
-      operator: "bg-blue-500",
-      viewer: "bg-gray-500",
+      admin: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      operator: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      viewer: "bg-gray-500/20 text-gray-400 border-gray-500/30",
     };
 
     return (
-      <span className={cn("px-2.5 py-1 rounded-xl text-xs font-medium text-foreground", styles[role] || "bg-gray-500")}>
+      <span className={cn("px-2.5 py-1 rounded-xl text-xs font-medium border", styles[role] || "bg-gray-500/20 text-gray-400 border-gray-500/30")}>
         {role.charAt(0).toUpperCase() + role.slice(1)}
       </span>
     );
@@ -145,125 +186,195 @@ export default function TeamSettingsPage() {
   };
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Team</h1>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add Operator</span>
-        </button>
-      </div>
+    <div className="h-full overflow-auto">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Team</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage your team members and their permissions
+            </p>
+          </div>
+          <button
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Operator</span>
+          </button>
+        </div>
 
-      {/* Operators table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-secondary">
-                <th className="px-6 py-3 text-left">
-                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Avatar</span>
-                </th>
-                <th className="px-6 py-3 text-left">
-                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Name</span>
-                </th>
-                <th className="px-6 py-3 text-left">
-                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Email</span>
-                </th>
-                <th className="px-6 py-3 text-left">
-                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Password</span>
-                </th>
-                <th className="px-6 py-3 text-left">
-                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Role</span>
-                </th>
-                <th className="px-6 py-3 text-right">
-                  <span className="text-[13px] font-semibold text-muted-foreground uppercase">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
-                    Loading operators...
-                  </td>
+        {/* Operators table */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-secondary border-b border-border">
+                  <th className="px-6 py-3 text-left">
+                    <span className="text-[13px] font-semibold text-muted-foreground uppercase">Avatar</span>
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <span className="text-[13px] font-semibold text-muted-foreground uppercase">Name</span>
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <span className="text-[13px] font-semibold text-muted-foreground uppercase">Email</span>
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <span className="text-[13px] font-semibold text-muted-foreground uppercase">Password</span>
+                  </th>
+                  <th className="px-6 py-3 text-left">
+                    <span className="text-[13px] font-semibold text-muted-foreground uppercase">Role</span>
+                  </th>
+                  <th className="px-6 py-3 text-right">
+                    <span className="text-[13px] font-semibold text-muted-foreground uppercase">Actions</span>
+                  </th>
                 </tr>
-              ) : operators.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
-                    No operators yet. Add one to get started.
-                  </td>
-                </tr>
-              ) : (
-                operators.map((operator: any) => {
-                  const avatar = operator.avatar || operator.firstName?.[0]?.toUpperCase() || operator.name?.[0]?.toUpperCase() || "?";
-                  const color = operator.color || "#6366f1";
-                  const displayName = operator.firstName && operator.lastName 
-                    ? `${operator.firstName} ${operator.lastName}` 
-                    : operator.name || "Unknown";
+              </thead>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <span>Loading operators...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : operators.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center gap-2">
+                        <UsersRound className="w-12 h-12 text-muted-foreground/50" />
+                        <span>No operators yet. Add one to get started.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  operators.map((operator: any) => {
+                    // Extract and sanitize avatar URL - only use it for image src, never display as text
+                    // Check multiple possible fields for avatar URL
+                    const rawAvatarUrl = operator.avatar || operator.photo || operator.picture || operator.photoUrl || null;
+                    
+                    // Only use URL if it's a valid HTTP/HTTPS URL string
+                    const avatarUrl = rawAvatarUrl && 
+                      typeof rawAvatarUrl === 'string' && 
+                      (rawAvatarUrl.startsWith('http://') || rawAvatarUrl.startsWith('https://'))
+                      ? rawAvatarUrl 
+                      : null;
+                    
+                    // Generate avatar initials as fallback (never use URL for initials)
+                    let avatarInitials = "?";
+                    if (operator.firstName && operator.lastName) {
+                      avatarInitials = `${operator.firstName[0]}${operator.lastName[0]}`.toUpperCase();
+                    } else if (operator.firstName) {
+                      avatarInitials = operator.firstName[0].toUpperCase();
+                    } else if (operator.name) {
+                      const nameParts = operator.name.trim().split(" ");
+                      if (nameParts.length >= 2) {
+                        avatarInitials = `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+                      } else {
+                        avatarInitials = operator.name[0].toUpperCase();
+                      }
+                    }
+                    
+                    const color = operator.color || "#6366f1";
+                    const displayName = operator.firstName && operator.lastName 
+                      ? `${operator.firstName} ${operator.lastName}` 
+                      : operator.name || "Unknown";
 
-                  return (
-                    <tr
-                      key={operator._id || operator.id}
-                      className="border-b border-border hover:bg-secondary transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-foreground font-semibold text-sm"
-                          style={{ backgroundColor: color }}
-                        >
-                          {avatar}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-medium text-foreground">
-                          {displayName}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground">{operator.email}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm font-mono text-muted-foreground">
-                          {operator.password || "••••••••"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">{getRoleBadge(operator.role)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => handleOpenModal(operator)}
-                            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(operator._id || operator.id)}
-                            className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                    return (
+                      <tr
+                        key={operator._id || operator.id}
+                        className="border-b border-border hover:bg-secondary/50 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          {avatarUrl ? (
+                            <AvatarImage
+                              src={avatarUrl}
+                              alt={displayName}
+                              fallbackInitials={avatarInitials}
+                              fallbackColor={color}
+                            />
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                              style={{ backgroundColor: color }}
+                            >
+                              {avatarInitials}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-medium text-foreground">
+                            {displayName}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-muted-foreground break-all">{operator.email}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-mono text-muted-foreground">
+                            {/* Always mask passwords in table view for security */}
+                            {"••••••••"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">{getRoleBadge(operator.role)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => handleOpenModal(operator)}
+                              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded hover:bg-secondary"
+                              title="Edit operator"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(operator._id || operator.id)}
+                              className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors rounded hover:bg-red-500/10"
+                              title="Delete operator"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* Add/Edit Operator Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-[560px] bg-card border border-border rounded-2xl p-6">
-            <h2 className="text-xl font-semibold text-foreground mb-6">
-              {editingOperator ? "Edit Operator" : "Add Operator"}
-            </h2>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseModal();
+            }
+          }}
+        >
+          <div 
+            className="w-full max-w-[560px] bg-card border border-border rounded-2xl p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-foreground">
+                {editingOperator ? "Edit Operator" : "Add Operator"}
+              </h2>
+              <button
+                onClick={handleCloseModal}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -350,7 +461,7 @@ export default function TeamSettingsPage() {
                 <button
                   type="submit"
                   disabled={createOperator.isPending || updateOperator.isPending}
-                  className="flex-1 px-6 py-3 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {createOperator.isPending || updateOperator.isPending
                     ? "Saving..."
@@ -366,11 +477,37 @@ export default function TeamSettingsPage() {
 
       {/* Credentials Display Modal */}
       {showCredentialsModal && createdOperator && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-[560px] bg-card border border-border rounded-2xl p-6">
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              Operator Created Successfully! 🎉
-            </h2>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCredentialsModal(false);
+              setCreatedOperator(null);
+              setSavedPassword("");
+            }
+          }}
+        >
+          <div 
+            className="w-full max-w-[560px] bg-card border border-border rounded-2xl p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-semibold text-foreground">
+                Operator Created Successfully! 🎉
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCredentialsModal(false);
+                  setCreatedOperator(null);
+                  setSavedPassword("");
+                }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <p className="text-sm text-muted-foreground mb-6">
               Save these credentials. You can use them to login.
             </p>
@@ -422,7 +559,7 @@ export default function TeamSettingsPage() {
                   setCreatedOperator(null);
                   setSavedPassword("");
                 }}
-                className="px-6 py-3 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-all"
               >
                 Done
               </button>
