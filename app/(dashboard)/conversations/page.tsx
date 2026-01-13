@@ -55,11 +55,33 @@ export default function ConversationsPage() {
     setSelectedConversationId(null);
   }, [filter]);
 
-  // Listen for new conversations via WebSocket
+  // Join organization room and listen for real-time updates
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !socket.isConnected()) {
+      console.log('[ConversationsPage] Socket not connected, skipping setup');
+      return;
+    }
 
     console.log('[ConversationsPage] Setting up WebSocket listeners...');
+
+    // Get organization ID from user data
+    const userStr = localStorage.getItem('user');
+    let organizationId: string | null = null;
+    
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        organizationId = user.organizationId || user.id; // Fallback to user ID if no org ID
+      } catch (e) {
+        console.error('[ConversationsPage] Failed to parse user data:', e);
+      }
+    }
+
+    // Join organization room if we have an ID
+    if (organizationId) {
+      socket.joinOrganization(organizationId);
+      console.log(`[ConversationsPage] Joined organization room: ${organizationId}`);
+    }
 
     const handleNewConversation = (data: any) => {
       console.log('[ConversationsPage] 🆕 New conversation received:', data);
@@ -73,6 +95,18 @@ export default function ConversationsPage() {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       
       console.log('[ConversationsPage] ✅ Invalidated conversations query');
+    };
+
+    const handleNewMessage = (data: any) => {
+      console.log('[ConversationsPage] 💬 New message received:', data);
+      
+      // If this message is for the currently selected conversation, update it
+      if (data.conversationId === selectedConversationId) {
+        queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+      }
+      
+      // Also invalidate conversations list to update last message
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     };
 
     const handleTranscriptUpdated = (data: any) => {
@@ -92,6 +126,7 @@ export default function ConversationsPage() {
 
     // Subscribe to events
     socket.onNewConversation(handleNewConversation);
+    socket.onNewMessageInOrg(handleNewMessage);
     socket.onTranscriptUpdated(handleTranscriptUpdated);
 
     console.log('[ConversationsPage] ✅ WebSocket listeners registered');
@@ -100,6 +135,7 @@ export default function ConversationsPage() {
     return () => {
       console.log('[ConversationsPage] 🧹 Cleaning up WebSocket listeners');
       socket.off('conversation:new', handleNewConversation);
+      socket.off('new-message', handleNewMessage);
       socket.off('conversation:transcript-updated', handleTranscriptUpdated);
     };
   }, [socket, queryClient, selectedConversationId]);

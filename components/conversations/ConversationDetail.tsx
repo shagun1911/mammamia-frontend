@@ -51,27 +51,88 @@ export function ConversationDetail({
   useEffect(() => {
     if (!socket || !conversation.id) return;
 
+    if (!socket.isConnected()) {
+      console.warn('[ConversationDetail] Socket not connected, real-time updates disabled');
+      return;
+    }
+
     console.log(`[Real-time] Joining conversation room: ${conversation.id}`);
     
     // Join this conversation's room
     socket.joinConversation(conversation.id);
 
-    // Listen for new messages
-    const handleNewMessage = (data: any) => {
+    // Listen for new messages in this conversation
+    const handleMessageReceived = (data: any) => {
       console.log('[Real-time] New message received:', data);
-      setRealtimeMessages(prev => [...prev, data]);
-      // Show notification
-      if (data.sender === 'ai') {
-        toast.success('AI replied to the conversation');
-      } else if (data.sender === 'customer') {
-        toast.info('New customer message received');
+      
+      // Normalize IDs to strings for comparison
+      const dataConvId = String(data.conversationId || '');
+      const currentConvId = String(conversation.id || '');
+      
+      // Only add if it's for this conversation
+      if (dataConvId === currentConvId) {
+        // Check if message already exists (avoid duplicates)
+        setRealtimeMessages(prev => {
+          const exists = prev.some(msg => msg.id === data.id);
+          if (exists) {
+            console.log('[Real-time] Message already exists, skipping:', data.id);
+            return prev;
+          }
+          
+          console.log('[Real-time] Adding new message to state');
+          return [...prev, {
+            id: data.id,
+            text: data.text,
+            sender: data.sender === 'operator' ? 'agent' : (data.sender === 'customer' ? 'customer' : 'agent'),
+            timestamp: data.timestamp || new Date().toISOString(),
+            type: 'text' as const,
+            attachments: data.attachments || []
+          }];
+        });
+        
+        // Show notification
+        if (data.sender === 'ai') {
+          toast.success('AI replied to the conversation');
+        } else if (data.sender === 'customer') {
+          toast.info('New customer message received');
+        }
       }
     };
 
-    socket.onMessageReceived(handleNewMessage);
+    // Also listen for organization-level new-message events
+    const handleNewMessageInOrg = (data: any) => {
+      console.log('[Real-time] New message in org:', data);
+      
+      // Normalize IDs to strings for comparison
+      const dataConvId = String(data.conversationId || '');
+      const currentConvId = String(conversation.id || '');
+      
+      // Only handle if it's for this conversation
+      if (dataConvId === currentConvId && data.message) {
+        const messageData = data.message;
+        setRealtimeMessages(prev => {
+          const exists = prev.some(msg => msg.id === messageData.id);
+          if (exists) return prev;
+          
+          return [...prev, {
+            id: messageData.id,
+            text: messageData.text,
+            sender: messageData.sender === 'operator' ? 'agent' : (messageData.sender === 'customer' ? 'customer' : 'agent'),
+            timestamp: messageData.timestamp || new Date().toISOString(),
+            type: 'text' as const,
+            attachments: messageData.attachments || []
+          }];
+        });
+      }
+    };
+
+    socket.onMessageReceived(handleMessageReceived);
+    socket.onNewMessageInOrg(handleNewMessageInOrg);
 
     return () => {
-      socket.off('message-received', handleNewMessage);
+      socket.off('message-received', handleMessageReceived);
+      socket.off('new-message', handleNewMessageInOrg);
+      socket.leaveConversation(conversation.id);
     };
   }, [socket, conversation.id]);
 
@@ -161,11 +222,18 @@ export function ConversationDetail({
     // @ts-ignore - metadata may exist
   }, [conversation.id, conversation.channel, conversation.metadata, conversation.messages]);
 
-  // Merge real-time messages with conversation messages
-  const allMessages = useMemo(() => {
-    const existing = conversation.messages || [];
-    return [...existing, ...realtimeMessages];
-  }, [conversation.messages, realtimeMessages]);
+  // Merge real-time messages with conversation messages (avoid duplicates)
+  // This will be merged with the formatted messages below
+  const mergedRealtimeMessages = useMemo(() => {
+    return realtimeMessages.map(msg => ({
+      id: msg.id,
+      sender: msg.sender as 'customer' | 'agent',
+      content: msg.text || msg.content,
+      timestamp: msg.timestamp,
+      type: 'text' as const,
+      attachments: msg.attachments || []
+    }));
+  }, [realtimeMessages]);
 
   const handleTakeControl = () => {
     setIsManualControl(true);
@@ -175,43 +243,82 @@ export function ConversationDetail({
     setIsManualControl(false);
   };
 
-  const handleSendMessage = async (message: string, isInternal: boolean) => {
+  const handleSendMessage = async (message: string, isInternal: boolean, files?: File[]) => {
     try {
-      console.log("Send message:", message, "Internal:", isInternal);
+      console.log("Send message:", message, "Internal:", isInternal, "Files:", files);
       
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+      
+      // Create FormData if files are present, otherwise use JSON
+      const hasFiles = files && files.length > 0;
+      
+      let requestBody: FormData | string;
+      let headers: HeadersInit = {
+        'Authorization': `Bearer ${token}`
+      };
+      
+      if (hasFiles) {
+        const formData = new FormData();
+        formData.append('text', message || '');
+        formData.append('sender', 'operator');
+        formData.append('type', isInternal ? 'internal_note' : 'message');
+        
+        files.forEach((file) => {
+          formData.append('attachments', file);
+        });
+        
+        requestBody = formData;
+        // Don't set Content-Type header - browser will set it with boundary for FormData
+      } else {
+        headers['Content-Type'] = 'application/json';
+        requestBody = JSON.stringify({
+          text: message,
+          sender: 'operator',
+          type: isInternal ? 'internal_note' : 'message'
+        });
+      }
       
       const response = await fetch(
         `${API_URL}/conversations/${conversation.id}/messages`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            text: message,
-            sender: 'operator',
-            type: isInternal ? 'internal_note' : 'message'
-          })
+          headers,
+          body: requestBody
         }
       );
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to send message');
       }
 
       const data = await response.json();
       console.log('Message sent successfully:', data);
       toast.success('Message sent!');
       
-      // Add message to real-time list instead of full reload
-      setRealtimeMessages(prev => [...prev, {
-        text: message,
-        sender: 'operator',
-        timestamp: new Date()
-      }]);
+      // The backend will emit a Socket.io event, so we'll receive it via real-time listener
+      // But we can optimistically add it to show immediately
+      const sentMessage = data.data || data.message || data;
+      setRealtimeMessages(prev => {
+        const exists = prev.some(msg => msg.id === sentMessage._id || msg.id === sentMessage.id);
+        if (exists) return prev;
+        
+        return [...prev, {
+          id: sentMessage._id || sentMessage.id || Date.now().toString(),
+          text: message,
+          sender: 'agent',
+          timestamp: sentMessage.timestamp || new Date().toISOString(),
+          type: 'text' as const,
+          attachments: sentMessage.attachments || []
+        }];
+      });
+      
+      // Also invalidate to get fresh data from server
+      // @ts-ignore - queryClient might be available via context
+      if (typeof window !== 'undefined' && window.queryClient) {
+        window.queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+      }
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast.error(error.message || 'Failed to send message');
@@ -309,19 +416,22 @@ export function ConversationDetail({
     }
   };
 
-  // Convert messages to the format expected by MessageThread
+  // Convert messages to the format expected by MessageThread and merge with real-time messages
   const messages = useMemo(() => {
-    // @ts-ignore - messages may come from API with different structure
-    if (conversation.messages && Array.isArray(conversation.messages) && conversation.messages.length > 0) {
-      // @ts-ignore
-      return conversation.messages.map((msg: any) => ({
-        id: msg._id || msg.id,
-        sender: (msg.sender === 'customer' || msg.sender === 'user' ? 'customer' : 'agent') as 'customer' | 'agent',
-        content: msg.text || msg.content,
-        timestamp: msg.timestamp || msg.createdAt || new Date().toISOString(),
-        type: 'text' as const,
-      }));
-    }
+    let formattedMessages: any[] = [];
+    
+      // @ts-ignore - messages may come from API with different structure
+      if (conversation.messages && Array.isArray(conversation.messages) && conversation.messages.length > 0) {
+        // @ts-ignore
+        formattedMessages = conversation.messages.map((msg: any) => ({
+          id: msg._id || msg.id,
+          sender: (msg.sender === 'customer' || msg.sender === 'user' ? 'customer' : 'agent') as 'customer' | 'agent',
+          content: msg.text || msg.content,
+          timestamp: msg.timestamp || msg.createdAt || new Date().toISOString(),
+          type: 'text' as const,
+          attachments: msg.attachments || []
+        }));
+      }
     
     // Fallback to transcript if no messages
     // @ts-ignore - transcript may exist on conversation
@@ -399,8 +509,23 @@ export function ConversationDetail({
     }
     
     // Final fallback to conversation.messages if it exists
-    return conversation.messages || [];
-  }, [conversation]);
+    if (formattedMessages.length === 0) {
+      formattedMessages = conversation.messages || [];
+    }
+    
+    // Merge with real-time messages (avoid duplicates)
+    const existingIds = new Set(formattedMessages.map((msg: any) => msg.id));
+    const newRealtimeMessages = mergedRealtimeMessages.filter(msg => !existingIds.has(msg.id));
+    
+    // Combine and sort by timestamp
+    const allMessages = [...formattedMessages, ...newRealtimeMessages].sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return timeA - timeB;
+    });
+    
+    return allMessages;
+  }, [conversation, mergedRealtimeMessages]);
 
   return (
     <div className="flex-1 bg-background flex flex-col">

@@ -22,11 +22,12 @@ class SocketClient {
       auth: {
         token,
       },
-      transports: ['websocket'],
-      reconnection: false, // Disable auto-reconnection to prevent spam
-      reconnectionAttempts: 1,
-      reconnectionDelay: 5000,
-      timeout: 5000,
+      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
+      reconnection: true, // Enable auto-reconnection
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     this.setupEventListeners();
