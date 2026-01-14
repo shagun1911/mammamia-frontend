@@ -8,18 +8,19 @@ import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { useInboundAgentConfig } from "@/hooks/useInboundAgentConfig";
 import { VOICE_OPTIONS, phoneSettingsService } from "@/services/phoneSettings.service";
 import { toast } from "sonner";
-import { VoicePlayground } from "@/components/settings/VoicePlayground";
-
 export default function PhoneSettingsDetailPage() {
   const router = useRouter();
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
-  const { aiBehavior, updateVoiceAgentHumanOperator } = useAIBehavior();
-  const { configs: inboundConfigs, syncConfig, updateConfig } = useInboundAgentConfig();
+  const { aiBehavior, updateVoiceAgentHumanOperator, updateVoiceAgentPrompt } = useAIBehavior();
+  const { configs: inboundConfigs, syncConfig, updateConfig, deleteConfig } = useInboundAgentConfig();
 
-  const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall" | "inbound" | "greeting">("settings");
+  const [activeTab, setActiveTab] = useState<"voiceAgentBehaviour" | "endOfCall" | "inbound">("voiceAgentBehaviour");
   const [copied, setCopied] = useState(false);
 
   // Form state
+  const [voiceType, setVoiceType] = useState<"predefined" | "custom">(
+    settings?.customVoiceId ? "custom" : "predefined"
+  );
   const [selectedVoice, setSelectedVoice] = useState(settings?.selectedVoice || "adam");
   const [customVoiceId, setCustomVoiceId] = useState(settings?.customVoiceId || "");
   const [twilioPhoneNumber, setTwilioPhoneNumber] = useState(settings?.twilioPhoneNumber || "");
@@ -61,9 +62,10 @@ export default function PhoneSettingsDetailPage() {
   const [inboundConnectedNumbers, setInboundConnectedNumbers] = useState<string[]>([]);
   const [isCreatingInbound, setIsCreatingInbound] = useState(false);
 
-  // Greeting message and language settings (for Settings tab)
+  // Greeting message, language, and system prompt settings
   const [greetingMessage, setGreetingMessage] = useState("");
   const [language, setLanguage] = useState("en");
+  const [systemPrompt, setSystemPrompt] = useState(aiBehavior?.voiceAgent?.systemPrompt || "");
 
   // Edit mode for inbound configs
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export default function PhoneSettingsDetailPage() {
     if (settings) {
       setSelectedVoice(settings.selectedVoice);
       setCustomVoiceId(settings.customVoiceId || "");
+      setVoiceType(settings.customVoiceId ? "custom" : "predefined");
       setTwilioPhoneNumber(settings.twilioPhoneNumber);
       setLivekitSipTrunkId(settings.livekitSipTrunkId);
       setTwilioTrunkSid(settings.twilioTrunkSid || "");
@@ -89,6 +92,9 @@ export default function PhoneSettingsDetailPage() {
   useEffect(() => {
     if (aiBehavior?.voiceAgent?.humanOperator?.escalationRules) {
       setEscalationRules(aiBehavior.voiceAgent.humanOperator.escalationRules);
+    }
+    if (aiBehavior?.voiceAgent?.systemPrompt) {
+      setSystemPrompt(aiBehavior.voiceAgent.systemPrompt);
     }
   }, [aiBehavior]);
 
@@ -198,6 +204,44 @@ export default function PhoneSettingsDetailPage() {
     updateVoiceAgentHumanOperator.mutate({
       escalationRules,
     });
+  };
+
+  const handleSaveSystemPrompt = () => {
+    if (!systemPrompt.trim()) {
+      toast.error("System prompt cannot be empty");
+      return;
+    }
+    updateVoiceAgentPrompt.mutate(systemPrompt);
+  };
+
+  const handleDeleteOutboundNumber = async () => {
+    if (!confirm("Are you sure you want to delete the outbound number? This will remove all associated configurations.")) {
+      return;
+    }
+    try {
+      await updateSettings({
+        twilioPhoneNumber: "",
+        livekitSipTrunkId: "",
+        twilioTrunkSid: "",
+        terminationUri: "",
+        originationUri: "",
+      });
+      toast.success("Outbound number deleted successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete outbound number");
+    }
+  };
+
+  const handleDeleteInboundNumber = async (phoneNumber: string) => {
+    if (!confirm(`Are you sure you want to delete ${phoneNumber}? This will remove the inbound configuration.`)) {
+      return;
+    }
+    try {
+      await deleteConfig.mutateAsync(phoneNumber);
+      toast.success(`Inbound number ${phoneNumber} deleted successfully`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete inbound number");
+    }
   };
 
   const handleCopyNumber = () => {
@@ -538,6 +582,10 @@ export default function PhoneSettingsDetailPage() {
 
   // Generic SIP Trunk Setup (Method 2)
   const handleGenericSetup = async () => {
+    if (settings?.isConfigured && settings.twilioPhoneNumber) {
+      toast.error("Please delete the existing outbound number before adding a new one");
+      return;
+    }
     if (!genericSetupLabel || !genericSetupPhone || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword) {
       toast.error("Please fill in all required fields");
       return;
@@ -624,50 +672,80 @@ export default function PhoneSettingsDetailPage() {
         <div className="flex items-center justify-between mb-6">
           <div></div>
 
-        {settings?.isConfigured && settings.twilioPhoneNumber && (
-          <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2.5">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            <div>
-              <div className="text-xs text-green-400 font-medium mb-0.5">Number Connected</div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono text-foreground">{settings.twilioPhoneNumber}</span>
-                <button
-                  onClick={handleCopyNumber}
-                  className="p-1 hover:bg-green-500/10 rounded transition-colors cursor-pointer"
-                >
-                  {copied ? (
-                    <Check className="w-4 h-4 text-green-400" />
-                  ) : (
-                    <Copy className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                  )}
-                </button>
+        {/* Connected Numbers Display */}
+        <div className="flex items-center gap-4">
+          {/* Outbound Number */}
+          {settings?.isConfigured && settings.twilioPhoneNumber && (
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2.5">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              <div>
+                <div className="text-xs text-green-400 font-medium mb-0.5">Outbound Number</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono text-foreground">{settings.twilioPhoneNumber}</span>
+                  <button
+                    onClick={handleCopyNumber}
+                    className="p-1 hover:bg-green-500/10 rounded transition-colors cursor-pointer"
+                    title="Copy number"
+                  >
+                    {copied ? (
+                      <Check className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                    )}
+                  </button>
+                  <button
+                    onClick={handleDeleteOutboundNumber}
+                    className="p-1 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-red-400 hover:text-red-500"
+                    title="Delete outbound number"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Inbound Numbers */}
+          {inboundConfigs && inboundConfigs.length > 0 && (
+            <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+              <div>
+                <div className="text-xs text-blue-400 font-medium mb-0.5">Inbound Numbers ({inboundConfigs.length})</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {inboundConfigs.map((config) => (
+                    <div key={config._id} className="flex items-center gap-1 bg-background/50 rounded px-2 py-1">
+                      <span className="text-xs font-mono text-foreground">{config.calledNumber}</span>
+                      <button
+                        onClick={() => handleDeleteInboundNumber(config.calledNumber)}
+                        className="p-0.5 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-red-400 hover:text-red-500"
+                        title={`Delete ${config.calledNumber}`}
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 bg-secondary rounded-lg p-1 mb-6 max-w-2xl">
         <button
-          onClick={() => setActiveTab("settings")}
+          onClick={() => setActiveTab("voiceAgentBehaviour")}
           className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "settings"
+            activeTab === "voiceAgentBehaviour"
               ? "bg-primary text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Settings
-        </button>
-        <button
-          onClick={() => setActiveTab("voice")}
-          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "voice"
-              ? "bg-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Voice Playground
+          Voice Agent Behaviour
         </button>
         <button
           onClick={() => setActiveTab("endOfCall")}
@@ -677,7 +755,7 @@ export default function PhoneSettingsDetailPage() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          End of Call
+          Escalation Rules
         </button>
         <button
           onClick={() => setActiveTab("inbound")}
@@ -687,22 +765,12 @@ export default function PhoneSettingsDetailPage() {
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Inbound
-        </button>
-        <button
-          onClick={() => setActiveTab("greeting")}
-          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "greeting"
-              ? "bg-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Greeting Message
+          Inbound Numbers
         </button>
       </div>
 
-      {/* Settings Tab */}
-      {activeTab === "settings" && (
+      {/* Voice Agent Behaviour Tab */}
+      {activeTab === "voiceAgentBehaviour" && (
         <div className="space-y-6 max-w-2xl">
           {/* Auto Setup Methods Section */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -949,148 +1017,69 @@ export default function PhoneSettingsDetailPage() {
             </div>
             
           <div className="space-y-6">
-            {/* Voice Selection */}
+            {/* Voice Type Selection */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-3">
-                Voice <span className="text-red-500">*</span>
+                Voice Type <span className="text-red-500">*</span>
               </label>
               <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                value={voiceType}
+                onChange={(e) => {
+                  const newType = e.target.value as "predefined" | "custom";
+                  setVoiceType(newType);
+                  // Clear custom voice ID when switching to predefined
+                  if (newType === "predefined") {
+                    setCustomVoiceId("");
+                  }
+                }}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
               >
-                {VOICE_OPTIONS.map((voice) => (
-                  <option key={voice.value} value={voice.value}>
-                    {voice.flag} {voice.label} ({voice.language} • {voice.gender})
-                  </option>
-                ))}
+                <option value="predefined">Predefined Voice</option>
+                <option value="custom">Custom Voice ID</option>
               </select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Select the voice for your AI agent. Go to the <button onClick={() => setActiveTab("voice")} className="text-primary hover:underline font-medium cursor-pointer">Voice Playground</button> tab to preview all voices.
-              </p>
             </div>
+
+            {/* Predefined Voice Selection */}
+            {voiceType === "predefined" && (
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-3">
+                  Select Voice <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                >
+                  {VOICE_OPTIONS.map((voice) => (
+                    <option key={voice.value} value={voice.value}>
+                      {voice.flag} {voice.label} ({voice.language} • {voice.gender})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Select the voice for your AI agent.
+                </p>
+              </div>
+            )}
 
             {/* Custom Voice ID */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Custom Voice ID (Optional)
-              </label>
-              <input
-                type="text"
-                value={customVoiceId}
-                onChange={(e) => setCustomVoiceId(e.target.value)}
-                placeholder="Enter custom ElevenLabs voice ID"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Override the selected voice by providing a custom ElevenLabs voice ID. If provided, this will be used instead of the selected voice above.
-              </p>
-            </div>
-
-            {/* Phone Number */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Phone Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={twilioPhoneNumber}
-                onChange={(e) => setTwilioPhoneNumber(e.target.value)}
-                placeholder="+1234567890"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Enter your phone number in E.164 format (e.g., +1234567890)
-              </p>
-            </div>
-
-            {/* LiveKit SIP Trunk ID */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                LiveKit SIP Trunk ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={livekitSipTrunkId}
-                onChange={(e) => setLivekitSipTrunkId(e.target.value)}
-                placeholder="ST_xxxxxxxxxxxxxxxxxx"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Your LiveKit SIP Trunk ID (automatically set from setup)
-              </p>
-            </div>
-
-            {/* Trunk SID */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Trunk SID
-              </label>
-              <input
-                type="text"
-                value={twilioTrunkSid}
-                onChange={(e) => setTwilioTrunkSid(e.target.value)}
-                placeholder="TKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                readOnly
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                SIP Trunk SID (automatically set from setup)
-              </p>
-            </div>
-
-            {/* Termination URI */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Termination URI
-              </label>
-              <input
-                type="text"
-                value={terminationUri}
-                onChange={(e) => setTerminationUri(e.target.value)}
-                placeholder="sip.provider.com"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                readOnly
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                SIP termination URI (automatically set from setup)
-              </p>
-            </div>
-
-            {/* Origination URI */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Origination URI
-              </label>
-              <input
-                type="text"
-                value={originationUri}
-                onChange={(e) => setOriginationUri(e.target.value)}
-                placeholder="sip:xxxxxx.sip.livekit.cloud"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                readOnly
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                LiveKit origination SIP URI (automatically set from setup)
-              </p>
-            </div>
-
-            {/* Human Operator Phone Number */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Human Operator Phone Number (Transfer To)
-              </label>
-              <input
-                type="text"
-                value={humanOperatorPhone}
-                onChange={(e) => setHumanOperatorPhone(e.target.value)}
-                placeholder="+1234567890"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Phone number to transfer calls to when escalation conditions are met (E.164 format)
-              </p>
-            </div>
+            {voiceType === "custom" && (
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-3">
+                  Custom Voice ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customVoiceId}
+                  onChange={(e) => setCustomVoiceId(e.target.value)}
+                  placeholder="Enter custom ElevenLabs voice ID"
+                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enter your custom ElevenLabs voice ID. This will override any predefined voice selection.
+                </p>
+              </div>
+            )}
 
             {/* Language Selection */}
             <div>
@@ -1100,21 +1089,22 @@ export default function PhoneSettingsDetailPage() {
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
               >
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
-                <option value="it">Italian</option>
                 <option value="fr">French</option>
                 <option value="de">German</option>
+                <option value="it">Italian</option>
                 <option value="pt">Portuguese</option>
                 <option value="ar">Arabic</option>
+                <option value="tr">Turkish</option>
                 <option value="zh">Chinese</option>
                 <option value="ja">Japanese</option>
                 <option value="ko">Korean</option>
               </select>
               <p className="text-xs text-muted-foreground mt-2">
-                Default language for voice agent conversations. This will be applied to all inbound numbers.
+                Select the language for the voice agent and greeting message.
               </p>
             </div>
 
@@ -1127,51 +1117,54 @@ export default function PhoneSettingsDetailPage() {
                 value={greetingMessage}
                 onChange={(e) => setGreetingMessage(e.target.value)}
                 placeholder="Hello! How can I help you today?"
-                rows={3}
+                rows={4}
                 className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Default greeting message for outbound calls. This will be applied to all inbound numbers.
+                This greeting message will be used when the voice agent starts a conversation.
               </p>
             </div>
 
-            {/* Save Button */}
-            <div className="flex justify-end pt-4">
+            {/* System Prompt */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                System Prompt <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="You are a helpful AI assistant. Be friendly and concise."
+                rows={6}
+                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+              />
+              <p className="text-xs text-muted-foreground mt-2">
+                Define the personality and behavior of your voice agent. This prompt guides how the AI responds to users.
+              </p>
+            </div>
+
+            {/* Save Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <button
+                onClick={handleSaveSystemPrompt}
+                disabled={updateVoiceAgentPrompt.isPending || !systemPrompt.trim()}
+                className="h-11 px-6 bg-secondary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {updateVoiceAgentPrompt.isPending ? "Saving..." : "Save System Prompt"}
+              </button>
               <button
                 onClick={handleSaveSettings}
-                disabled={isUpdating || !selectedVoice}
+                disabled={isUpdating || (voiceType === "predefined" && !selectedVoice) || (voiceType === "custom" && !customVoiceId.trim()) || !greetingMessage.trim()}
                 className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 {isUpdating ? "Saving..." : "Save Configuration"}
               </button>
-              </div>
+            </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Voice Playground Tab */}
-      {activeTab === "voice" && (
-        <div className="bg-card border border-border rounded-xl p-6 max-w-4xl">
-          <VoicePlayground 
-            selectedVoice={selectedVoice}
-            onVoiceSelect={setSelectedVoice}
-          />
-          
-          {/* Save Button */}
-          <div className="flex justify-end pt-6 mt-6 border-t border-border">
-            <button
-              onClick={handleSaveSettings}
-              disabled={isUpdating || !selectedVoice}
-              className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-            >
-              {isUpdating ? "Saving..." : "Save Voice Selection"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* End of Call Tab */}
+      {/* Escalation Rules Tab */}
       {activeTab === "endOfCall" && (
         <div className="bg-card border border-border rounded-xl p-6 max-w-2xl">
           <div className="space-y-6">
@@ -1439,83 +1432,82 @@ export default function PhoneSettingsDetailPage() {
                 </p>
               </div>
 
-              {/* Show existing configured numbers */}
-              {settings?.inboundPhoneNumbers && settings.inboundPhoneNumbers.length > 0 && (
-                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <h4 className="text-sm font-medium text-green-400 mb-3">Previously Configured Numbers:</h4>
-                  <div className="space-y-2">
-                    {settings.inboundPhoneNumbers.map((num, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-background rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="font-mono text-foreground text-sm">{num}</span>
-                        <Check className="w-4 h-4 text-green-500 ml-auto" />
-                      </div>
-                    ))}
-                  </div>
-                  {settings.inboundTrunkName && (
-                    <p className="text-xs text-muted-foreground mt-3">
-                      Trunk: <span className="text-foreground">{settings.inboundTrunkName}</span>
-                    </p>
-                  )}
+              {/* Warning if numbers already exist */}
+              {(inboundConfigs && inboundConfigs.length > 0) && (
+                <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-4">
+                  <h4 className="text-sm font-medium text-yellow-400 mb-2">⚠️ Inbound Numbers Already Configured</h4>
+                  <p className="text-xs text-muted-foreground">
+                    You have {inboundConfigs.length} inbound number(s) configured. Please delete existing numbers above before adding new ones.
+                  </p>
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Trunk Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={inboundName}
-                  onChange={(e) => setInboundName(e.target.value)}
-                  placeholder="e.g., My Inbound Trunk"
-                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
+              {(inboundConfigs && inboundConfigs.length > 0) ? (
+                <div className="p-4 bg-secondary/50 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Please delete existing inbound numbers before adding new ones.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Trunk Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={inboundName}
+                      onChange={(e) => setInboundName(e.target.value)}
+                      placeholder="e.g., My Inbound Trunk"
+                      className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Phone Numbers <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={inboundPhoneNumbers}
-                  onChange={(e) => setInboundPhoneNumbers(e.target.value)}
-                  placeholder="+1234567890, +0987654321"
-                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Enter phone numbers in E.164 format, separated by commas
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Phone Numbers <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={inboundPhoneNumbers}
+                      onChange={(e) => setInboundPhoneNumbers(e.target.value)}
+                      placeholder="+1234567890, +0987654321"
+                      className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Enter phone numbers in E.164 format, separated by commas
+                    </p>
+                  </div>
 
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="krispEnabled"
-                  checked={inboundKrispEnabled}
-                  onChange={(e) => setInboundKrispEnabled(e.target.checked)}
-                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-                />
-                <label htmlFor="krispEnabled" className="text-sm text-foreground cursor-pointer">
-                  Enable Krisp noise cancellation
-                </label>
-              </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="krispEnabled"
+                      checked={inboundKrispEnabled}
+                      onChange={(e) => setInboundKrispEnabled(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+                    />
+                    <label htmlFor="krispEnabled" className="text-sm text-foreground cursor-pointer">
+                      Enable Krisp noise cancellation
+                    </label>
+                  </div>
 
               <button
                 onClick={handleCreateInboundTrunk}
-                disabled={isCreatingInbound || !inboundName || !inboundPhoneNumbers}
+                disabled={isCreatingInbound || !inboundName || !inboundPhoneNumbers || (inboundConfigs && inboundConfigs.length > 0)}
                 className="w-full h-11 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isCreatingInbound ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Creating Trunk...
-                  </>
-                ) : (
-                  "Continue"
-                )}
-              </button>
+                    {isCreatingInbound ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Creating Trunk...
+                      </>
+                    ) : (
+                      "Continue"
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -1620,68 +1612,6 @@ export default function PhoneSettingsDetailPage() {
         </div>
       )}
 
-      {/* Greeting Message Tab */}
-      {activeTab === "greeting" && (
-        <div className="bg-card border border-border rounded-xl p-6 max-w-2xl">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Greeting Message Configuration</h3>
-          </div>
-
-          <div className="space-y-6">
-            {/* Greeting Message */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Greeting Message <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={greetingMessage}
-                onChange={(e) => setGreetingMessage(e.target.value)}
-                placeholder="Hello! How can I help you today?"
-                rows={4}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                This greeting message will be saved to both <span className="font-semibold">outbound-call-config</span> and <span className="font-semibold">inbound-agent-config</span> collections in the database.
-              </p>
-            </div>
-
-            {/* Language Selection */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Language
-              </label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-              >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="it">Italian</option>
-                <option value="pt">Portuguese</option>
-                <option value="ar">Arabic</option>
-                <option value="tr">Turkish</option>
-              </select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Select the language for the greeting message
-              </p>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end pt-4">
-              <button
-                onClick={handleSaveSettings}
-                disabled={isUpdating || !greetingMessage.trim()}
-                className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              >
-                {isUpdating ? "Saving..." : "Save Greeting Message"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   );

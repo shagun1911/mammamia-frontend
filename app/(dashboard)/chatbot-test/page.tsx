@@ -36,8 +36,12 @@ export default function ChatbotTestPage() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        <InstallationGuide />
-        <WidgetSimulator />
+        <div className="w-1/2 overflow-y-auto">
+          <InstallationGuide />
+        </div>
+        <div className="w-1/2 overflow-y-auto">
+          <WidgetSimulator />
+        </div>
       </div>
     </div>
   );

@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sparkles, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
+import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
-import { RAGChatInterface } from "./RAGChatInterface";
 import { toast } from "sonner";
 
 export function ChatAgentAnswering() {
   const { chatAgentPrompt, setChatAgentPrompt } = useKnowledgeBase();
   const [improvements, setImprovements] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showChat, setShowChat] = useState(false);
 
   const handleSavePrompt = async () => {
     if (improvements.trim()) {
@@ -50,36 +48,8 @@ export function ChatAgentAnswering() {
 
   return (
     <div className="space-y-6">
-      {/* Toggle between Prompt Config and Chat */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => setShowChat(false)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-            !showChat
-              ? "bg-primary text-foreground"
-              : "bg-secondary text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          Configure Prompt
-        </button>
-        <button
-          onClick={() => setShowChat(true)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-            showChat
-              ? "bg-primary text-foreground"
-              : "bg-secondary text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          Test Chat (RAG)
-        </button>
-      </div>
-
-      {!showChat ? (
-        <>
-          {/* Main Question */}
-          <div className="bg-card border border-border rounded-xl p-6">
+      {/* Main Question */}
+      <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -148,13 +118,6 @@ export function ChatAgentAnswering() {
               </div>
             )}
           </div>
-        </>
-      ) : (
-        /* RAG Chat Interface */
-        <div className="h-[600px]">
-          <RAGChatInterface />
-        </div>
-      )}
     </div>
   );
 }

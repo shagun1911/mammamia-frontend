@@ -152,7 +152,7 @@ export function WidgetSimulator() {
   };
 
   return (
-    <div className="w-1/2 bg-background p-8">
+    <div className="h-full bg-background p-8 overflow-y-auto">
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-foreground">Live Preview</h2>

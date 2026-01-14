@@ -99,7 +99,7 @@ export default function AIPage() {
           <AIBehaviorLoader />
           {activeTab === "knowledge" && (
             <div className="p-6">
-              <div className="mb-6">
+              <div className="mb-8">
                 <h2 className="text-2xl font-bold text-foreground mb-2">Knowledge Base</h2>
                 <p className="text-muted-foreground">
                   Create and manage knowledge bases for your AI agents. Connect to Python RAG service on port 8000.

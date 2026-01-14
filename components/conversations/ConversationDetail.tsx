@@ -10,6 +10,7 @@ import { FolderSelectModal } from "./FolderSelectModal";
 import { useUpdateConversationStatus, useAssignOperator, useMoveToFolder } from "@/hooks/useConversations";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ConversationDetailProps {
   conversation: Conversation;
@@ -20,6 +21,7 @@ export function ConversationDetail({
   conversation,
   onClose,
 }: ConversationDetailProps) {
+  const queryClient = useQueryClient();
   const [isManualControl, setIsManualControl] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
@@ -315,10 +317,7 @@ export function ConversationDetail({
       });
       
       // Also invalidate to get fresh data from server
-      // @ts-ignore - queryClient might be available via context
-      if (typeof window !== 'undefined' && window.queryClient) {
-        window.queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
-      }
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
     } catch (error: any) {
       console.error('Error sending message:', error);
       toast.error(error.message || 'Failed to send message');

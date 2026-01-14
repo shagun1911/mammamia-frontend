@@ -214,7 +214,12 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               className="fixed inset-0 z-40"
               onClick={() => setShowLanguageMenu(false)}
             />
-            <div className="absolute bottom-full left-3 right-3 mb-2 z-50 bg-card border border-border/60 rounded-xl shadow-xl overflow-hidden backdrop-blur-sm">
+            <div className={cn(
+              "absolute z-50 bg-card border border-border/60 rounded-xl shadow-xl overflow-hidden backdrop-blur-sm min-w-[160px]",
+              isCollapsed 
+                ? "bottom-0 left-full ml-2" 
+                : "bottom-full left-3 right-3 mb-2"
+            )}>
               {(Object.keys(languageNames) as Language[]).map((lang) => (
                 <button
                   key={lang}
@@ -223,7 +228,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                     setShowLanguageMenu(false);
                   }}
                   className={cn(
-                    "w-full px-4 py-2.5 text-left text-sm hover:bg-accent transition-all duration-200 cursor-pointer",
+                    "w-full px-4 py-2.5 text-left text-sm hover:bg-accent transition-all duration-200 cursor-pointer whitespace-nowrap",
                     language === lang 
                       ? "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-semibold border-l-2 border-primary" 
                       : "text-foreground hover:translate-x-1"

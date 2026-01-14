@@ -56,16 +56,10 @@ export function KnowledgeBaseList() {
   return (
     <div className="space-y-6">
       {/* Header with Create Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground">Knowledge Bases</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your knowledge base collections
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Create Knowledge Base
@@ -79,9 +73,11 @@ export function KnowledgeBaseList() {
           <p className="text-sm text-muted-foreground">Loading knowledge bases...</p>
         </div>
       ) : collections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-xl">
-          <Database className="w-16 h-16 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
+        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-xl bg-card/50">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+            <Database className="w-10 h-10 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">
             No Knowledge Bases Yet
           </h3>
           <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
@@ -89,28 +85,28 @@ export function KnowledgeBaseList() {
           </p>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
             Create First Knowledge Base
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {collections.map((collection) => (
             <div
               key={collection.collection_name}
-              className="bg-card border border-border rounded-xl p-6 hover:border-primary transition-colors"
+              className="bg-card border border-border rounded-xl p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer"
             >
               <div className="flex items-start gap-3 mb-4">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shrink-0 ring-2 ring-primary/10">
                   <Database className="w-6 h-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-base font-semibold text-foreground truncate">
+                  <h4 className="text-base font-semibold text-foreground truncate mb-1">
                     {collection.collection_name}
                   </h4>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground">
                     Created {new Date(collection.created_at).toLocaleDateString()}
                   </p>
                 </div>
@@ -119,7 +115,7 @@ export function KnowledgeBaseList() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleIngestClick(collection.collection_name)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors cursor-pointer"
                 >
                   <Upload className="w-4 h-4" />
                   Ingest Data
@@ -127,7 +123,7 @@ export function KnowledgeBaseList() {
                 <button
                   onClick={() => handleDeleteClick(collection._id, collection.collection_name)}
                   disabled={deletingId === collection._id}
-                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   title="Delete Knowledge Base"
                 >
                   {deletingId === collection._id ? (
