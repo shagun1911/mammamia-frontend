@@ -410,6 +410,32 @@ export default function ChatbotSettingsPage() {
                   </p>
                 </div>
               </div>
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Use Previous System Prompt
+                </label>
+                <select
+                  value={systemPrompt}
+                  onChange={(e) => {
+                    if (e.target.value === 'new') {
+                      setSystemPrompt('');
+                    } else {
+                      setSystemPrompt(e.target.value);
+                    }
+                  }}
+                  className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="new">Create New System Prompt</option>
+                  {aiBehavior?.chatAgent?.systemPrompt && (
+                    <option value={aiBehavior.chatAgent.systemPrompt}>
+                      Current: {aiBehavior.chatAgent.systemPrompt.substring(0, 50)}...
+                    </option>
+                  )}
+                  <option value="You are a helpful AI assistant designed to provide excellent customer service. Be friendly, professional, and helpful.">
+                    Default: You are a helpful AI assistant...
+                  </option>
+                </select>
+              </div>
               <textarea
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}

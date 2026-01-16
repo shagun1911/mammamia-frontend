@@ -40,6 +40,32 @@ export default function RootLayout({
                   // Keep LTR for consistent UI layout
                   document.documentElement.dir = 'ltr';
                 } catch (e) {}
+                
+                // Suppress browser extension errors
+                window.addEventListener('error', function(event) {
+                  if (event.message && (
+                    event.message.includes('message channel closed') ||
+                    event.message.includes('Extension context invalidated') ||
+                    event.message.includes('Receiving end does not exist')
+                  )) {
+                    event.preventDefault();
+                    return false;
+                  }
+                }, true);
+                
+                // Suppress unhandled promise rejections from extensions
+                window.addEventListener('unhandledrejection', function(event) {
+                  if (event.reason && (
+                    event.reason.message && (
+                      event.reason.message.includes('message channel closed') ||
+                      event.reason.message.includes('Extension context invalidated') ||
+                      event.reason.message.includes('Receiving end does not exist')
+                    )
+                  )) {
+                    event.preventDefault();
+                    return false;
+                  }
+                });
               })();
             `,
           }}

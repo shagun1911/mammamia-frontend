@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { Bookmark, Folder, Tag, MoreVertical, X, Phone, UserPlus, MessageSquare } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { X, Phone, MessageSquare, Play, Pause, Volume2, Download, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { Conversation } from "@/data/mockConversations";
 import { MessageThread } from "./MessageThread";
 import { ManualControlPanel } from "./ManualControlPanel";
@@ -23,14 +23,16 @@ export function ConversationDetail({
 }: ConversationDetailProps) {
   const queryClient = useQueryClient();
   const [isManualControl, setIsManualControl] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [showAssignMenu, setShowAssignMenu] = useState(false);
-  const [showChannelsMenu, setShowChannelsMenu] = useState(false);
   const [sendMessageModalOpen, setSendMessageModalOpen] = useState(false);
   const [folderSelectModalOpen, setFolderSelectModalOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<'sms' | 'whatsapp' | null>(null);
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
   const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const updateStatus = useUpdateConversationStatus();
   const assignOperator = useAssignOperator();
@@ -172,13 +174,15 @@ export function ConversationDetail({
 
           if (response.ok) {
             const data = await response.json();
-            console.log('[ConversationDetail] ✅ Transcript found! Reloading conversation...');
+            console.log('[ConversationDetail] ✅ Transcript found!');
             toast.success('Call transcript ready!');
             
-            // Reload the page to show the transcript
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
+            // Refresh conversation data without page reload
+            queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            
+            // Auto-expand transcript section
+            setShowTranscript(true);
             
             return true; // Stop polling
           } else if (response.status === 404) {
@@ -324,15 +328,6 @@ export function ConversationDetail({
     }
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
-    toast.success(isBookmarked ? "Bookmark removed" : "Conversation bookmarked");
-  };
-
-  const handleAddToFolder = () => {
-    setFolderSelectModalOpen(true);
-  };
-
   const handleFolderSelect = (folderId: string | null) => {
     moveToFolder.mutate({
       conversationId: conversation.id,
@@ -353,20 +348,9 @@ export function ConversationDetail({
     }
   };
 
-  const handleAssignToSelf = () => {
-    // Get current user ID from localStorage or context
-    const userId = localStorage.getItem("userId") || "self";
-    assignOperator.mutate({
-      conversationId: conversation.id,
-      operatorId: userId,
-    });
-    setShowAssignMenu(false);
-  };
-
   const handleChannelSelect = (channel: 'sms' | 'whatsapp') => {
     setSelectedChannel(channel);
     setSendMessageModalOpen(true);
-    setShowChannelsMenu(false);
   };
 
   const handleFetchTranscript = async () => {
@@ -401,12 +385,14 @@ export function ConversationDetail({
 
       const data = await response.json();
       console.log('Transcript fetched successfully:', data);
-      toast.success('Transcript loaded! Refreshing...');
+      toast.success('Transcript loaded!');
       
-      // Reload the page to show updated transcript
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Refresh conversation data without page reload
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
+      // Auto-expand transcript section
+      setShowTranscript(true);
     } catch (error: any) {
       console.error('Error fetching transcript:', error);
       toast.error(error.message || 'Failed to fetch transcript');
@@ -526,6 +512,14 @@ export function ConversationDetail({
     return allMessages;
   }, [conversation, mergedRealtimeMessages]);
 
+  // Format time helper
+  const formatTime = (seconds: number): string => {
+    if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="flex-1 bg-background flex flex-col">
       {/* Header */}
@@ -555,110 +549,8 @@ export function ConversationDetail({
           </div>
         </div>
 
-        {/* Right side - Action icons */}
+        {/* Right side - Close button only */}
         <div className="flex items-center gap-3">
-          {/* Channels Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowChannelsMenu(!showChannelsMenu)}
-              className="hover:text-foreground transition-colors text-muted-foreground"
-              title="Send via Channel"
-            >
-              <MessageSquare className="w-[18px] h-[18px]" />
-            </button>
-            {showChannelsMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-lg shadow-lg py-1 z-50">
-                <button
-                  onClick={() => handleChannelSelect('whatsapp')}
-                  className="w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors text-left flex items-center gap-2"
-                >
-                  <Phone className="w-4 h-4" />
-                  Send via WhatsApp
-                </button>
-                <button
-                  onClick={() => handleChannelSelect('sms')}
-                  className="w-full px-4 py-2 text-sm text-foreground hover:bg-accent transition-colors text-left flex items-center gap-2"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Send via SMS
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={handleBookmark}
-            className={`hover:text-foreground transition-colors ${
-              isBookmarked ? "text-yellow-500" : "text-muted-foreground"
-            }`}
-            title="Bookmark"
-          >
-            <Bookmark className={`w-[18px] h-[18px] ${isBookmarked ? "fill-current" : ""}`} />
-          </button>
-          <button
-            onClick={handleAddToFolder}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Add to folder"
-          >
-            <Folder className="w-[18px] h-[18px]" />
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => setShowAssignMenu(!showAssignMenu)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              title="Actions"
-            >
-              <UserPlus className="w-[18px] h-[18px]" />
-            </button>
-            {showAssignMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-10">
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border">
-                  Send Message
-                </div>
-                <button
-                  onClick={() => {
-                    handleChannelSelect('whatsapp');
-                    setShowAssignMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
-                >
-                  <Phone className="w-4 h-4" />
-                  Send via WhatsApp
-                </button>
-                <button
-                  onClick={() => {
-                    handleChannelSelect('sms');
-                    setShowAssignMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Send via SMS
-                </button>
-                
-                <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-t border-b border-border mt-1">
-                  Assign To
-                </div>
-                <button
-                  onClick={handleAssignToSelf}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Assign to me
-                </button>
-                <button
-                  onClick={() => {
-                    toast.info("Team member selection coming soon");
-                    setShowAssignMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Assign to colleague
-                </button>
-              </div>
-            )}
-          </div>
           <button
             onClick={handleCloseConversation}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -700,36 +592,234 @@ export function ConversationDetail({
             {/* Show call duration and recording if available */}
             {/* @ts-ignore */}
             {conversation.transcript && (
-              <div className="flex flex-col gap-1 pt-2 border-t border-blue-500/20">
+              <div className="flex flex-col gap-3 pt-2 border-t border-blue-500/20">
                 {/* @ts-ignore */}
                 {conversation.metadata?.duration && (
-                  <span className="text-xs text-foreground">
+                  <div className="flex items-center gap-2 text-xs text-foreground">
+                    <Phone className="w-3 h-3" />
                     {/* @ts-ignore */}
-                    Duration: {conversation.metadata.duration}
-                  </span>
+                    <span>Call Duration: {conversation.metadata.duration}</span>
+                  </div>
                 )}
-                {/* Recording URL */}
+                
+                {/* Recording Player */}
                 {(() => {
                   // @ts-ignore - metadata may exist
                   const recordingUrl = conversation.metadata?.recording_url;
-                  return recordingUrl ? (
-                    <a
-                      href={recordingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 underline text-xs"
-                    >
-                      🎙️ Play Call Recording
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground text-xs">
-                      No recording found
-                    </span>
+                  if (!recordingUrl) {
+                    return (
+                      <span className="text-muted-foreground text-xs">
+                        No recording available
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Volume2 className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-medium text-foreground">Call Recording</span>
+                        </div>
+                        <a
+                          href={recordingUrl}
+                          download
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Download recording"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                      </div>
+                      
+                      {/* Audio Player */}
+                      <audio
+                        ref={audioRef}
+                        src={recordingUrl}
+                        onLoadedMetadata={() => {
+                          if (audioRef.current) {
+                            setDuration(audioRef.current.duration);
+                          }
+                        }}
+                        onTimeUpdate={() => {
+                          if (audioRef.current) {
+                            setCurrentTime(audioRef.current.currentTime);
+                          }
+                        }}
+                        onEnded={() => {
+                          setIsPlaying(false);
+                          setCurrentTime(0);
+                        }}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                      />
+                      
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => {
+                            if (audioRef.current) {
+                              if (isPlaying) {
+                                audioRef.current.pause();
+                              } else {
+                                audioRef.current.play();
+                              }
+                            }
+                          }}
+                          className="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 text-white flex items-center justify-center transition-colors"
+                        >
+                          {isPlaying ? (
+                            <Pause className="w-5 h-5" />
+                          ) : (
+                            <Play className="w-5 h-5 ml-0.5" />
+                          )}
+                        </button>
+                        
+                        <div className="flex-1 space-y-1">
+                          <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                            <div
+                              className="h-full bg-primary transition-all duration-100"
+                              style={{
+                                width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%'
+                              }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>
+                              {formatTime(currentTime)}
+                            </span>
+                            <span>
+                              {formatTime(duration)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })()}
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Transcript Section - Show for calls and chats with transcripts */}
+      {/* @ts-ignore */}
+      {(conversation.transcript || conversation.channel === 'phone' || (conversation.messages && conversation.messages.length > 0)) && (
+        <div className="border-b border-border bg-card/50">
+          <button
+            onClick={() => setShowTranscript(!showTranscript)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-foreground">
+                {conversation.channel === 'phone' ? 'Call Transcript' : 'Chat Transcript'}
+              </span>
+              {/* @ts-ignore */}
+              {conversation.transcript && (
+                <span className="text-xs text-muted-foreground">
+                  {/* @ts-ignore */}
+                  ({Array.isArray(conversation.transcript) ? conversation.transcript.length : 
+                    // @ts-ignore
+                    conversation.transcript.items ? conversation.transcript.items.length : 
+                    // @ts-ignore
+                    Object.keys(conversation.transcript).length} messages)
+                </span>
+              )}
+            </div>
+            {showTranscript ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </button>
+          
+          {showTranscript && (
+            <div className="px-4 pb-4 max-h-96 overflow-y-auto">
+              {/* @ts-ignore */}
+              {conversation.transcript ? (
+                <div className="space-y-3">
+                  {/* @ts-ignore */}
+                  {(() => {
+                    // @ts-ignore
+                    const transcript = conversation.transcript;
+                    const transcriptItems: any[] = [];
+                    
+                    // Parse transcript based on format
+                    if (transcript.items && Array.isArray(transcript.items)) {
+                      transcript.items.forEach((item: any) => {
+                        if (item.type === 'message' && item.role && item.content) {
+                          transcriptItems.push({
+                            role: item.role,
+                            content: Array.isArray(item.content) ? item.content.join(' ') : item.content,
+                            timestamp: item.timestamp
+                          });
+                        }
+                      });
+                    } else if (Array.isArray(transcript)) {
+                      transcript.forEach((item: any) => {
+                        if (item && (item.role || item.sender) && (item.content || item.text || item.message)) {
+                          transcriptItems.push({
+                            role: item.role || item.sender,
+                            content: item.content || item.text || item.message,
+                            timestamp: item.timestamp
+                          });
+                        }
+                      });
+                    } else if (typeof transcript === 'object') {
+                      Object.keys(transcript).sort((a, b) => {
+                        const aNum = parseInt(a);
+                        const bNum = parseInt(b);
+                        return isNaN(aNum) || isNaN(bNum) ? 0 : aNum - bNum;
+                      }).forEach((key) => {
+                        const item = transcript[key];
+                        if (item && (item.role || item.sender) && (item.content || item.text || item.message)) {
+                          transcriptItems.push({
+                            role: item.role || item.sender,
+                            content: item.content || item.text || item.message,
+                            timestamp: item.timestamp
+                          });
+                        }
+                      });
+                    }
+                    
+                    return transcriptItems.map((item, index) => {
+                      const isCustomer = item.role === 'user' || item.role === 'customer';
+                      return (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg ${
+                            isCustomer
+                              ? 'bg-primary/10 border-l-4 border-primary'
+                              : 'bg-secondary border-l-4 border-muted-foreground'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-foreground">
+                              {isCustomer ? 'Customer' : 'Agent'}
+                            </span>
+                            {item.timestamp && (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(item.timestamp).toLocaleTimeString()}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">
+                            {item.content}
+                          </p>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  {conversation.channel === 'phone' 
+                    ? 'Transcript will appear here once the call is completed' 
+                    : 'No transcript available for this conversation'}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

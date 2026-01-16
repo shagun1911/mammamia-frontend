@@ -4,20 +4,18 @@ import { useState } from "react";
 import { TrainingSidebar } from "@/components/training/TrainingSidebar";
 import { KnowledgeBaseList } from "@/components/knowledge-base/KnowledgeBaseList";
 import { RAGChatInterface } from "@/components/ai-behavior/RAGChatInterface";
-import { ChatAgentAnswering } from "@/components/ai-behavior/ChatAgentAnswering";
 import { VoiceAgentAnswering } from "@/components/ai-behavior/VoiceAgentAnswering";
-import { HumanOperator } from "@/components/ai-behavior/HumanOperator";
 import { VoiceHumanOperator } from "@/components/ai-behavior/VoiceHumanOperator";
 import { AIBehaviorLoader } from "@/components/ai-behavior/AIBehaviorLoader";
 import { useSidebar } from "@/contexts/SidebarContext";
-import { MessageSquare, Phone, BookOpen, Brain, Activity } from "lucide-react";
+import { Phone, BookOpen, Brain, Activity } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function AIPage() {
   const { getSidebarWidth } = useSidebar();
-  const [activeTab, setActiveTab] = useState<"knowledge" | "chat" | "voice">("knowledge");
+  const [activeTab, setActiveTab] = useState<"knowledge" | "voice">("knowledge");
 
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
@@ -64,20 +62,6 @@ export default function AIPage() {
               )}
             </button>
             <button
-              onClick={() => setActiveTab("chat")}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative cursor-pointer ${
-                activeTab === "chat"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Chat Agent
-              {activeTab === "chat" && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            <button
               onClick={() => setActiveTab("voice")}
               className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative cursor-pointer ${
                 activeTab === "voice"
@@ -106,13 +90,6 @@ export default function AIPage() {
                 </p>
               </div>
               <KnowledgeBaseList />
-            </div>
-          )}
-          {activeTab === "chat" && (
-            <div className="p-6 space-y-6">
-              <h2 className="text-2xl font-bold text-foreground mb-4">Chat Agent Configuration</h2>
-              <ChatAgentAnswering />
-              <HumanOperator />
             </div>
           )}
           {activeTab === "voice" && (

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/lib/toast';
+import { apiClient } from '@/lib/api';
 import { 
   MessageSquare, 
   Facebook, 
@@ -73,23 +74,61 @@ export default function SocialIntegrations() {
 
   useEffect(() => {
     fetchIntegrations();
+    
+    // Check for OAuth success/error in URL
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('success');
+    const error = params.get('error');
+    const platform = params.get('platform');
+    
+    if (success === 'true' && platform) {
+      toast.success(`${platform} connected successfully via OAuth!`);
+      // Clean URL
+      window.history.replaceState({}, '', '/settings/socials');
+      fetchIntegrations();
+    } else if (error && platform) {
+      toast.error(`Failed to connect ${platform}: ${decodeURIComponent(error)}`);
+      // Clean URL
+      window.history.replaceState({}, '', '/settings/socials');
+    }
   }, []);
 
   const fetchIntegrations = async () => {
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
       const response = await fetch(`${API_URL}/social-integrations`, {
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) throw new Error('Failed to fetch integrations');
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Authentication failed. Please log in again.');
+        } else {
+          throw new Error(`Failed to fetch integrations (${response.status})`);
+        }
+        setLoading(false);
+        return;
+      }
 
       const data = await response.json();
       
       if (data.success && data.data) {
+        // Reset integrations first
+        setWhatsapp(null);
+        setInstagram(null);
+        setFacebook(null);
+        
+        // Set integrations
         data.data.forEach((integration: Integration) => {
           if (integration.platform === 'whatsapp') setWhatsapp(integration);
           if (integration.platform === 'instagram') setInstagram(integration);
@@ -97,6 +136,7 @@ export default function SocialIntegrations() {
         });
       }
     } catch (error: any) {
+      console.error('Error fetching integrations:', error);
       toast.error(error.message || 'Failed to load integrations');
     } finally {
       setLoading(false);
@@ -110,7 +150,32 @@ export default function SocialIntegrations() {
     setConnecting(platform);
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      
+      if (!token) {
+        toast.error('Please log in to connect social integrations');
+        setConnecting(null);
+        return;
+      }
+
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+      
+      // Prepare request body according to backend expectations
+      const requestBody: any = {
+        apiKey: config.apiKey || config.accessToken, // Backend expects apiKey
+      };
+
+      // Add platform-specific fields
+      if (platform === 'whatsapp') {
+        if (config.phoneNumberId) requestBody.phoneNumberId = config.phoneNumberId;
+        if (config.wabaId) requestBody.wabaId = config.wabaId;
+      } else if (platform === 'instagram') {
+        if (config.instagramAccountId) requestBody.instagramAccountId = config.instagramAccountId;
+        if (config.clientId) requestBody.clientId = config.clientId;
+      } else if (platform === 'facebook') {
+        if (config.facebookPageId) requestBody.facebookPageId = config.facebookPageId;
+        if (config.clientId) requestBody.clientId = config.clientId;
+      }
+
       const response = await fetch(
         `${API_URL}/social-integrations/${platform}/connect`,
         {
@@ -119,17 +184,23 @@ export default function SocialIntegrations() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify(config)
+          body: JSON.stringify(requestBody)
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to connect');
+        if (response.status === 401) {
+          toast.error('Authentication failed. Please log in again.');
+        } else {
+          throw new Error(data.message || data.error?.message || `Failed to connect (${response.status})`);
+        }
+        setConnecting(null);
+        return;
       }
 
-      toast.success(`${platform} connected successfully!`);
+      toast.success(data.message || `${platform} connected successfully!`);
       
       // Reset form and close
       if (platform === 'whatsapp') {
@@ -146,6 +217,7 @@ export default function SocialIntegrations() {
       // Refresh integrations
       await fetchIntegrations();
     } catch (error: any) {
+      console.error('Error connecting platform:', error);
       toast.error(error.message || `Failed to connect ${platform}`);
     } finally {
       setConnecting(null);
@@ -157,23 +229,67 @@ export default function SocialIntegrations() {
 
     try {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      
+      if (!token) {
+        toast.error('Please log in to disconnect integrations');
+        return;
+      }
+
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
       const response = await fetch(
         `${API_URL}/social-integrations/${platform}/disconnect`,
         {
-          method: 'POST',
+          method: 'DELETE',
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           }
         }
       );
 
-      if (!response.ok) throw new Error('Failed to disconnect');
+      const data = await response.json();
 
-      toast.success(`${platform} disconnected`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Authentication failed. Please log in again.');
+        } else {
+          throw new Error(data.message || data.error?.message || `Failed to disconnect (${response.status})`);
+        }
+        return;
+      }
+
+      toast.success(data.message || `${platform} disconnected`);
       await fetchIntegrations();
     } catch (error: any) {
+      console.error('Error disconnecting platform:', error);
       toast.error(error.message || `Failed to disconnect ${platform}`);
+    }
+  };
+
+  const initiateOAuth = async (platform: 'whatsapp' | 'instagram' | 'facebook') => {
+    setConnecting(platform);
+    try {
+      const response = await apiClient.post(`/social-integrations/${platform}/oauth/initiate`);
+      const data = response.data;
+
+      if (data.success && data.data?.authUrl) {
+        // Redirect to OAuth URL
+        window.location.href = data.data.authUrl;
+      } else {
+        throw new Error('Failed to get OAuth URL from server');
+      }
+    } catch (error: any) {
+      console.error('OAuth initiation error:', error);
+      const errorMessage = error.response?.data?.message || error.response?.data?.error?.message || error.message || 'Failed to initiate OAuth flow';
+      
+      if (error.response?.status === 401) {
+        toast.error('Authentication failed. Please log in again.');
+      } else if (error.response?.status === 500 && errorMessage.includes('META_APP')) {
+        toast.error('Meta OAuth is not configured. Please set META_APP_ID and META_APP_SECRET environment variables.');
+      } else {
+        toast.error(errorMessage);
+      }
+      setConnecting(null);
     }
   };
 
@@ -235,12 +351,66 @@ export default function SocialIntegrations() {
         )}
 
         {!showForm && !isConnected && (
-          <Button 
-            onClick={() => setShowForm(true)} 
-            className="w-full cursor-pointer mt-2"
-          >
-            Connect {title}
-          </Button>
+          <div className="space-y-2 mt-2">
+            {/* Show OAuth button for Meta platforms (WhatsApp, Instagram, Facebook) */}
+            {(platform === 'whatsapp' || platform === 'instagram' || platform === 'facebook') && (
+              <Button 
+                onClick={() => initiateOAuth(platform)} 
+                disabled={connecting === platform}
+                className={`w-full cursor-pointer flex items-center justify-center gap-2 ${
+                  platform === 'whatsapp' 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : platform === 'instagram'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {connecting === platform ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    {platform === 'whatsapp' && (
+                      <>
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                        </svg>
+                        Login with Whatsapp
+                      </>
+                    )}
+                    {platform === 'instagram' && (
+                      <>
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                        Login with Instagram
+                      </>
+                    )}
+                    {platform === 'facebook' && (
+                      <>
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        Login with Facebook
+                      </>
+                    )}
+                  </>
+                )}
+              </Button>
+            )}
+            {/* Manual connection button (always available) */}
+            <Button 
+              onClick={() => setShowForm(true)} 
+              variant={platform === 'instagram' || platform === 'facebook' || platform === 'whatsapp' ? 'outline' : 'default'}
+              className="w-full cursor-pointer"
+            >
+              {platform === 'instagram' || platform === 'facebook' || platform === 'whatsapp'
+                ? 'Or Connect Manually' 
+                : `Connect ${title}`}
+            </Button>
+          </div>
         )}
 
         {!showForm && isConnected && (
@@ -286,12 +456,12 @@ export default function SocialIntegrations() {
               </>
             )}
 
-            {/* Instagram & Facebook use Meta Graph API */}
+            {/* Instagram & Facebook use Meta Graph API - Manual Connection */}
             {(platform === 'instagram' || platform === 'facebook') && (
               <>
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
-                    📘 Need help getting these credentials?
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+                  <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                    💡 <strong>Recommended:</strong> Use OAuth connection above for easier setup. Manual connection is for advanced users.
                   </p>
                   <Button
                     type="button"
@@ -304,45 +474,21 @@ export default function SocialIntegrations() {
                   </Button>
                 </div>
 
-                <div className="space-y-2 mt-1">
-                  <Label htmlFor={`${platform}-access-token`} className="text-sm font-medium text-foreground">
-                    Meta Access Token *
+                <div className="space-y-2">
+                  <Label htmlFor={`${platform}-api-key`} className="text-sm font-medium text-foreground">
+                    Meta Access Token (API Key) *
                   </Label>
                   <Input
-                    id={`${platform}-access-token`}
+                    id={`${platform}-api-key`}
                     type="password"
                     placeholder="Enter your Meta Graph API access token"
-                    value={formData.accessToken || ''}
-                    onChange={(e) => setFormData({ ...formData, accessToken: e.target.value })}
+                    value={formData.apiKey || ''}
+                    onChange={(e) => setFormData({ ...formData, apiKey: e.target.value })}
                     className="w-full"
                   />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`${platform}-app-id`} className="text-sm font-medium text-foreground">
-                    Meta App ID *
-                  </Label>
-                  <Input
-                    id={`${platform}-app-id`}
-                    placeholder="Enter your Meta App ID"
-                    value={formData.appId || ''}
-                    onChange={(e) => setFormData({ ...formData, appId: e.target.value })}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`${platform}-app-secret`} className="text-sm font-medium text-foreground">
-                    Meta App Secret *
-                  </Label>
-                  <Input
-                    id={`${platform}-app-secret`}
-                    type="password"
-                    placeholder="Enter your Meta App Secret"
-                    value={formData.appSecret || ''}
-                    onChange={(e) => setFormData({ ...formData, appSecret: e.target.value })}
-                    className="w-full"
-                  />
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    This is your Meta Graph API access token (long-lived token recommended)
+                  </p>
                 </div>
               </>
             )}
@@ -389,7 +535,7 @@ export default function SocialIntegrations() {
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Found in Meta Business Suite → Instagram Accounts
+                  Found in Meta Business Suite → Instagram Accounts. Required for manual connection.
                 </p>
               </div>
             )}
@@ -407,7 +553,7 @@ export default function SocialIntegrations() {
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Found in Page Settings → About
+                  Found in Page Settings → About. Required for manual connection.
                 </p>
               </div>
             )}

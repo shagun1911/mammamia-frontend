@@ -27,6 +27,7 @@ import {
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { SetupModal } from "@/components/integrations/SetupModal";
 import { integrationService } from "@/services/integration.service";
+import { apiClient } from "@/lib/api";
 
 interface GoogleIntegrationStatus {
   connected: boolean;
@@ -87,22 +88,15 @@ export default function IntegrationsPage() {
 
   const fetchGoogleStatus = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/status`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
+      const data = await apiClient.get('/integrations/google/status');
       if (data.success) {
         setGoogleStatus(data.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch Google status:', error);
+      if (error.response?.status === 401) {
+        toast.error('Authentication failed. Please log in again.');
+      }
     }
   };
 
@@ -126,23 +120,10 @@ export default function IntegrationsPage() {
   const connectGoogle = async () => {
     try {
       setConnecting(true);
-      const token = localStorage.getItem('accessToken');
       
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/connect`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            services: ['sheets', 'drive', 'calendar'],
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await apiClient.post('/integrations/google/connect', {
+        services: ['sheets', 'drive', 'calendar'],
+      });
       
       if (data.success && data.data.authUrl) {
         window.location.href = data.data.authUrl;
@@ -150,53 +131,33 @@ export default function IntegrationsPage() {
         throw new Error('Failed to get authorization URL');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to connect to Google');
+      console.error('Google connect error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to connect to Google';
+      toast.error(errorMessage);
       setConnecting(false);
     }
   };
 
   const disconnectGoogle = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/disconnect`,
-        {
-          method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
+      const data = await apiClient.delete('/integrations/google/disconnect');
       
       if (data.success) {
         toast.success('Google integration disconnected');
         setGoogleStatus({ connected: false });
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to disconnect');
+      console.error('Disconnect error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to disconnect';
+      toast.error(errorMessage);
     }
   };
 
   const exportContactsToSheets = async () => {
     try {
       setExporting(true);
-      const token = localStorage.getItem('accessToken');
       
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/sheets/export-contacts`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
+      const data = await apiClient.post('/integrations/google/sheets/export-contacts');
       
       if (data.success) {
         toast.success('Contacts exported successfully!');
@@ -207,7 +168,9 @@ export default function IntegrationsPage() {
         throw new Error(data.message || 'Export failed');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to export contacts');
+      console.error('Export error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to export contacts';
+      toast.error(errorMessage);
     } finally {
       setExporting(false);
     }
@@ -216,7 +179,6 @@ export default function IntegrationsPage() {
   const uploadSampleFileToDrive = async () => {
     try {
       setUploadingToDrive(true);
-      const token = localStorage.getItem('accessToken');
       
       const sampleContent = `Aistein-It - Sample File\n\nThis is a test file uploaded from Aistein-It integrations.\nTimestamp: ${new Date().toISOString()}\n`;
       const blob = new Blob([sampleContent], { type: 'text/plain' });
@@ -224,18 +186,7 @@ export default function IntegrationsPage() {
       formData.append('file', blob, 'kepleroai-test.txt');
       formData.append('name', `Aistein-It Test - ${new Date().toLocaleDateString()}`);
       
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/drive/upload`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
+      const data = await apiClient.uploadFile('/integrations/google/drive/upload', formData);
       
       if (data.success) {
         toast.success('File uploaded to Google Drive!');
@@ -246,7 +197,9 @@ export default function IntegrationsPage() {
         throw new Error(data.message || 'Upload failed');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to upload file');
+      console.error('Upload error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload file';
+      toast.error(errorMessage);
     } finally {
       setUploadingToDrive(false);
     }
@@ -255,32 +208,19 @@ export default function IntegrationsPage() {
   const createSampleCalendarEvent = async () => {
     try {
       setCreatingCalendarEvent(true);
-      const token = localStorage.getItem('accessToken');
       
       const startTime = new Date();
       startTime.setHours(startTime.getHours() + 1);
       const endTime = new Date(startTime);
       endTime.setHours(endTime.getHours() + 1);
       
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1'}/integrations/google/calendar/events`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            summary: 'KepleroAI Test Meeting',
-            description: 'This is a test event created from KepleroAI integrations.',
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            attendees: [],
-          }),
-        }
-      );
-
-      const data = await response.json();
+      const data = await apiClient.post('/integrations/google/calendar/events', {
+        summary: 'KepleroAI Test Meeting',
+        description: 'This is a test event created from KepleroAI integrations.',
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        attendees: [],
+      });
       
       if (data.success) {
         toast.success('Event created in Google Calendar!');
@@ -291,7 +231,9 @@ export default function IntegrationsPage() {
         throw new Error(data.message || 'Event creation failed');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create calendar event');
+      console.error('Calendar event error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create calendar event';
+      toast.error(errorMessage);
     } finally {
       setCreatingCalendarEvent(false);
     }

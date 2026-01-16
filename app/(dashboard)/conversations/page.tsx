@@ -80,64 +80,88 @@ export default function ConversationsPage() {
 
     // Join organization room if we have an ID
     if (organizationId) {
-      socket.joinOrganization(organizationId);
-      console.log(`[ConversationsPage] Joined organization room: ${organizationId}`);
+      try {
+        socket.joinOrganization(organizationId);
+        console.log(`[ConversationsPage] Joined organization room: ${organizationId}`);
+      } catch (error) {
+        console.error('[ConversationsPage] Error joining organization room:', error);
+      }
     }
 
     const handleNewConversation = (data: any) => {
-      console.log('[ConversationsPage] 🆕 New conversation received:', data);
-      
-      // Show toast notification
-      toast.success('New conversation created!', {
-        description: `From ${data.customerId?.name || 'Unknown'}`
-      });
-      
-      // Invalidate conversations query to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      
-      console.log('[ConversationsPage] ✅ Invalidated conversations query');
+      try {
+        console.log('[ConversationsPage] 🆕 New conversation received:', data);
+        
+        // Show toast notification
+        toast.success('New conversation created!', {
+          description: `From ${data.customerId?.name || 'Unknown'}`
+        });
+        
+        // Invalidate conversations query to trigger refetch
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        
+        console.log('[ConversationsPage] ✅ Invalidated conversations query');
+      } catch (error) {
+        console.error('[ConversationsPage] Error handling new conversation:', error);
+      }
     };
 
     const handleNewMessage = (data: any) => {
-      console.log('[ConversationsPage] 💬 New message received:', data);
-      
-      // If this message is for the currently selected conversation, update it
-      if (data.conversationId === selectedConversationId) {
-        queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+      try {
+        console.log('[ConversationsPage] 💬 New message received:', data);
+        
+        // If this message is for the currently selected conversation, update it
+        if (data.conversationId === selectedConversationId) {
+          queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+        }
+        
+        // Also invalidate conversations list to update last message
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      } catch (error) {
+        console.error('[ConversationsPage] Error handling new message:', error);
       }
-      
-      // Also invalidate conversations list to update last message
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     };
 
     const handleTranscriptUpdated = (data: any) => {
-      console.log('[ConversationsPage] 📝 Transcript updated:', data);
-      
-      // Show toast notification
-      toast.success('Call transcript ready!');
-      
-      // Invalidate conversations query to show updated data
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      
-      // If this conversation is currently selected, invalidate it too
-      if (data.conversationId === selectedConversationId) {
-        queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+      try {
+        console.log('[ConversationsPage] 📝 Transcript updated:', data);
+        
+        // Show toast notification
+        toast.success('Call transcript ready!');
+        
+        // Invalidate conversations query to show updated data
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        
+        // If this conversation is currently selected, invalidate it too
+        if (data.conversationId === selectedConversationId) {
+          queryClient.invalidateQueries({ queryKey: ['conversation', data.conversationId] });
+        }
+      } catch (error) {
+        console.error('[ConversationsPage] Error handling transcript update:', error);
       }
     };
 
-    // Subscribe to events
-    socket.onNewConversation(handleNewConversation);
-    socket.onNewMessageInOrg(handleNewMessage);
-    socket.onTranscriptUpdated(handleTranscriptUpdated);
+    // Subscribe to events with error handling
+    try {
+      socket.onNewConversation(handleNewConversation);
+      socket.onNewMessageInOrg(handleNewMessage);
+      socket.onTranscriptUpdated(handleTranscriptUpdated);
 
-    console.log('[ConversationsPage] ✅ WebSocket listeners registered');
+      console.log('[ConversationsPage] ✅ WebSocket listeners registered');
+    } catch (error) {
+      console.error('[ConversationsPage] Error registering WebSocket listeners:', error);
+    }
 
     // Cleanup
     return () => {
-      console.log('[ConversationsPage] 🧹 Cleaning up WebSocket listeners');
-      socket.off('conversation:new', handleNewConversation);
-      socket.off('new-message', handleNewMessage);
-      socket.off('conversation:transcript-updated', handleTranscriptUpdated);
+      try {
+        console.log('[ConversationsPage] 🧹 Cleaning up WebSocket listeners');
+        socket.off('conversation:new', handleNewConversation);
+        socket.off('new-message', handleNewMessage);
+        socket.off('conversation:transcript-updated', handleTranscriptUpdated);
+      } catch (error) {
+        console.error('[ConversationsPage] Error during cleanup:', error);
+      }
     };
   }, [socket, queryClient, selectedConversationId]);
 

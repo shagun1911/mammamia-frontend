@@ -35,11 +35,11 @@ export default function ChatbotTestPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        <div className="w-1/2 overflow-y-auto">
+      <div className="flex-1 flex min-h-0" style={{ height: 'calc(100vh - 5rem)' }}>
+        <div className="w-1/2 overflow-y-scroll overscroll-contain" style={{ height: 'calc(100vh - 5rem)' }}>
           <InstallationGuide />
         </div>
-        <div className="w-1/2 overflow-y-auto">
+        <div className="w-1/2 overflow-y-scroll overscroll-contain border-l border-border" style={{ height: 'calc(100vh - 5rem)' }}>
           <WidgetSimulator />
         </div>
       </div>

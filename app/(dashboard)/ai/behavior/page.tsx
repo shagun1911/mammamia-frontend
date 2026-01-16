@@ -3,20 +3,17 @@
 import { useState } from "react";
 import { TrainingSidebar } from "@/components/training/TrainingSidebar";
 import { KnowledgeBaseList } from "@/components/knowledge-base/KnowledgeBaseList";
-import { ChatAgentAnswering } from "@/components/ai-behavior/ChatAgentAnswering";
-import { HumanOperator } from "@/components/ai-behavior/HumanOperator";
 import { VoiceAgentAnswering } from "@/components/ai-behavior/VoiceAgentAnswering";
 import { VoiceHumanOperator } from "@/components/ai-behavior/VoiceHumanOperator";
 import { AIBehaviorLoader } from "@/components/ai-behavior/AIBehaviorLoader";
 import { cn } from "@/lib/utils";
-import { BookOpen, MessageSquare, Phone } from "lucide-react";
+import { BookOpen, Phone } from "lucide-react";
 
-type Section = "knowledge" | "chat-agent" | "voice-agent";
+type Section = "knowledge" | "voice-agent";
 type AgentTab = "answering" | "human-operator";
 
 export default function AIBehaviorPage() {
   const [activeSection, setActiveSection] = useState<Section>("knowledge");
-  const [chatAgentTab, setChatAgentTab] = useState<AgentTab>("answering");
   const [voiceAgentTab, setVoiceAgentTab] = useState<AgentTab>("answering");
 
   return (
@@ -39,18 +36,6 @@ export default function AIBehaviorPage() {
             >
               <BookOpen className="w-4 h-4" />
               Knowledge Base
-            </button>
-            <button
-              onClick={() => setActiveSection("chat-agent")}
-              className={cn(
-                "flex items-center gap-2 px-4 py-4 text-sm font-medium border-b-2 transition-colors cursor-pointer",
-                activeSection === "chat-agent"
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <MessageSquare className="w-4 h-4" />
-              Chat Agent
             </button>
             <button
               onClick={() => setActiveSection("voice-agent")}
@@ -85,49 +70,7 @@ export default function AIBehaviorPage() {
               </div>
             )}
 
-            {/* Chat Agent Section */}
-            {activeSection === "chat-agent" && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground mb-2">Chat Agent Behavior</h2>
-                  <p className="text-muted-foreground">
-                    Configure how your AI chat agent responds to customers
-                  </p>
-                </div>
-
-                {/* Chat Agent Tabs */}
-                <div className="flex items-center gap-2 border-b border-border">
-                  <button
-                    onClick={() => setChatAgentTab("answering")}
-                    className={cn(
-                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer",
-                      chatAgentTab === "answering"
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Answering Behavior
-                  </button>
-                  <button
-                    onClick={() => setChatAgentTab("human-operator")}
-                    className={cn(
-                      "px-4 py-3 text-sm font-medium border-b-2 transition-colors cursor-pointer",
-                      chatAgentTab === "human-operator"
-                        ? "border-primary text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    Human Operator
-                  </button>
-                </div>
-
-                {/* Chat Agent Content */}
-                <div className="mt-6">
-                  {chatAgentTab === "answering" && <ChatAgentAnswering />}
-                  {chatAgentTab === "human-operator" && <HumanOperator />}
-                </div>
-              </div>
-            )}
+            {/* Chat Agent Section - Removed */}
 
             {/* Voice Agent Section */}
             {activeSection === "voice-agent" && (

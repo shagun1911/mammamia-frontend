@@ -152,7 +152,7 @@ export function WidgetSimulator() {
   };
 
   return (
-    <div className="h-full bg-background p-8 overflow-y-auto">
+    <div className="bg-background p-8">
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-foreground">Live Preview</h2>
@@ -165,47 +165,6 @@ export function WidgetSimulator() {
           </button>
         </div>
 
-        {/* User Name Input */}
-        <div className="bg-card border border-border rounded-lg p-4">
-          <label className="text-sm font-medium text-foreground mb-2 block">
-            Test User Name
-          </label>
-          <input
-            type="text"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            placeholder="Enter a test name..."
-            className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-          />
-          <p className="text-xs text-muted-foreground mt-2">
-            Conversations will be saved under this name
-          </p>
-        </div>
-
-        {/* Collection Selector */}
-        <div className="bg-card border border-border rounded-lg p-4">
-          <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-            <Database className="w-4 h-4" />
-            Knowledge Base
-          </label>
-          <select
-            value={selectedCollection || ''}
-            onChange={(e) => setSelectedCollection(e.target.value || null)}
-            className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-          >
-            <option value="">-- Select Collection (Optional) --</option>
-            {collections.map((collection) => (
-              <option key={collection.collection_name} value={collection.collection_name}>
-                {collection.collection_name}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-muted-foreground mt-2">
-            {selectedCollection 
-              ? `Using RAG with ${selectedCollection}` 
-              : 'Select a collection to enable AI-powered responses'}
-          </p>
-        </div>
       </div>
 
       {/* Status indicator */}
