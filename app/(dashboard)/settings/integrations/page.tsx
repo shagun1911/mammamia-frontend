@@ -73,6 +73,19 @@ export default function IntegrationsPage() {
       window.history.replaceState({}, '', '/settings/integrations');
       fetchGoogleStatus();
     }
+    
+    // Refresh integrations when page becomes visible (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchPythonIntegrations();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const loadIntegrations = async () => {
@@ -103,16 +116,123 @@ export default function IntegrationsPage() {
   const fetchPythonIntegrations = async () => {
     try {
       const data = await integrationService.listInitializedIntegrations();
+      console.log('[Integrations] Python backend response:', data);
+      
       if (data && Array.isArray(data)) {
-        setIntegrations(data);
+        // Normalize the integration data to ensure consistent format
+        const normalizedIntegrations = data.map((integration: any) => {
+          // Handle different possible response formats
+          let key = integration.key || integration.name?.toLowerCase() || integration.integration?.toLowerCase() || '';
+          const name = integration.name || integration.integration || key;
+          
+          // Map common variations to standard keys
+          const keyMap: Record<string, string> = {
+            'woocommerce': 'woocommerce',
+            'woo': 'woocommerce',
+            'shopify': 'shopify',
+            'magento': 'magento2',
+            'magento2': 'magento2',
+            'prestashop': 'prestashop',
+            'qapla': 'qapla',
+            'vertical-booking': 'vertical-booking',
+            'verticalbooking': 'vertical-booking',
+            'booking-expert': 'booking-expert',
+            'bookingexpert': 'booking-expert',
+            'mcp': 'mcp'
+          };
+          
+          // Normalize the key
+          const normalizedKey = keyMap[key.toLowerCase()] || key.toLowerCase();
+          
+          // Determine connected status from various possible fields
+          let connected = false;
+          if (integration.connected !== undefined) {
+            connected = Boolean(integration.connected);
+          } else if (integration.status) {
+            connected = ['connected', 'active', 'initialized'].includes(integration.status.toLowerCase());
+          } else if (integration.initialized !== undefined) {
+            connected = Boolean(integration.initialized);
+          } else {
+            // If integration exists in the list, assume it's connected
+            connected = true;
+          }
+          
+          return {
+            name,
+            key: normalizedKey,
+            connected
+          };
+        });
+        
+        console.log('[Integrations] Normalized integrations:', normalizedIntegrations);
+        setIntegrations(normalizedIntegrations);
+      } else if (data && typeof data === 'object') {
+        // Handle case where response is an object with integrations array
+        // Python backend returns: { status: "success", initialized_clients: ["woocommerce", ...] }
+        const integrationsArray = data.initialized_clients || data.integrations || data.data || [];
+        if (Array.isArray(integrationsArray)) {
+          // Process array of integration names/keys
+          const normalizedIntegrations = integrationsArray.map((integration: any) => {
+            // If it's just a string (like "woocommerce"), use it as the key
+            let key = typeof integration === 'string' 
+              ? integration.toLowerCase() 
+              : (integration.key || integration.name?.toLowerCase() || integration.integration?.toLowerCase() || '');
+            
+            const name = typeof integration === 'string' 
+              ? integration.charAt(0).toUpperCase() + integration.slice(1).replace(/-/g, ' ')
+              : (integration.name || integration.integration || key);
+            
+            // Map common variations to standard keys
+            const keyMap: Record<string, string> = {
+              'woocommerce': 'woocommerce',
+              'woo': 'woocommerce',
+              'shopify': 'shopify',
+              'magento': 'magento2',
+              'magento2': 'magento2',
+              'prestashop': 'prestashop',
+              'qapla': 'qapla',
+              'vertical-booking': 'vertical-booking',
+              'verticalbooking': 'vertical-booking',
+              'booking-expert': 'booking-expert',
+              'bookingexpert': 'booking-expert',
+              'mcp': 'mcp'
+            };
+            
+            const normalizedKey = keyMap[key.toLowerCase()] || key.toLowerCase();
+            
+            // If integration exists in initialized_clients, it's connected
+            const connected = true; // If it's in the list, it's initialized/connected
+            
+            return {
+              name,
+              key: normalizedKey,
+              connected
+            };
+          });
+          console.log('[Integrations] Normalized integrations (from object):', normalizedIntegrations);
+          setIntegrations(normalizedIntegrations);
+        } else {
+          console.warn('[Integrations] Unexpected response format:', data);
+          setIntegrations([]);
+        }
+      } else {
+        console.warn('[Integrations] Unexpected response format:', data);
+        setIntegrations([]);
       }
     } catch (error) {
       console.error('Failed to fetch Python integrations:', error);
+      setIntegrations([]);
     }
   };
 
   const isConnected = (key: string) => {
-    return integrations.some((i) => i.key === key && i.connected);
+    const normalizedKey = key.toLowerCase();
+    const found = integrations.some((i) => {
+      const integrationKey = (i.key || '').toLowerCase();
+      return integrationKey === normalizedKey && i.connected;
+    });
+    console.log(`[Integrations] Checking connection for "${key}":`, found, 'Available integrations:', integrations);
+    return found;
   };
 
   // ==================== GOOGLE INTEGRATION HANDLERS ====================
@@ -254,18 +374,52 @@ export default function IntegrationsPage() {
       switch (currentPlatform) {
         case 'shopify':
           result = await integrationService.setupShopify(data as any);
+          // Save to backend Settings
+          await apiClient.post('/settings/ecommerce-credentials', {
+            platform: 'shopify',
+            base_url: data.shop_url?.startsWith('http') ? data.shop_url : `https://${data.shop_url}`,
+            api_key: data.admin_api_key,
+            access_token: data.admin_api_key // Shopify uses admin_api_key as access token
+          });
           break;
         case 'woocommerce':
           result = await integrationService.setupWooCommerce(data as any);
+          // Save to backend Settings and InboundAgentConfig
+          await apiClient.post('/settings/ecommerce-credentials', {
+            platform: 'woocommerce',
+            base_url: data.store_url,
+            api_key: data.consumer_key,
+            api_secret: data.consumer_secret
+          });
           break;
         case 'magento2':
           result = await integrationService.setupMagento2(data as any);
+          // Save to backend Settings
+          await apiClient.post('/settings/ecommerce-credentials', {
+            platform: 'magento2',
+            base_url: data.store_url,
+            api_key: data.consumer_key,
+            api_secret: data.consumer_secret,
+            access_token: data.access_token
+          });
           break;
         case 'prestashop':
           result = await integrationService.setupPrestaShop(data as any);
+          // Save to backend Settings
+          await apiClient.post('/settings/ecommerce-credentials', {
+            platform: 'prestashop',
+            base_url: data.store_url,
+            api_key: data.api_key
+          });
           break;
         case 'qapla':
           result = await integrationService.setupQapla(data as any);
+          // Save to backend Settings
+          await apiClient.post('/settings/ecommerce-credentials', {
+            platform: 'qapla',
+            base_url: data.base_url,
+            api_key: data.api_key
+          });
           break;
         case 'vertical-booking':
           result = await integrationService.setupVerticalBooking(data as any);
@@ -281,7 +435,15 @@ export default function IntegrationsPage() {
       }
 
       toast.success(`${currentPlatform} integration setup successfully!`);
-      await fetchPythonIntegrations();
+      
+      // Close modal and refresh integrations
+      setSetupModalOpen(false);
+      setCurrentPlatform(null);
+      
+      // Wait a bit for Python backend to process, then fetch
+      setTimeout(async () => {
+        await fetchPythonIntegrations();
+      }, 500);
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'Setup failed');
     }
@@ -323,11 +485,38 @@ export default function IntegrationsPage() {
   };
 
   const disconnectIntegration = async (platform: string) => {
+    if (!confirm(`Are you sure you want to disconnect ${platform}?`)) {
+      return;
+    }
+    
     try {
-      await integrationService.removeIntegration(platform);
+      // Try different possible integration names
+      const possibleNames = [platform, platform.toLowerCase(), platform.charAt(0).toUpperCase() + platform.slice(1)];
+      
+      let removed = false;
+      for (const name of possibleNames) {
+        try {
+          await integrationService.removeIntegration(name);
+          removed = true;
+          break;
+        } catch (e) {
+          // Try next name
+          continue;
+        }
+      }
+      
+      if (!removed) {
+        // Fallback: try with the platform name as-is
+        await integrationService.removeIntegration(platform);
+      }
+      
       toast.success(`${platform} integration removed`);
-      await fetchPythonIntegrations();
+      // Refresh the list after a short delay
+      setTimeout(async () => {
+        await fetchPythonIntegrations();
+      }, 500);
     } catch (error: any) {
+      console.error(`[Disconnect ${platform}] Error:`, error);
       toast.error(error.response?.data?.message || error.message || 'Failed to disconnect');
     }
   };
@@ -636,7 +825,27 @@ export default function IntegrationsPage() {
 
             {/* E-commerce Integrations */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-6">E-commerce Platforms</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">E-commerce Platforms</h2>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={fetchPythonIntegrations}
+                  disabled={loading}
+                  className="cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      Refresh Status
+                    </>
+                  )}
+                </Button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <IntegrationCard
                 name="Shopify"
