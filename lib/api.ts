@@ -104,14 +104,22 @@ class ApiClient {
 
   /**
    * Format error responses consistently
+   * Backend error format: { success: false, error: { code, message, details } }
    */
   private formatError(error: any) {
     if (error.response) {
       // Server responded with error
+      // Backend returns: { success: false, error: { code, message, details } }
+      const backendError = error.response.data;
+      const errorMessage = backendError?.error?.message || 
+                          backendError?.message || 
+                          'An error occurred';
+      
       return {
-        message: error.response.data?.message || 'An error occurred',
+        message: errorMessage,
         status: error.response.status,
-        data: error.response.data,
+        data: backendError,
+        response: error.response, // Keep original response for backward compatibility
       };
     } else if (error.request) {
       // Request made but no response
