@@ -416,12 +416,16 @@ export default function IntegrationsPage() {
             }
           }
           
-          console.log('[WooCommerce Setup] Saving credentials with normalized URL:', normalizedStoreUrl);
+          // Append /wp-json/wc/v3 to the normalized URL before storing in DB
+          const urlForDb = normalizedStoreUrl ? `${normalizedStoreUrl}/wp-json/wc/v3` : '';
+          
+          console.log('[WooCommerce Setup] Normalized URL (sent to Python):', normalizedStoreUrl);
+          console.log('[WooCommerce Setup] URL for DB (with /wp-json/wc/v3):', urlForDb);
           
           // Save to backend Settings and InboundAgentConfig
           const saveResponse = await apiClient.post('/settings/ecommerce-credentials', {
             platform: 'woocommerce',
-            base_url: normalizedStoreUrl,
+            base_url: urlForDb,
             api_key: data.consumer_key,
             api_secret: data.consumer_secret
           });
@@ -621,7 +625,23 @@ export default function IntegrationsPage() {
     }
     
     try {
-      // Try different possible integration names
+      // List of e-commerce platforms that store credentials in Node.js backend Settings
+      const ecommercePlatforms = ['woocommerce', 'shopify', 'magento2', 'prestashop', 'qapla'];
+      const isEcommercePlatform = ecommercePlatforms.includes(platform.toLowerCase());
+      
+      // For e-commerce platforms, also delete from Node.js backend Settings
+      if (isEcommercePlatform) {
+        try {
+          console.log(`[Disconnect ${platform}] Deleting from Node.js backend Settings...`);
+          await apiClient.delete('/settings/ecommerce-credentials');
+          console.log(`[Disconnect ${platform}] ✅ Deleted from Node.js backend Settings`);
+        } catch (nodeError: any) {
+          console.warn(`[Disconnect ${platform}] ⚠️  Failed to delete from Node.js backend:`, nodeError.message);
+          // Continue with Python backend deletion even if Node.js deletion fails
+        }
+      }
+      
+      // Remove from Python backend
       const possibleNames = [platform, platform.toLowerCase(), platform.charAt(0).toUpperCase() + platform.slice(1)];
       
       let removed = false;
