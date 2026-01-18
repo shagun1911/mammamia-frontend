@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Send, Minimize2, X, MessageCircle } from "lucide-react";
-import { pythonRagService } from "@/services/pythonRag.service";
 import { v4 as uuidv4 } from "uuid";
 import { useSearchParams } from "next/navigation";
 
@@ -63,25 +62,14 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
     fetchSettings();
   }, [params.widgetId]);
 
-  // Get collection from URL parameter or use default
+  // Get collection from URL parameter (optional - backend will use Settings if not provided)
   useEffect(() => {
     const collectionParam = searchParams.get('collection');
     if (collectionParam) {
       setSelectedCollection(collectionParam);
-    } else {
-      // Try to fetch collections
-      const fetchCollections = async () => {
-        try {
-          const cols = await pythonRagService.getCollections();
-          if (cols.length > 0) {
-            setSelectedCollection(cols[0].collection_name);
-          }
-        } catch (error) {
-          console.error('Failed to fetch collections:', error);
-        }
-      };
-      fetchCollections();
     }
+    // Widget uses knowledge base from Settings via backend endpoint
+    // No need to fetch collections directly from Python API
   }, [searchParams]);
 
   // Send welcome message asking for name
@@ -179,20 +167,31 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
     try {
       let botResponseText = "";
 
-      if (selectedCollection) {
-        const systemPrompt = `You are a helpful AI assistant. Answer questions accurately based on the provided context.`;
-        
-        const response = await pythonRagService.chat({
+      // Use backend chatbot endpoint which handles API keys, WooCommerce, and knowledge base settings
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+      const response = await fetch(`${API_URL}/chatbot/widget/${params.widgetId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           query: userQuery,
-          collection_names: [selectedCollection], // Updated to array for multiple collections support
-          thread_id: threadId,
-          system_prompt: systemPrompt,
-          top_k: 5
-        });
+          threadId: threadId
+        })
+      });
 
-        botResponseText = response.answer;
-      } else {
-        botResponseText = "I'm not connected to a knowledge base yet. Please contact the website administrator.";
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || errorData.message || 'Failed to get response');
+      }
+
+      const data = await response.json();
+      botResponseText = data.data?.answer || data.answer || "I'm having trouble connecting right now. Please try again later.";
+      
+      // Check if Python backend returned an error message as the answer
+      if (botResponseText.toLowerCase().includes('encountered an error') || 
+          botResponseText.toLowerCase().includes('error while generating')) {
+        console.error('[Widget] Python backend returned error message:', botResponseText);
+        console.error('[Widget] Response data:', JSON.stringify(data, null, 2));
+        // Keep the error message but log it for debugging
       }
 
       const botMessage = {

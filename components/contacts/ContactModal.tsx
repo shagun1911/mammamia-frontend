@@ -107,13 +107,13 @@ export function ContactModal({
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Name
             </label>
             <input
               {...register("name")}
               placeholder="Enter name"
-              className="w-full bg-secondary border border-border rounded-lg px-3 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
             {errors.name && (
               <p className="text-xs text-red-500 mt-1">{errors.name.message}</p>
@@ -121,14 +121,14 @@ export function ContactModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Email
             </label>
             <input
               {...register("email")}
               type="email"
               placeholder="Enter email"
-              className="w-full bg-secondary border border-border rounded-lg px-3 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
             {errors.email && (
               <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>
@@ -136,14 +136,14 @@ export function ContactModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Phone
             </label>
             <input
               {...register("phone")}
               type="tel"
               placeholder="+1 555-0000"
-              className="w-full bg-secondary border border-border rounded-lg px-3 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
             />
             {errors.phone && (
               <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>
@@ -153,7 +153,7 @@ export function ContactModal({
           {/* Lists Selection */}
           {lists.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-white mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Add to Lists (Optional)
               </label>
               <div className="space-y-2 max-h-40 overflow-y-auto border border-border rounded-lg p-2">
