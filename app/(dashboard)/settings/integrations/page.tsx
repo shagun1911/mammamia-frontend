@@ -22,7 +22,10 @@ import {
   ShoppingCart,
   Hotel,
   Package,
-  Settings
+  Settings,
+  Phone,
+  PhoneOutgoing,
+  MessageSquare
 } from "lucide-react";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { SetupModal } from "@/components/integrations/SetupModal";
@@ -383,14 +386,46 @@ export default function IntegrationsPage() {
           });
           break;
         case 'woocommerce':
+          console.log('[WooCommerce Setup] Starting setup with data:', {
+            store_url: data.store_url,
+            has_consumer_key: !!data.consumer_key,
+            has_consumer_secret: !!data.consumer_secret
+          });
+          
           result = await integrationService.setupWooCommerce(data as any);
+          console.log('[WooCommerce Setup] Python backend setup result:', result);
+          
+          // Normalize store_url before saving to backend
+          let normalizedStoreUrl = data.store_url?.trim() || '';
+          if (normalizedStoreUrl) {
+            // Remove trailing slashes
+            normalizedStoreUrl = normalizedStoreUrl.replace(/\/+$/, '');
+            
+            // Ensure https:// prefix
+            if (!normalizedStoreUrl.startsWith('http://') && !normalizedStoreUrl.startsWith('https://')) {
+              normalizedStoreUrl = `https://${normalizedStoreUrl}`;
+            }
+            
+            // Remove WooCommerce API paths if user accidentally included them
+            const apiPathPatterns = ['/wp-json/wc/v3', '/wp-json/wc/v2', '/wp-json/wc/v1', '/wp-json'];
+            for (const pattern of apiPathPatterns) {
+              if (normalizedStoreUrl.includes(pattern)) {
+                normalizedStoreUrl = normalizedStoreUrl.split(pattern)[0];
+                break; // Only remove the first match
+              }
+            }
+          }
+          
+          console.log('[WooCommerce Setup] Saving credentials with normalized URL:', normalizedStoreUrl);
+          
           // Save to backend Settings and InboundAgentConfig
-          await apiClient.post('/settings/ecommerce-credentials', {
+          const saveResponse = await apiClient.post('/settings/ecommerce-credentials', {
             platform: 'woocommerce',
-            base_url: data.store_url,
+            base_url: normalizedStoreUrl,
             api_key: data.consumer_key,
             api_secret: data.consumer_secret
           });
+          console.log('[WooCommerce Setup] ✅ Credentials saved to backend:', saveResponse);
           break;
         case 'magento2':
           result = await integrationService.setupMagento2(data as any);
@@ -481,6 +516,102 @@ export default function IntegrationsPage() {
       toast.success(`${platform} connection test successful!`);
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'Connection test failed');
+    }
+  };
+
+  const testInboundCall = async () => {
+    try {
+      // Get the first inbound phone number from settings
+      const phoneSettings = await apiClient.get('/phone-settings');
+      const inboundNumbers = phoneSettings.data?.inboundPhoneNumbers || [];
+      
+      if (inboundNumbers.length === 0) {
+        toast.error('No inbound phone numbers configured. Please configure phone numbers in Settings → Phone Settings → Inbound tab.');
+        return;
+      }
+      
+      const calledNumber = inboundNumbers[0];
+      
+      console.log('[Test Inbound Call] Testing with phone number:', calledNumber);
+      
+      const result = await apiClient.post('/inbound-agent-config/test-inbound-call', {
+        calledNumber
+      });
+      
+      if (result.success) {
+        toast.success('Inbound call test initiated! Check backend logs for details.');
+        console.log('[Test Inbound Call] Test result:', result);
+      } else {
+        toast.error(result.error?.message || 'Test failed');
+      }
+    } catch (error: any) {
+      console.error('[Test Inbound Call] Error:', error);
+      toast.error(error.response?.data?.error?.message || error.message || 'Failed to test inbound call');
+    }
+  };
+
+  const testOutboundCall = async () => {
+    const phoneNumber = prompt('Enter phone number to test (with country code, e.g., +1234567890):');
+    if (!phoneNumber) return;
+    
+    if (!phoneNumber.startsWith('+')) {
+      toast.error('Phone number must include country code (e.g., +1234567890)');
+      return;
+    }
+    
+    try {
+      console.log('[Test Outbound Call] Testing with phone number:', phoneNumber);
+      
+      const result = await apiClient.post('/ai-behavior/voice-agent/test', {
+        phoneNumber
+      });
+      
+      if (result.success) {
+        toast.success('Outbound call test initiated! You should receive a call shortly.');
+        console.log('[Test Outbound Call] Test result:', result);
+      } else {
+        toast.error(result.error?.message || 'Test failed');
+      }
+    } catch (error: any) {
+      console.error('[Test Outbound Call] Error:', error);
+      toast.error(error.response?.data?.error?.message || error.message || 'Failed to test outbound call');
+    }
+  };
+
+  const testChatbot = async () => {
+    const query = prompt('Enter test query (or leave empty for default "I need only products name"):') || "I need only products name";
+    
+    if (!query.trim()) {
+      toast.error('Query cannot be empty');
+      return;
+    }
+    
+    try {
+      console.log('[Test Chatbot] Testing with query:', query);
+      
+      const result = await apiClient.post('/chatbot/test', {
+        query,
+        collection_names: [],
+        top_k: 5,
+        elaborate: false,
+        skip_history: false
+      });
+      
+      if (result.success) {
+        toast.success('Chatbot test completed! Check console for response.');
+        console.log('[Test Chatbot] Test result:', result);
+        
+        // Show the response in an alert
+        const answer = result.data?.data?.answer || result.data?.answer || 'No answer received';
+        const preview = answer.length > 200 ? answer.substring(0, 200) + '...' : answer;
+        alert(`Chatbot Response:\n\n${preview}\n\nFull response logged in console.`);
+      } else {
+        toast.error(result.error?.message || 'Test failed');
+      }
+    } catch (error: any) {
+      console.error('[Test Chatbot] Error:', error);
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Failed to test chatbot';
+      toast.error(errorMessage);
     }
   };
 
@@ -868,6 +999,64 @@ export default function IntegrationsPage() {
                 onTest={() => testConnection('woocommerce')}
                 onDisconnect={() => disconnectIntegration('woocommerce')}
               />
+
+              {/* WooCommerce Test Section */}
+              {isConnected('woocommerce') && (
+                <Card className="col-span-full">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Package className="h-5 w-5 text-purple-600" />
+                      Test WooCommerce Integration
+                    </CardTitle>
+                    <CardDescription>
+                      Test inbound calls, outbound calls, and chatbot with WooCommerce credentials
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Button
+                        variant="outline"
+                        onClick={testInboundCall}
+                        className="cursor-pointer h-auto py-4 flex flex-col items-center gap-2"
+                      >
+                        <Phone className="h-5 w-5" />
+                        <div className="text-center">
+                          <div className="font-semibold">Test Inbound Call</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Test with your configured phone number
+                          </div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={testOutboundCall}
+                        className="cursor-pointer h-auto py-4 flex flex-col items-center gap-2"
+                      >
+                        <PhoneOutgoing className="h-5 w-5" />
+                        <div className="text-center">
+                          <div className="font-semibold">Test Outbound Call</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Enter a phone number to call
+                          </div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={testChatbot}
+                        className="cursor-pointer h-auto py-4 flex flex-col items-center gap-2"
+                      >
+                        <MessageSquare className="h-5 w-5" />
+                        <div className="text-center">
+                          <div className="font-semibold">Test Chatbot</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Test chatbot with WooCommerce products
+                          </div>
+                        </div>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <IntegrationCard
                 name="Magento 2"

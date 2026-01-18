@@ -31,7 +31,41 @@ class IntegrationService {
     consumer_secret: string;
     api_version?: string;
   }) {
-    const response = await this.api.post('/integration/setup/woocommerce', config);
+    // Normalize store_url - remove trailing slashes and API paths
+    let normalizedStoreUrl = config.store_url.trim();
+    
+    // Remove trailing slashes
+    normalizedStoreUrl = normalizedStoreUrl.replace(/\/+$/, '');
+    
+    // Ensure https:// prefix
+    if (!normalizedStoreUrl.startsWith('http://') && !normalizedStoreUrl.startsWith('https://')) {
+      normalizedStoreUrl = `https://${normalizedStoreUrl}`;
+    }
+    
+    // Remove WooCommerce API paths if user accidentally included them
+    const apiPathPatterns = [
+      '/wp-json/wc/v3',
+      '/wp-json/wc/v2',
+      '/wp-json/wc/v1',
+      '/wp-json',
+    ];
+    
+    for (const pattern of apiPathPatterns) {
+      if (normalizedStoreUrl.includes(pattern)) {
+        normalizedStoreUrl = normalizedStoreUrl.split(pattern)[0];
+        break; // Only remove the first match
+      }
+    }
+    
+    const normalizedConfig = {
+      ...config,
+      store_url: normalizedStoreUrl
+    };
+    
+    console.log('[WooCommerce Setup] Normalized store_url:', normalizedStoreUrl);
+    console.log('[WooCommerce Setup] Original store_url:', config.store_url);
+    
+    const response = await this.api.post('/integration/setup/woocommerce', normalizedConfig);
     return response.data;
   }
 
