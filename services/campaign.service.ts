@@ -37,7 +37,18 @@ class CampaignService {
       });
       // Backend returns paginatedResponse: { data: { items: [...], pagination: {...} } }
       // Return just the items array, or empty array if no data
-      return response.data?.items || [];
+      const items = response.data?.items || response.data?.data?.items || [];
+      
+      // Normalize old statuses to new ones
+      return items.map((campaign: any) => {
+        if (campaign.status === 'sent' || campaign.status === 'sending') {
+          campaign.status = 'completed';
+        }
+        if (campaign.status === 'cancelled') {
+          campaign.status = 'failed';
+        }
+        return campaign;
+      });
     } catch (error: any) {
       // If campaigns endpoint doesn't exist yet, return empty array
       console.warn('Campaigns endpoint error:', error.message);
@@ -51,8 +62,18 @@ class CampaignService {
   async getById(id: string) {
     try {
       const response = await apiClient.get(`/campaigns/${id}`);
-      // Backend returns successResponse: { data: <campaign> }
-      return response.data;
+      // Backend returns successResponse: { success: true, data: <campaign> }
+      const campaign = response.data?.data || response.data;
+      
+      // Normalize old statuses
+      if (campaign.status === 'sent' || campaign.status === 'sending') {
+        campaign.status = 'completed';
+      }
+      if (campaign.status === 'cancelled') {
+        campaign.status = 'failed';
+      }
+      
+      return campaign;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to fetch campaign');
     }
@@ -143,10 +164,11 @@ class CampaignService {
   async pause(id: string) {
     try {
       const response = await apiClient.post(`/campaigns/${id}/pause`);
-      // Backend returns successResponse: { data: <campaign> }
-      return response.data;
+      // Backend returns successResponse: { success: true, data: <campaign> }
+      return response.data?.data || response.data;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to pause campaign');
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to pause campaign';
+      throw new Error(errorMessage);
     }
   }
 
@@ -156,10 +178,39 @@ class CampaignService {
   async resume(id: string) {
     try {
       const response = await apiClient.post(`/campaigns/${id}/resume`);
-      // Backend returns successResponse: { data: <campaign> }
-      return response.data;
+      // Backend returns successResponse: { success: true, data: <campaign> }
+      return response.data?.data || response.data;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to resume campaign');
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to resume campaign';
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Retry failed recipients
+   */
+  async retryFailed(id: string) {
+    try {
+      const response = await apiClient.post(`/campaigns/${id}/retry-failed`);
+      // Backend returns successResponse: { success: true, data: <campaign> }
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to retry failed recipients';
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Get campaign progress
+   */
+  async getProgress(id: string) {
+    try {
+      const response = await apiClient.get(`/campaigns/${id}/progress`);
+      // Backend returns successResponse: { success: true, data: <progress> }
+      return response.data?.data || response.data;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to fetch campaign progress';
+      throw new Error(errorMessage);
     }
   }
 

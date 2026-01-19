@@ -139,6 +139,44 @@ export function usePauseCampaign() {
 }
 
 /**
+ * Resume campaign mutation
+ */
+export function useResumeCampaign() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => campaignService.resume(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['campaign', id] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast.success('Campaign resumed');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to resume campaign');
+    },
+  });
+}
+
+/**
+ * Retry failed recipients mutation
+ */
+export function useRetryFailedCampaign() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => campaignService.retryFailed(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['campaign', id] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      toast.success('Retrying failed recipients');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to retry failed recipients');
+    },
+  });
+}
+
+/**
  * Cancel campaign mutation
  */
 export function useCancelCampaign() {
@@ -157,3 +195,14 @@ export function useCancelCampaign() {
   });
 }
 
+/**
+ * Fetch campaign progress
+ */
+export function useCampaignProgress(campaignId: string | null, options?: { refetchInterval?: number }) {
+  return useQuery({
+    queryKey: ['campaign', campaignId, 'progress'],
+    queryFn: () => campaignService.getProgress(campaignId!),
+    enabled: !!campaignId,
+    refetchInterval: options?.refetchInterval || (options?.refetchInterval === undefined ? 2000 : false),
+  });
+}
