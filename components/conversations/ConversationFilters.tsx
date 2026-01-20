@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -17,8 +17,13 @@ import {
   Users,
   Hash,
   Sparkles,
+  X,
+  Loader2,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { settingsService } from "@/services/settings.service";
+import { toast } from "@/lib/toast";
 
 interface ConversationFiltersProps {
   onFilterChange?: (filter: string) => void;
@@ -32,10 +37,76 @@ export function ConversationFilters({
   const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [channelsExpanded, setChannelsExpanded] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [folders, setFolders] = useState<any[]>([]);
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
 
   const handleFilterSelect = (filter: string) => {
     setSelectedFilter(filter);
     onFilterChange?.(filter);
+  };
+
+  // Load folders on mount
+  useEffect(() => {
+    loadFolders();
+  }, []);
+
+  const loadFolders = async () => {
+    try {
+      const foldersData = await settingsService.getFolders();
+      console.log('Loaded folders:', foldersData);
+      // Ensure foldersData is an array
+      const foldersArray = Array.isArray(foldersData) ? foldersData : [];
+      setFolders(foldersArray);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+      setFolders([]);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      toast.error('Please enter a folder name');
+      return;
+    }
+
+    try {
+      setCreatingFolder(true);
+      await settingsService.createFolder(newFolderName.trim());
+      toast.success('Folder created successfully');
+      setNewFolderName("");
+      setShowNewFolderInput(false);
+      await loadFolders();
+    } catch (error: any) {
+      console.error('Failed to create folder:', error);
+      toast.error(error.message || 'Failed to create folder');
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
+
+  const handleDeleteFolder = async (folderId: string, folderName: string) => {
+    if (!confirm(`Are you sure you want to delete "${folderName}"? This will remove the folder but not the conversations inside.`)) {
+      return;
+    }
+
+    try {
+      setDeletingFolderId(folderId);
+      await settingsService.deleteFolder(folderId);
+      toast.success('Folder deleted successfully');
+      await loadFolders();
+      // Reset filter if deleted folder was selected
+      if (selectedFilter === `folder:${folderId}`) {
+        handleFilterSelect("all");
+      }
+    } catch (error: any) {
+      console.error('Failed to delete folder:', error);
+      toast.error(error.message || 'Failed to delete folder');
+    } finally {
+      setDeletingFolderId(null);
+    }
   };
 
   return (
@@ -305,35 +376,124 @@ export function ConversationFilters({
               <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all cursor-pointer hover:scale-110">
                 <Search className="w-3.5 h-3.5" />
               </button>
-              <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all cursor-pointer hover:scale-110">
+              <button 
+                onClick={() => setShowNewFolderInput(true)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all cursor-pointer hover:scale-110"
+                title="Create new folder"
+              >
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
           {foldersExpanded && (
             <div className="space-y-2 pl-9">
-              <button
-                onClick={() => handleFilterSelect("all-folders")}
-                className={cn(
-                  "w-full px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all text-left flex items-center gap-3 cursor-pointer group",
-                  selectedFilter === "all-folders"
-                    ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md"
-                    : "bg-secondary/50 text-secondary-foreground hover:bg-accent/50 hover:shadow-sm hover:translate-x-1"
-                )}
-              >
-                <div className={cn(
-                  "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  selectedFilter === "all-folders"
-                    ? "bg-primary-foreground/20"
-                    : "bg-primary/10 group-hover:bg-primary/20"
-                )}>
-                  <Folder className={cn(
-                    "w-4 h-4",
-                    selectedFilter === "all-folders" ? "text-primary-foreground" : "text-primary"
-                  )} />
+              
+              {/* Create New Folder Input */}
+              {showNewFolderInput && (
+                <div className="mt-2 p-2 bg-secondary/50 border border-border rounded-lg space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleCreateFolder()}
+                      placeholder="Folder name..."
+                      className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        setShowNewFolderInput(false);
+                        setNewFolderName("");
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleCreateFolder}
+                    disabled={creatingFolder || !newFolderName.trim()}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {creatingFolder ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Creating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Create Folder</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <span>All folders</span>
-              </button>
+              )}
+
+              {/* Folders List */}
+              {folders.length > 0 ? (
+                folders.map((folder) => {
+                  const folderId = folder._id || folder.id;
+                  const isDeleting = deletingFolderId === folderId;
+                  return (
+                    <div
+                      key={folderId}
+                      className={cn(
+                        "group flex items-center gap-2",
+                        selectedFilter === `folder:${folderId}` && "bg-gradient-to-r from-primary/5 to-transparent rounded-lg px-1"
+                      )}
+                    >
+                      <button
+                        onClick={() => handleFilterSelect(`folder:${folderId}`)}
+                        className={cn(
+                          "flex-1 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all text-left flex items-center gap-3 cursor-pointer",
+                          selectedFilter === `folder:${folderId}`
+                            ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-md"
+                            : "bg-secondary/50 text-secondary-foreground hover:bg-accent/50 hover:shadow-sm hover:translate-x-1"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                          selectedFilter === `folder:${folderId}`
+                            ? "bg-primary-foreground/20"
+                            : "bg-primary/10 group-hover:bg-primary/20"
+                        )}>
+                          <Folder className={cn(
+                            "w-4 h-4",
+                            selectedFilter === `folder:${folderId}` ? "text-primary-foreground" : "text-primary"
+                          )} />
+                        </div>
+                        <span className="truncate flex-1">{folder.name}</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteFolder(folderId, folder.name);
+                        }}
+                        disabled={isDeleting}
+                        className={cn(
+                          "p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100",
+                          isDeleting && "opacity-100 cursor-not-allowed"
+                        )}
+                        title="Delete folder"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                !showNewFolderInput && (
+                  <p className="text-xs text-muted-foreground px-3.5 py-2 pl-9">
+                    No folders yet. Create one using the + button above.
+                  </p>
+                )
+              )}
             </div>
           )}
         </div>

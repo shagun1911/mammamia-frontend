@@ -35,7 +35,7 @@ export function FolderSelectModal({
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
       
-      const response = await fetch(`${API_URL}/folders`, {
+      const response = await fetch(`${API_URL}/conversations/folders`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -43,7 +43,14 @@ export function FolderSelectModal({
 
       if (response.ok) {
         const data = await response.json();
-        setFolders(data.data?.folders || data.folders || []);
+        console.log('FolderSelectModal - Loaded folders:', data);
+        // Backend returns { success: true, data: folders }
+        const foldersArray = data.data || data.folders || [];
+        setFolders(Array.isArray(foldersArray) ? foldersArray : []);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to load folders:', errorData);
+        toast.error('Failed to load folders');
       }
     } catch (error) {
       console.error('Failed to load folders:', error);
@@ -64,7 +71,7 @@ export function FolderSelectModal({
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
       
-      const response = await fetch(`${API_URL}/folders`, {
+      const response = await fetch(`${API_URL}/conversations/folders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

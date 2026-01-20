@@ -37,7 +37,20 @@ export default function ConversationsPage() {
         'facebook': 'social',
         'phone': 'phone',
       };
-      return { channel: channelMap[channel] || channel };
+      const backendChannel = channelMap[channel] || channel;
+      
+      // For Instagram and Facebook, also pass platform in metadata
+      if (channel === 'instagram') {
+        return { channel: backendChannel, platform: 'instagram' };
+      } else if (channel === 'facebook') {
+        return { channel: backendChannel, platform: 'facebook' };
+      }
+      
+      return { channel: backendChannel };
+    }
+    if (filter.startsWith('folder:')) {
+      const folderId = filter.replace('folder:', '');
+      return { folderId };
     }
     return { status: filter === "all" ? undefined : filter };
   };

@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { Search, SlidersHorizontal, ChevronDown, UserCircle2 } from "lucide-react";
 import { Conversation } from "@/data/mockConversations";
 import { ConversationCard } from "./ConversationCard";
+import { useQueryClient } from "@tanstack/react-query";
+
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -16,6 +18,7 @@ export function ConversationList({
   selectedId,
   onSelectConversation,
 }: ConversationListProps) {
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all"); // Changed from "open" to "all"
   const [sortBy, setSortBy] = useState("recent");
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,6 +138,10 @@ export function ConversationList({
               conversation={conversation}
               isSelected={selectedId === conversation.id}
               onClick={() => onSelectConversation?.(conversation.id)}
+              onUpdate={() => {
+                // Refresh conversations list
+                queryClient.invalidateQueries({ queryKey: ['conversations'] });
+              }}
             />
           ))
         ) : (

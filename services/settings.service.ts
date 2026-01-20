@@ -403,7 +403,8 @@ class SettingsService {
   async getFolders() {
     try {
       const response = await apiClient.get('/conversations/folders');
-      return response.data.folders;
+      // Backend returns { success: true, data: folders }
+      return response.data?.data || response.data?.folders || response.data || [];
     } catch (error: any) {
       throw new Error(error.message || 'Failed to fetch folders');
     }
@@ -418,7 +419,8 @@ class SettingsService {
         name,
         description,
       });
-      return response.data.folder;
+      // Backend returns { success: true, data: folder }
+      return response.data?.data || response.data?.folder || response.data;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to create folder');
     }

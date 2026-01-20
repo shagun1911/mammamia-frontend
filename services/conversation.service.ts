@@ -4,6 +4,7 @@ import { apiClient } from '@/lib/api';
 export interface ConversationFilters {
   status?: string;
   channel?: string;
+  platform?: string; // For filtering Instagram/Facebook within social channel
   operatorId?: string;
   labelIds?: string[];
   folderId?: string;
@@ -80,6 +81,7 @@ class ConversationService {
           folder: conv.folderId || null,
           messages: conv.messages || [],
           transcript: conv.transcript || null,
+          isBookmarked: conv.isBookmarked || false,
         };
       });
       
@@ -293,6 +295,21 @@ class ConversationService {
       return response.data.conversation;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to move to folder');
+    }
+  }
+
+  /**
+   * Toggle bookmark status
+   */
+  async toggleBookmark(conversationId: string, isBookmarked: boolean) {
+    try {
+      const response = await apiClient.patch(
+        `/conversations/${conversationId}/bookmark`,
+        { isBookmarked }
+      );
+      return response.data.conversation;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to update bookmark');
     }
   }
 

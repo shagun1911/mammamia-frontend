@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { X, Phone, MessageSquare, Play, Pause, Volume2, Download, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { X, Phone, MessageSquare, Play, Pause, Volume2, Download, ChevronDown, ChevronUp, FileText, Folder, Bookmark, BookmarkCheck } from "lucide-react";
 import { Conversation } from "@/data/mockConversations";
 import { MessageThread } from "./MessageThread";
 import { ManualControlPanel } from "./ManualControlPanel";
 import { SendMessageModal } from "./SendMessageModal";
 import { FolderSelectModal } from "./FolderSelectModal";
+import { cn } from "@/lib/utils";
 import { useUpdateConversationStatus, useAssignOperator, useMoveToFolder } from "@/hooks/useConversations";
+import { conversationService } from "@/services/conversation.service";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,7 +34,16 @@ export function ConversationDetail({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showTranscript, setShowTranscript] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState((conversation as any).isBookmarked || false);
+  const [isBookmarking, setIsBookmarking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Update bookmark state when conversation changes
+  useEffect(() => {
+    const bookmarkState = (conversation as any).isBookmarked || false;
+    console.log('[ConversationDetail] Conversation updated, bookmark state:', bookmarkState);
+    setIsBookmarked(bookmarkState);
+  }, [conversation.id, (conversation as any).isBookmarked]);
   
   const updateStatus = useUpdateConversationStatus();
   const assignOperator = useAssignOperator();
@@ -328,11 +339,49 @@ export function ConversationDetail({
     }
   };
 
-  const handleFolderSelect = (folderId: string | null) => {
-    moveToFolder.mutate({
-      conversationId: conversation.id,
-      folderId: folderId,
-    });
+  const handleFolderSelect = async (folderId: string | null) => {
+    try {
+      await conversationService.moveToFolder(conversation.id, folderId);
+      toast.success(folderId ? 'Moved to folder' : 'Removed from folder');
+      queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to move to folder');
+    }
+  };
+
+  const handleBookmark = async () => {
+    const currentBookmarkState = isBookmarked;
+    const newBookmarkState = !currentBookmarkState;
+    
+    try {
+      setIsBookmarking(true);
+      console.log('[ConversationDetail] Toggling bookmark:', { 
+        conversationId: conversation.id, 
+        currentState: currentBookmarkState, 
+        newState: newBookmarkState 
+      });
+      
+      // Update local state immediately for instant feedback
+      setIsBookmarked(newBookmarkState);
+      
+      await conversationService.toggleBookmark(conversation.id, newBookmarkState);
+      
+      toast.success(newBookmarkState ? 'Conversation bookmarked' : 'Bookmark removed');
+      
+      // Invalidate queries to refresh data
+      await queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
+      await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      
+      console.log('[ConversationDetail] Bookmark toggled successfully:', newBookmarkState);
+    } catch (error: any) {
+      console.error('[ConversationDetail] Failed to toggle bookmark:', error);
+      // Revert state on error
+      setIsBookmarked(currentBookmarkState);
+      toast.error(error.message || 'Failed to update bookmark');
+    } finally {
+      setIsBookmarking(false);
+    }
   };
 
   const handleCloseConversation = () => {
@@ -549,14 +598,49 @@ export function ConversationDetail({
           </div>
         </div>
 
-        {/* Right side - Close button only */}
-        <div className="flex items-center gap-3">
+        {/* Right side - Actions and Close button */}
+        <div className="flex items-center gap-2">
+          {/* Bookmark Button */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleBookmark();
+            }}
+            disabled={isBookmarking}
+            className={cn(
+              "p-2 rounded-lg transition-all cursor-pointer",
+              isBookmarked 
+                ? "text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20" 
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+              isBookmarking && "opacity-50 cursor-not-allowed"
+            )}
+            title={isBookmarked ? "Remove bookmark" : "Bookmark conversation"}
+            type="button"
+          >
+            {isBookmarked ? (
+              <BookmarkCheck className="w-5 h-5 text-yellow-500" fill="currentColor" />
+            ) : (
+              <Bookmark className="w-5 h-5" />
+            )}
+          </button>
+
+          {/* Folder Button */}
+          <button
+            onClick={() => setFolderSelectModalOpen(true)}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+            title="Move to folder"
+          >
+            <Folder className="w-5 h-5" />
+          </button>
+
+          {/* Close Button */}
           <button
             onClick={handleCloseConversation}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
             title="Close conversation"
           >
-            <X className="w-[18px] h-[18px]" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>
