@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, List, MoreVertical, Trash2, Check } from "lucide-react";
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { Plus, List, Trash2, Check, Zap } from "lucide-react";
 import { Automation, AutomationNode as NodeType, nodeServices } from "@/data/mockAutomations";
 import { AutomationNode } from "./AutomationNode";
 import { NodeConnector } from "./NodeConnector";
 import { NodeConfigPanel } from "./NodeConfigPanel";
 import { AutomationList } from "./AutomationList";
+import { ExecutionsModal } from "./ExecutionsModal";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/lib/toast";
 
@@ -15,7 +16,11 @@ interface NodeBasedBuilderProps {
   onAutomationsChange?: (automations: Automation[]) => void;
 }
 
-export function NodeBasedBuilder({ automations: initialAutomations, onAutomationsChange }: NodeBasedBuilderProps) {
+export interface NodeBasedBuilderRef {
+  handleNewAutomation: () => void;
+}
+
+export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilderProps>(({ automations: initialAutomations, onAutomationsChange }, ref) => {
   const [automations, setAutomations] = useState(initialAutomations);
   const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(
     initialAutomations[0]?.id || null
@@ -25,6 +30,7 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
   const [insertPosition, setInsertPosition] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showExecutions, setShowExecutions] = useState(false);
 
   // Update automations when prop changes
   useEffect(() => {
@@ -146,31 +152,40 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
   };
 
   const handleToggleStatus = async () => {
-    if (!selectedAutomation) return;
+    if (!selectedAutomation || !selectedAutomationId) return;
 
     const newStatus = selectedAutomation.status === "enabled" ? "disabled" : "enabled";
     const isActive = newStatus === "enabled";
 
     try {
       // Update in backend
-      await apiClient.patch(`/automations/${selectedAutomationId}/toggle`, {
+      const response = await apiClient.patch(`/automations/${selectedAutomationId}/toggle`, {
         isActive
       });
 
+      // Get updated automation from response
+      const updatedAutomationData = response.data?.data || response.data;
+      
       // Update local state
       const updatedAutomations = automations.map((a) =>
         a.id === selectedAutomationId
           ? {
               ...a,
-              status: newStatus as "enabled" | "disabled",
+              status: (updatedAutomationData?.isActive ? "enabled" : "disabled") as "enabled" | "disabled",
+              isActive: updatedAutomationData?.isActive || false,
             }
           : a
       );
       updateAutomations(updatedAutomations);
 
-      toast.success(`Automation ${isActive ? 'enabled' : 'disabled'}`);
+      toast.success(`Automation ${isActive ? 'enabled' : 'disabled'} successfully`);
     } catch (error: any) {
-      toast.error(`Failed to ${isActive ? 'enable' : 'disable'} automation: ${error.message}`);
+      console.error('Toggle error:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to toggle automation';
+      toast.error(errorMessage);
     }
   };
 
@@ -202,7 +217,10 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
         console.log('New automation:', newAutomation);
 
         const newAutomations = [...automations, newAutomation];
-        updateAutomations(newAutomations);
+        setAutomations(newAutomations);
+        if (onAutomationsChange) {
+          onAutomationsChange(newAutomations);
+        }
         setSelectedAutomationId(newAutomation.id);
         setSelectedNodeId(null);
         toast.success('New automation created');
@@ -217,7 +235,7 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
   };
 
   const handleSaveAutomation = async () => {
-    if (!selectedAutomation) return;
+    if (!selectedAutomation || !selectedAutomationId) return;
 
     setSaving(true);
     try {
@@ -230,23 +248,45 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
         position: node.position
       }));
 
-      await apiClient.patch(`/automations/${selectedAutomationId}`, {
+      const response = await apiClient.patch(`/automations/${selectedAutomationId}`, {
         name: selectedAutomation.name,
-        nodes: backendNodes
+        nodes: backendNodes,
+        isActive: selectedAutomation.status === "enabled"
       });
+
+      // Update local state with response
+      const updatedAutomationData = response.data?.data || response.data;
+      if (updatedAutomationData) {
+        const updatedAutomations = automations.map((a) =>
+          a.id === selectedAutomationId
+            ? {
+                ...a,
+                name: updatedAutomationData.name || a.name,
+                nodes: updatedAutomationData.nodes || a.nodes,
+                status: (updatedAutomationData.isActive ? "enabled" : "disabled") as "enabled" | "disabled",
+              }
+            : a
+        );
+        updateAutomations(updatedAutomations);
+      }
 
       toast.success('Automation saved successfully');
     } catch (error: any) {
-      toast.error('Failed to save automation: ' + error.message);
+      console.error('Save error:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to save automation';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteAutomation = async () => {
-    if (!selectedAutomation) return;
+    if (!selectedAutomation || !selectedAutomationId) return;
     
-    if (!confirm(`Are you sure you want to delete "${selectedAutomation.name}"?`)) {
+    if (!confirm(`Are you sure you want to delete "${selectedAutomation.name}"? This action cannot be undone.`)) {
       return;
     }
 
@@ -262,7 +302,12 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
 
       toast.success('Automation deleted successfully');
     } catch (error: any) {
-      toast.error('Failed to delete automation: ' + error.message);
+      console.error('Delete error:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to delete automation';
+      toast.error(errorMessage);
     } finally {
       setDeleting(false);
     }
@@ -271,6 +316,11 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
   const selectedNode = selectedAutomation?.nodes.find(
     (n) => n.id === selectedNodeId
   );
+
+  // Expose handleNewAutomation via ref
+  useImperativeHandle(ref, () => ({
+    handleNewAutomation,
+  }));
 
   return (
     <div className="flex h-full bg-background">
@@ -281,60 +331,99 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
         onNew={handleNewAutomation}
       />
 
-      <div className="flex-1 flex flex-col">
-        {/* Enhanced Top bar */}
-        <div className="bg-gradient-to-r from-card via-card to-background border-b border-border px-6 py-4 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-border text-foreground rounded-xl text-sm font-semibold hover:bg-accent hover:shadow-md transition-all cursor-pointer">
-              <List className="w-4 h-4" />
-              <span>Executions</span>
-            </button>
-
-            <div className="flex items-center gap-3 px-4 py-2.5 bg-secondary/50 rounded-xl border border-border/50">
-              <span className={`text-sm font-semibold ${
-                selectedAutomation?.status === "enabled"
-                  ? "text-green-600"
-                  : "text-muted-foreground"
-              }`}>
-                {selectedAutomation?.status === "enabled"
-                  ? "Enabled"
-                  : "Disabled"}
-              </span>
-              <button
-                onClick={handleToggleStatus}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all cursor-pointer shadow-sm ${
-                  selectedAutomation?.status === "enabled"
-                    ? "bg-primary"
-                    : "bg-border"
-                }`}
+      <div className="flex-1 flex flex-col bg-background">
+        {/* Professional Top Bar */}
+        {selectedAutomation ? (
+          <div className="bg-gradient-to-r from-card via-card/95 to-background border-b border-border px-8 py-5 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-6">
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-foreground mb-1">
+                  {selectedAutomation.name}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {selectedAutomation.nodes.length} {selectedAutomation.nodes.length === 1 ? 'step' : 'steps'} configured
+                </p>
+              </div>
+              
+              <button 
+                onClick={() => setShowExecutions(true)}
+                className="flex items-center gap-2 px-5 py-2.5 bg-secondary border border-border text-foreground rounded-xl text-sm font-semibold hover:bg-accent hover:border-primary/30 hover:shadow-md transition-all cursor-pointer group"
               >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-md ${
-                    selectedAutomation?.status === "enabled"
-                      ? "translate-x-6"
-                      : "translate-x-1"
-                  }`}
-                />
+                <List className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                <span>View Executions</span>
+                {selectedAutomation.executionCount > 0 && (
+                  <span className="px-2.5 py-0.5 bg-primary text-primary-foreground rounded-full text-xs font-bold min-w-[20px] text-center">
+                    {selectedAutomation.executionCount}
+                  </span>
+                )}
               </button>
+
+              <div className="flex items-center gap-4 px-5 py-2.5 bg-secondary/50 rounded-xl border border-border/50">
+                <span className={`text-sm font-semibold ${
+                  selectedAutomation.status === "enabled"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-muted-foreground"
+                }`}>
+                  {selectedAutomation.status === "enabled" ? "Active" : "Inactive"}
+                </span>
+                <button
+                  onClick={handleToggleStatus}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 ${
+                    selectedAutomation.status === "enabled"
+                      ? "bg-primary"
+                      : "bg-gray-400"
+                  }`}
+                  title={`${selectedAutomation.status === "enabled" ? "Disable" : "Enable"} automation`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${
+                      selectedAutomation.status === "enabled"
+                        ? "translate-x-6"
+                        : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
+        ) : (
+          <div className="bg-gradient-to-r from-card via-card/95 to-background border-b border-border px-8 py-8">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                Select an automation to edit
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Choose an automation from the sidebar or create a new one
+              </p>
+            </div>
+          </div>
+        )}
 
-          <button className="p-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-all cursor-pointer hover:shadow-md">
-            <MoreVertical className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Enhanced Canvas */}
-        <div className="flex-1 overflow-y-auto p-10 bg-gradient-to-b from-background to-background/95">
-          <div className="flex flex-col items-center gap-0">
-            {selectedAutomation?.nodes.length === 0 && (
-              <button
-                onClick={() => handleAddNode(0)}
-                className="w-14 h-14 border-2 border-dashed border-border rounded-full flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/10 transition-all cursor-pointer hover:scale-110 shadow-sm hover:shadow-md"
-              >
-                <Plus className="w-7 h-7" />
-              </button>
-            )}
+        {/* Professional Canvas */}
+        <div className="flex-1 overflow-y-auto p-12 bg-gradient-to-b from-background via-background to-background/95">
+          {selectedAutomation ? (
+            <div className="flex flex-col items-center gap-6 max-w-4xl mx-auto">
+              {selectedAutomation.nodes.length === 0 && (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 border-2 border-dashed border-border rounded-2xl flex items-center justify-center mx-auto mb-6 text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/5 transition-all cursor-pointer group"
+                    onClick={() => handleAddNode(0)}
+                  >
+                    <Plus className="w-10 h-10 group-hover:scale-110 transition-transform" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    No steps configured
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Click the button above to add your first automation step
+                  </p>
+                  <button
+                    onClick={() => handleAddNode(0)}
+                    className="px-6 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shadow-md hover:shadow-lg"
+                  >
+                    Add First Step
+                  </button>
+                </div>
+              )}
 
             {selectedAutomation?.nodes.map((node, index) => (
               <div key={node.id} className="flex flex-col items-center">
@@ -357,16 +446,39 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
               </div>
             ))}
 
-            {selectedAutomation && selectedAutomation.nodes.length > 0 && (
-              <button
-                onClick={() => handleAddNode(selectedAutomation.nodes.length)}
-                className="mt-6 w-14 h-14 border-2 border-dashed border-border rounded-full flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/10 transition-all cursor-pointer hover:scale-110 shadow-sm hover:shadow-md"
-              >
-                <Plus className="w-7 h-7" />
-              </button>
-            )}
-          </div>
+              {selectedAutomation.nodes.length > 0 && (
+                <button
+                  onClick={() => handleAddNode(selectedAutomation.nodes.length)}
+                  className="w-16 h-16 border-2 border-dashed border-border rounded-2xl flex items-center justify-center text-muted-foreground hover:border-primary hover:text-primary hover:bg-primary/10 transition-all cursor-pointer hover:scale-110 shadow-lg hover:shadow-xl group"
+                >
+                  <Plus className="w-8 h-8 group-hover:scale-110 transition-transform" />
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mx-auto mb-6 border border-primary/20">
+                  <Zap className="w-12 h-12 text-primary/50" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">
+                  Welcome to Automations
+                </h3>
+                <p className="text-muted-foreground mb-8 max-w-md">
+                  Select an automation from the sidebar to start editing, or use one of the prebuilt templates above
+                </p>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Executions Modal */}
+        <ExecutionsModal
+          isOpen={showExecutions}
+          onClose={() => setShowExecutions(false)}
+          automationId={selectedAutomationId}
+          automationName={selectedAutomation?.name}
+        />
 
         {/* Enhanced Bottom bar */}
         <div className="bg-gradient-to-r from-card via-card to-background border-t border-border px-6 py-4 flex items-center justify-end gap-3 shadow-lg">
@@ -492,5 +604,5 @@ export function NodeBasedBuilder({ automations: initialAutomations, onAutomation
       )}
     </div>
   );
-}
+});
 

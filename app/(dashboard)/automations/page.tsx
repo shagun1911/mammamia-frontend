@@ -1,11 +1,12 @@
 "use client";
 
 import { NodeBasedBuilder } from "@/components/automations/NodeBasedBuilder";
-import { useState, useEffect } from "react";
+import { PrebuiltTemplatesModal } from "@/components/automations/PrebuiltTemplatesModal";
+import { useState, useEffect, useRef } from "react";
 import { apiClient } from "@/lib/api";
 import { Automation } from "@/data/mockAutomations";
 import { useSidebar } from "@/contexts/SidebarContext";
-import { Zap, Activity, Sparkles } from "lucide-react";
+import { Zap, Activity, Plus, Sparkles } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
@@ -14,6 +15,13 @@ export default function AutomationsPage() {
   const { getSidebarWidth } = useSidebar();
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPrebuiltModal, setShowPrebuiltModal] = useState(false);
+  const nodeBuilderRef = useRef<{ handleNewAutomation: () => void }>(null);
+
+  // Set CSS variable for sidebar width so modal can use it
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', `${getSidebarWidth()}px`);
+  }, [getSidebarWidth]);
 
   useEffect(() => {
     loadAutomations();
@@ -24,28 +32,17 @@ export default function AutomationsPage() {
       setLoading(true);
       const response = await apiClient.get('/automations');
       
-      console.log('Full response:', JSON.stringify(response, null, 2));
-      console.log('Response data:', response.data);
-      console.log('Response data.data:', response.data?.data);
-      
-      // Handle both response formats - the backend uses successResponse which wraps in data
       let automationsList: any[] = [];
       
       if (response.data?.success && response.data?.data) {
-        // Standard format: { success: true, data: [...] }
         automationsList = Array.isArray(response.data.data) ? response.data.data : [];
       } else if (Array.isArray(response.data)) {
-        // Direct array format
         automationsList = response.data;
       } else if (response.data?.data && Array.isArray(response.data.data)) {
-        // Nested data format
         automationsList = response.data.data;
       }
       
-      console.log('Automations list:', automationsList);
-      
       if (automationsList.length > 0) {
-        // Transform backend data to frontend format
         const transformedAutomations: Automation[] = automationsList.map((auto: any) => ({
           id: auto._id,
           name: auto.name,
@@ -56,26 +53,33 @@ export default function AutomationsPage() {
           createdAt: auto.createdAt,
         }));
         
-        console.log('Transformed automations:', transformedAutomations);
         setAutomations(transformedAutomations);
       } else {
-        console.log('No automations found, starting with empty array');
         setAutomations([]);
       }
     } catch (error: any) {
       console.error('Error loading automations:', error);
-      console.error('Error details:', error.response?.data);
-      // Start with empty array if error
       setAutomations([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleUseTemplate = async (templateAutomation: Automation) => {
+    // Reload automations to get the newly created one from backend
+    await loadAutomations();
+  };
+
+  const handleNewAutomation = () => {
+    // Trigger the new automation creation in NodeBasedBuilder
+    if (nodeBuilderRef.current?.handleNewAutomation) {
+      nodeBuilderRef.current.handleNewAutomation();
+    }
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-        {/* Full Navbar Header */}
         <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
@@ -86,7 +90,7 @@ export default function AutomationsPage() {
                 Automations
                 <Activity className="w-5 h-5 text-primary" />
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Create and manage workflow automations</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Create, manage, and launch workflow automations</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -107,7 +111,7 @@ export default function AutomationsPage() {
 
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      {/* Full Navbar Header */}
+      {/* Page Header */}
       <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
@@ -118,20 +122,45 @@ export default function AutomationsPage() {
               Automations
               <Activity className="w-5 h-5 text-primary" />
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Create and manage workflow automations</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Create, manage, and launch workflow automations</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowPrebuiltModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border text-foreground rounded-xl text-sm font-semibold hover:bg-accent hover:shadow-md transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Prebuilt Templates</span>
+          </button>
+          <button
+            onClick={handleNewAutomation}
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Automation</span>
+          </button>
           <LanguageSwitcher />
           <ThemeToggle />
           <UserMenu />
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden">
-        <NodeBasedBuilder automations={automations} onAutomationsChange={setAutomations} />
+      {/* Main Content Area - Full Space for Automation Builder */}
+      <div className="flex-1 overflow-hidden bg-background">
+        <NodeBasedBuilder 
+          ref={nodeBuilderRef}
+          automations={automations} 
+          onAutomationsChange={setAutomations} 
+        />
       </div>
+
+      {/* Prebuilt Templates Modal */}
+      <PrebuiltTemplatesModal
+        isOpen={showPrebuiltModal}
+        onClose={() => setShowPrebuiltModal(false)}
+        onUseTemplate={handleUseTemplate}
+      />
     </div>
   );
 }
