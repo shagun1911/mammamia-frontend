@@ -1,9 +1,11 @@
 "use client";
 
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, Loader2, FileSpreadsheet, CheckCircle2, AlertCircle, ArrowLeft, Check } from "lucide-react";
 import { AutomationNode } from "@/data/mockAutomations";
 import { nodeServices } from "@/data/mockAutomations";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { apiClient } from "@/lib/api";
+import { toast } from "@/lib/toast";
 
 interface NodeConfigPanelProps {
   node: AutomationNode;
@@ -20,6 +22,19 @@ export function NodeConfigPanel({
 }: NodeConfigPanelProps) {
   const [lists, setLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [spreadsheets, setSpreadsheets] = useState<any[]>([]);
+  const [loadingSpreadsheets, setLoadingSpreadsheets] = useState(false);
+  const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>(node.config.spreadsheetId || "");
+  const [saving, setSaving] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const scrollPositionRef = useRef<number>(0);
+
+  // Sync selectedSpreadsheetId with node.config.spreadsheetId when node changes
+  // This ensures state persists when switching between nodes or reopening the panel
+  useEffect(() => {
+    const spreadsheetId = node.config.spreadsheetId || "";
+    setSelectedSpreadsheetId(spreadsheetId);
+  }, [node.id, node.config.spreadsheetId]);
 
   useEffect(() => {
     // Fetch lists for contact moved trigger
@@ -35,7 +50,143 @@ export function NodeConfigPanel({
         .catch(err => console.error('Error fetching lists:', err))
         .finally(() => setLoading(false));
     }
+
+    // Fetch Google Sheets spreadsheets when configuring Google Sheets action
+    if (node.service === "keplero_google_sheet_append_row") {
+      loadSpreadsheets();
+    }
   }, [node.service]);
+
+  const loadSpreadsheets = async () => {
+    try {
+      setLoadingSpreadsheets(true);
+      const response = await apiClient.get('/integrations/google/sheets/list');
+      const data = response?.data || response;
+      if (data?.spreadsheets) {
+        // Filter out deleted files and ensure only spreadsheets
+        const validSpreadsheets = data.spreadsheets.filter((sheet: any) => 
+          sheet && 
+          sheet.id && 
+          sheet.name &&
+          !sheet.trashed &&
+          sheet.mimeType === 'application/vnd.google-apps.spreadsheet'
+        );
+        setSpreadsheets(validSpreadsheets);
+        
+        // Check if currently selected spreadsheet still exists
+        if (selectedSpreadsheetId && !validSpreadsheets.find((s: any) => s.id === selectedSpreadsheetId)) {
+          // Spreadsheet was deleted - show warning but don't auto-clear
+          console.warn('Selected spreadsheet no longer exists:', selectedSpreadsheetId);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error loading spreadsheets:', error);
+      // Don't show error if Google not connected - user will see warning banner
+    } finally {
+      setLoadingSpreadsheets(false);
+    }
+  };
+
+  const handleSpreadsheetSelect = (spreadsheetId: string) => {
+    setSelectedSpreadsheetId(spreadsheetId);
+    // Ensure sheetName is set if not already present
+    const sheetName = node.config.sheetName || "Sheet1";
+    onUpdate({ 
+      ...node.config, 
+      spreadsheetId,
+      sheetName 
+    });
+  };
+
+  const addColumnMapping = () => {
+    const currentValues = node.config.values || [];
+    onUpdate({ ...node.config, values: [...currentValues, ""] });
+  };
+
+  const updateColumnMapping = (index: number, value: string) => {
+    const currentValues = [...(node.config.values || [])];
+    // Ensure array is large enough
+    while (currentValues.length <= index) {
+      currentValues.push("");
+    }
+    currentValues[index] = value;
+    // Keep all values including empty ones while editing (filter only on save)
+    onUpdate({ ...node.config, values: currentValues });
+  };
+
+  const removeColumnMapping = (index: number) => {
+    const currentValues = [...(node.config.values || [])];
+    currentValues.splice(index, 1);
+    // Filter out empty values
+    const filteredValues = currentValues.filter(v => v && v.trim() !== "");
+    onUpdate({ ...node.config, values: filteredValues });
+  };
+
+  // Ensure Google Sheets config is properly formatted before save
+  // CRITICAL: This function MUST use the current form state (selectedSpreadsheetId, node.config.values)
+  // to ensure all user inputs are captured, not just what's in node.config
+  const ensureGoogleSheetsConfig = (): AutomationNode["config"] => {
+    if (node.service === "keplero_google_sheet_append_row") {
+      // Start with current node.config as base
+      const config = { ...node.config };
+      
+      // CRITICAL FIX: Use selectedSpreadsheetId from form state (source of truth)
+      // This ensures the dropdown selection is captured even if node.config wasn't updated yet
+      const formSpreadsheetId = selectedSpreadsheetId && selectedSpreadsheetId.trim() !== "" 
+        ? selectedSpreadsheetId 
+        : (config.spreadsheetId || "");
+      
+      // Ensure spreadsheetId is set from form state
+      if (formSpreadsheetId && formSpreadsheetId.trim() !== "") {
+        config.spreadsheetId = formSpreadsheetId;
+      }
+      
+      // Ensure sheetName is set (default to "Sheet1")
+      const sheetNameStr = typeof config.sheetName === 'string' ? config.sheetName : String(config.sheetName || '');
+      if (!sheetNameStr || sheetNameStr.trim() === "") {
+        config.sheetName = "Sheet1";
+      }
+      
+      // CRITICAL FIX: Use current values from node.config (which is updated by updateColumnMapping)
+      // Filter out empty values but preserve the array structure
+      let valuesArray: string[] = [];
+      if (config.values && Array.isArray(config.values)) {
+        // Filter empty values but keep the structure
+        valuesArray = config.values.filter((v: string) => v && typeof v === 'string' && v.trim() !== "");
+      }
+      config.values = valuesArray;
+      
+      // Build range from sheetName if not provided
+      const rangeStr = typeof config.range === 'string' ? config.range : String(config.range || '');
+      if (!rangeStr || rangeStr.trim() === "") {
+        const sheetName = config.sheetName || "Sheet1";
+        config.range = `${sheetName}!A1`;
+      }
+      
+      // Return properly typed config with ALL required fields
+      return {
+        ...config,
+        spreadsheetId: config.spreadsheetId as string,
+        sheetName: config.sheetName as string,
+        range: config.range as string,
+        values: config.values as string[]
+      };
+    }
+    return node.config;
+  };
+
+  // Validate Google Sheets config before save
+  const validateGoogleSheetsConfig = (config: AutomationNode["config"]): { valid: boolean; error?: string } => {
+    if (node.service === "keplero_google_sheet_append_row") {
+      if (!config.spreadsheetId || (typeof config.spreadsheetId === 'string' && config.spreadsheetId.trim() === "")) {
+        return { valid: false, error: "Spreadsheet selection is required" };
+      }
+      if (!config.values || !Array.isArray(config.values) || config.values.length === 0) {
+        return { valid: false, error: "At least one column mapping is required" };
+      }
+    }
+    return { valid: true };
+  };
 
   const getServiceInfo = () => {
     if (node.service === "delay") {
@@ -55,26 +206,43 @@ export function NodeConfigPanel({
   const serviceInfo = getServiceInfo();
 
   return (
-    <div className="w-[400px] bg-card border-l border-border h-full flex flex-col overflow-hidden">
-      <div className="p-6 border-b border-border shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{serviceInfo.icon}</span>
-            <h3 className="text-lg font-semibold text-foreground">
-              {serviceInfo.name}
-            </h3>
-          </div>
+    <div ref={panelRef} className="w-[420px] bg-card border-l border-border h-full flex flex-col overflow-hidden">
+      {/* Header - Sticky */}
+      <div className="p-4 border-b border-border shrink-0 bg-card/95 backdrop-blur-sm">
+        <div className="flex items-center justify-between mb-3">
           <button
             onClick={onClose}
-            className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors group"
+            aria-label="Go back"
           >
-            <X className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back</span>
           </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-secondary/50">
+            <span className="text-xl">{serviceInfo.icon}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-foreground truncate">
+              {serviceInfo.name}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Configure action settings</p>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 p-6 overflow-y-auto">
-        {/* DELAY NODE */}
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-6">
+          {/* DELAY NODE */}
         {node.service === "delay" && (
           <div className="space-y-4">
             <div>
@@ -102,11 +270,12 @@ export function NodeConfigPanel({
                 onChange={(e) =>
                   onUpdate({
                     ...node.config,
-                    delayUnit: e.target.value as "minutes" | "hours" | "days",
+                    delayUnit: e.target.value as "seconds" | "minutes" | "hours" | "days",
                   })
                 }
                 className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
               >
+                <option value="seconds">Seconds</option>
                 <option value="minutes">Minutes</option>
                 <option value="hours">Hours</option>
                 <option value="days">Days</option>
@@ -294,7 +463,25 @@ export function NodeConfigPanel({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Subject
+                To Email (optional - uses contact email if not provided)
+              </label>
+              <input
+                type="email"
+                value={node.config.to || ""}
+                onChange={(e) =>
+                  onUpdate({ ...node.config, to: e.target.value })
+                }
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="{{contact.email}}"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to use contact's email, or use {'{'}{'{'}contact.email{'}'}{'}'} for dynamic values
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Subject *
               </label>
               <input
                 type="text"
@@ -305,25 +492,47 @@ export function NodeConfigPanel({
                 className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="Email subject..."
               />
+              {!node.config.subject && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Subject is required
+                </p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Body
+                Body *
               </label>
               <textarea
-                value={node.config.body || ""}
+                value={node.config.body || node.config.template || ""}
                 onChange={(e) =>
-                  onUpdate({ ...node.config, body: e.target.value })
+                  onUpdate({ ...node.config, body: e.target.value, template: e.target.value })
                 }
                 className="w-full h-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                 placeholder="Email body..."
               />
+              {(!node.config.body && !node.config.template) && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Body is required
+                </p>
+              )}
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Send an email to the contact. Use {"{{"} name {"}"} for personalization.
-            </p>
+            <div className="p-2 bg-secondary/50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{now}}'].map((varName) => (
+                  <span
+                    key={varName}
+                    className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground"
+                  >
+                    {varName}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -563,21 +772,488 @@ export function NodeConfigPanel({
             </div>
           </div>
         )}
+
+        {/* GOOGLE CALENDAR - CHECK AVAILABILITY */}
+        {node.service === "keplero_google_calendar_check_availability" && (
+          <div className="space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                ⚠️ Google Workspace integration required. Connect Google Calendar in Settings.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Start Time (ISO 8601)
+              </label>
+              <input
+                type="text"
+                value={node.config.timeMin || ""}
+                onChange={(e) => onUpdate({ ...node.config, timeMin: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="2024-01-20T10:00:00Z"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                End Time (ISO 8601)
+              </label>
+              <input
+                type="text"
+                value={node.config.timeMax || ""}
+                onChange={(e) => onUpdate({ ...node.config, timeMax: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="2024-01-20T18:00:00Z"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Calendar IDs (comma-separated, optional)
+              </label>
+              <input
+                type="text"
+                value={node.config.calendarIds?.join(",") || ""}
+                onChange={(e) => onUpdate({ ...node.config, calendarIds: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="primary"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* GOOGLE CALENDAR - CREATE EVENT */}
+        {node.service === "keplero_google_calendar_create_event" && (
+          <div className="space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 mb-4">
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                ⚠️ Google Workspace integration required. Connect Google Calendar in Settings.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Event Title *
+              </label>
+              <input
+                type="text"
+                value={node.config.summary || ""}
+                onChange={(e) => onUpdate({ ...node.config, summary: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Meeting with {{contact.name}}"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Description
+              </label>
+              <textarea
+                value={node.config.description || ""}
+                onChange={(e) => onUpdate({ ...node.config, description: e.target.value })}
+                className="w-full h-20 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                placeholder="Event description..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Start DateTime (ISO 8601) *
+              </label>
+              <input
+                type="text"
+                value={node.config.startDateTime || ""}
+                onChange={(e) => onUpdate({ ...node.config, startDateTime: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="2024-01-20T10:00:00Z"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                End DateTime (ISO 8601) *
+              </label>
+              <input
+                type="text"
+                value={node.config.endDateTime || ""}
+                onChange={(e) => onUpdate({ ...node.config, endDateTime: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="2024-01-20T11:00:00Z"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Time Zone
+              </label>
+              <input
+                type="text"
+                value={node.config.timeZone || "UTC"}
+                onChange={(e) => onUpdate({ ...node.config, timeZone: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="UTC"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Location
+              </label>
+              <input
+                type="text"
+                value={node.config.location || ""}
+                onChange={(e) => onUpdate({ ...node.config, location: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Conference Room A"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* GOOGLE SHEETS - APPEND ROW */}
+        {node.service === "keplero_google_sheet_append_row" && (
+          <div className="space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>Google Workspace integration required. Connect Google Sheets in Settings.</span>
+              </p>
+            </div>
+
+            {/* Spreadsheet Selection */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Select Spreadsheet *
+              </label>
+              {loadingSpreadsheets ? (
+                <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Loading spreadsheets...</span>
+                </div>
+              ) : spreadsheets.length > 0 ? (
+                <select
+                  value={selectedSpreadsheetId}
+                  onChange={(e) => handleSpreadsheetSelect(e.target.value)}
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="">Select a spreadsheet...</option>
+                  {spreadsheets.map((sheet: any) => (
+                    <option key={sheet.id} value={sheet.id}>
+                      {sheet.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={node.config.spreadsheetId || ""}
+                    onChange={(e) => {
+                      const newSpreadsheetId = e.target.value;
+                      setSelectedSpreadsheetId(newSpreadsheetId);
+                      const sheetName = node.config.sheetName || "Sheet1";
+                      onUpdate({ 
+                        ...node.config, 
+                        spreadsheetId: newSpreadsheetId,
+                        sheetName 
+                      });
+                    }}
+                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                    placeholder="Enter Spreadsheet ID (e.g., 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms)"
+                  />
+                  <button
+                    onClick={loadSpreadsheets}
+                    className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                  >
+                    <FileSpreadsheet className="w-3 h-3" />
+                    <span>Load my spreadsheets</span>
+                  </button>
+                </div>
+              )}
+              {!node.config.spreadsheetId && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Spreadsheet selection is required
+                </p>
+              )}
+              {node.config.spreadsheetId && spreadsheets.length > 0 && !spreadsheets.find((s: any) => s.id === node.config.spreadsheetId) && (
+                <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>Spreadsheet no longer exists. Please reselect a valid spreadsheet.</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Sheet Name */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Sheet Name (optional)
+              </label>
+              <input
+                type="text"
+                value={node.config.sheetName || "Sheet1"}
+                onChange={(e) => onUpdate({ ...node.config, sheetName: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Sheet1"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Name of the sheet/tab within the spreadsheet (default: Sheet1)
+              </p>
+            </div>
+
+            {/* Column Mapping */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Column Mapping *
+                </label>
+                <button
+                  onClick={addColumnMapping}
+                  className="text-xs text-primary hover:text-primary/80 font-medium"
+                >
+                  + Add Column
+                </button>
+              </div>
+              
+              {(!node.config.values || node.config.values.length === 0) && (
+                <div className="p-3 bg-secondary/50 border border-border rounded-lg mb-2">
+                  <p className="text-xs text-muted-foreground text-center">
+                    No columns mapped. Click "Add Column" to start mapping.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {(node.config.values || []).map((value: string, index: number) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={value}
+                      onChange={(e) => updateColumnMapping(index, e.target.value)}
+                      className="flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder={`Column ${index + 1} (e.g., {{contact.name}})`}
+                    />
+                    <button
+                      onClick={() => removeColumnMapping(index)}
+                      className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {(!node.config.values || node.config.values.length === 0) && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  At least one column mapping is required
+                </p>
+              )}
+
+              <div className="mt-3 p-2 bg-secondary/50 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{contact.createdAt}}', '{{now}}'].map((varName) => (
+                    <button
+                      key={varName}
+                      onClick={() => {
+                        const currentValues = node.config.values || [];
+                        updateColumnMapping(currentValues.length, varName);
+                      }}
+                      className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                    >
+                      {varName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* GOOGLE GMAIL - SEND EMAIL */}
+        {node.service === "keplero_google_gmail_send" && (
+          <div className="space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>Google Workspace integration required. Connect Gmail in Settings.</span>
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                To Email (optional - uses contact email if not provided)
+              </label>
+              <input
+                type="email"
+                value={node.config.to || ""}
+                onChange={(e) => onUpdate({ ...node.config, to: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="{{contact.email}}"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Leave empty to use contact's email, or use {'{'}{'{'}contact.email{'}'}{'}'} for dynamic values
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Subject *
+              </label>
+              <input
+                type="text"
+                value={node.config.subject || ""}
+                onChange={(e) => onUpdate({ ...node.config, subject: e.target.value })}
+                className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Hello {{contact.name}}"
+              />
+              {!node.config.subject && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Subject is required
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Body *
+              </label>
+              <textarea
+                value={node.config.body || ""}
+                onChange={(e) => onUpdate({ ...node.config, body: e.target.value })}
+                className="w-full h-32 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                placeholder="Email body content..."
+              />
+              {!node.config.body && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Body is required
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <input
+                  type="checkbox"
+                  checked={node.config.isHtml || false}
+                  onChange={(e) => onUpdate({ ...node.config, isHtml: e.target.checked })}
+                  className="w-4 h-4 rounded border-border"
+                />
+                HTML Email
+              </label>
+            </div>
+            <div className="p-2 bg-secondary/50 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{now}}'].map((varName) => (
+                  <span
+                    key={varName}
+                    className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground"
+                  >
+                    {varName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
 
-      <div className="p-6 border-t border-border space-y-3 shrink-0">
+      {/* Footer - Sticky with proper spacing */}
+      <div className="p-4 border-t border-border shrink-0 bg-card/95 backdrop-blur-sm space-y-2.5">
         <button
-          onClick={onDelete}
-          className="w-full h-10 border border-red-600 text-red-600 rounded-lg text-sm font-medium hover:bg-red-600/10 transition-colors flex items-center justify-center gap-2"
+          type="button"
+          onClick={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (saving) return;
+            
+            try {
+              setSaving(true);
+              
+              // Save scroll position to prevent UI jump
+              if (panelRef.current) {
+                scrollPositionRef.current = panelRef.current.scrollTop;
+              }
+              
+              // Ensure Google Sheets config is properly formatted before saving
+              if (node.service === "keplero_google_sheet_append_row") {
+                // CRITICAL: Build final config from current form state
+                const finalConfig = ensureGoogleSheetsConfig();
+                
+                // Validate config before saving
+                const validation = validateGoogleSheetsConfig(finalConfig);
+                if (!validation.valid) {
+                  toast.error(validation.error || "Configuration is incomplete");
+                  setSaving(false);
+                  return;
+                }
+                
+                // CRITICAL FIX: Ensure all required fields are explicitly set
+                // This guarantees the config is written to the automation graph
+                const configToSave: AutomationNode["config"] = {
+                  ...finalConfig,
+                  spreadsheetId: finalConfig.spreadsheetId as string,
+                  sheetName: finalConfig.sheetName as string || "Sheet1",
+                  range: finalConfig.range as string || `${finalConfig.sheetName || "Sheet1"}!A1`,
+                  values: Array.isArray(finalConfig.values) ? finalConfig.values : []
+                };
+                
+                // Log for debugging
+                console.log('[NodeConfigPanel] Saving Google Sheets config:', {
+                  spreadsheetId: configToSave.spreadsheetId,
+                  sheetName: configToSave.sheetName,
+                  valuesLength: configToSave.values?.length || 0,
+                  values: configToSave.values
+                });
+                
+                // CRITICAL: Update node config - this writes to automation graph state
+                onUpdate(configToSave);
+                
+                // Show success toast
+                toast.success("Action saved successfully");
+                
+                // Small delay to ensure state updates before closing
+                setTimeout(() => {
+                  // Restore scroll position
+                  if (panelRef.current) {
+                    panelRef.current.scrollTop = scrollPositionRef.current;
+                  }
+                  onClose();
+                }, 100);
+              } else {
+                // For non-Google Sheets nodes, update and close
+                onUpdate(node.config);
+                toast.success("Action saved successfully");
+                setTimeout(() => {
+                  onClose();
+                }, 100);
+              }
+            } catch (error: any) {
+              console.error('Save error:', error);
+              const errorMessage = error?.message || "Failed to save configuration";
+              toast.error(errorMessage);
+            } finally {
+              setSaving(false);
+            }
+          }}
+          disabled={saving}
+          className="w-full h-11 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
         >
-          <Trash2 className="w-4 h-4" />
-          <span>Delete</span>
+          {saving ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <Check className="w-4 h-4" />
+              <span>Save Changes</span>
+            </>
+          )}
         </button>
         <button
-          onClick={onClose}
-          className="w-full h-10 bg-primary text-white rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+          type="button"
+          onClick={onDelete}
+          className="w-full h-10 border border-red-500/50 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/10 hover:border-red-500 transition-colors flex items-center justify-center gap-2"
         >
-          Save
+          <Trash2 className="w-4 h-4" />
+          <span>Delete Action</span>
         </button>
       </div>
     </div>

@@ -66,9 +66,15 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       try {
         const googleRes = await apiClient.get('/integrations/google/status');
         const googleData = googleRes.data?.data || googleRes.data;
+        // Check if Google Workspace is connected (sheets, calendar, or gmail)
+        const googleConnected = googleData?.connected === true && (
+          googleData?.services?.sheets === true ||
+          googleData?.services?.calendar === true ||
+          googleData?.services?.gmail === true
+        );
         setIntegrationStatus(prev => ({
           ...prev,
-          google: googleData?.connected === true || false,
+          google: googleConnected || false,
         }));
       } catch (error: any) {
         setIntegrationStatus(prev => ({ ...prev, google: false }));
@@ -114,6 +120,10 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       keplero_mass_sending: "📤",
       webhook: "🔗",
       delay: "⏱️",
+      keplero_google_calendar_check_availability: "📅",
+      keplero_google_calendar_create_event: "📅",
+      keplero_google_sheet_append_row: "📊",
+      keplero_google_gmail_send: "📧",
     };
     return serviceMap[service] || "⚙️";
   };
@@ -129,8 +139,12 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       keplero_mass_sending: "Mass Sending",
       webhook: "Webhook",
       delay: "Delay",
+      keplero_google_calendar_check_availability: "Check Calendar Availability",
+      keplero_google_calendar_create_event: "Create Calendar Event",
+      keplero_google_sheet_append_row: "Add to Google Sheets",
+      keplero_google_gmail_send: "Send Gmail",
     };
-    return nameMap[service] || service;
+    return nameMap[service] || service.replace(/keplero_/g, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const handleUseTemplate = async (template: AutomationTemplate) => {
@@ -213,43 +227,43 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       }}
     >
       <div 
-        className="bg-card border border-border rounded-2xl w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl mx-auto my-4"
+        className="bg-card border border-border rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl mx-auto my-4"
         onClick={(e) => e.stopPropagation()}
         style={{ 
-          marginLeft: 'max(2rem, calc((100vw - var(--sidebar-width, 0px) - 48rem) / 2))',
-          marginRight: 'max(2rem, calc((100vw - var(--sidebar-width, 0px) - 48rem) / 2))'
+          marginLeft: 'max(1rem, calc((100vw - var(--sidebar-width, 0px) - 40rem) / 2))',
+          marginRight: 'max(1rem, calc((100vw - var(--sidebar-width, 0px) - 40rem) / 2))'
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-r from-card to-card/95">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20">
-              <Sparkles className="w-5 h-5 text-primary" />
+        <div className="flex items-center justify-between p-5 border-b border-border bg-gradient-to-r from-card to-card/95 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20 flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-primary" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-foreground">Prebuilt Automations</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-foreground truncate">Prebuilt Automations</h2>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
                 Start quickly with professionally designed workflows
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+            className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors flex-shrink-0"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {automationTemplates.map((template) => {
                 const missingIntegrations = template.requiredIntegrations?.filter(
                   (integration) => !isIntegrationConnected(integration)
@@ -260,16 +274,16 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                   <div
                     key={template.id}
                     className={cn(
-                      "group relative bg-card border rounded-2xl p-6 transition-all duration-200 h-full flex flex-col",
+                      "group relative bg-card border rounded-xl p-5 transition-all duration-200 h-full flex flex-col",
                       canUse 
-                        ? "border-border hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5" 
+                        ? "border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5" 
                         : "border-yellow-500/30 bg-yellow-500/5 opacity-75"
                     )}
                   >
                     {/* Card Header */}
-                    <div className="flex items-start gap-4 mb-4">
+                    <div className="flex items-start gap-3 mb-3">
                       <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 shadow-sm"
                         style={{ 
                           backgroundColor: `${template.color}15`, 
                           color: template.color,
@@ -279,10 +293,10 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                         {template.icon}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-foreground mb-1.5 leading-tight">
+                        <h3 className="text-base font-bold text-foreground mb-1 leading-tight break-words">
                           {template.name}
                         </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
+                        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 break-words">
                           {template.description}
                         </p>
                       </div>
@@ -290,25 +304,25 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
 
                     {/* Integration Status */}
                     {template.requiredIntegrations && template.requiredIntegrations.length > 0 && (
-                      <div className="mb-4 flex flex-wrap gap-2">
+                      <div className="mb-3 flex flex-wrap gap-1.5">
                         {template.requiredIntegrations.map((integration) => {
                           const isConnected = isIntegrationConnected(integration);
                           return (
                             <div
                               key={integration}
                               className={cn(
-                                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border",
+                                "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border flex-shrink-0",
                                 isConnected
                                   ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
                                   : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
                               )}
                             >
                               {isConnected ? (
-                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
                               ) : (
-                                <XCircle className="w-3.5 h-3.5" />
+                                <XCircle className="w-3 h-3 flex-shrink-0" />
                               )}
-                              <span>{integration}</span>
+                              <span className="whitespace-nowrap">{integration}</span>
                             </div>
                           );
                         })}
@@ -317,38 +331,38 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
 
                     {/* Warning Banner */}
                     {!canUse && (
-                      <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-yellow-700 dark:text-yellow-300 leading-relaxed">
+                      <div className="mb-3 p-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-start gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300 leading-relaxed break-words">
                           Connect required integrations to enable this template
                         </p>
                       </div>
                     )}
 
                     {/* Steps Preview */}
-                    <div className="mb-5 flex-1">
+                    <div className="mb-4 flex-1 min-h-0">
                       <button
                         onClick={() =>
                           setExpandedTemplate(
                             expandedTemplate === template.id ? null : template.id
                           )
                         }
-                        className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3 group"
+                        className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-2 group w-full"
                       >
                         <span>View Steps</span>
                         <ChevronRight 
                           className={cn(
-                            "w-4 h-4 transition-transform",
+                            "w-3.5 h-3.5 transition-transform flex-shrink-0",
                             expandedTemplate === template.id && "rotate-90"
                           )} 
                         />
-                        <span className="text-xs bg-secondary px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
                           {template.nodes.length}
                         </span>
                       </button>
                       
                       {expandedTemplate === template.id && (
-                        <div className="space-y-2 pl-6 border-l-2 border-border">
+                        <div className="space-y-1.5 pl-4 border-l-2 border-border max-h-64 overflow-y-auto">
                           {template.nodes.map((node, index) => {
                             const requiresIntegration =
                               node.service === "whatsapp_template" && !integrationStatus.whatsapp;
@@ -358,22 +372,22 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                               <div
                                 key={node.id}
                                 className={cn(
-                                  "flex items-center gap-3 p-3 rounded-lg transition-colors",
+                                  "flex items-start gap-2 p-2 rounded-md transition-colors",
                                   isDisabled
                                     ? "bg-muted/30 opacity-60"
                                     : "bg-secondary/50 hover:bg-secondary"
                                 )}
                               >
-                                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-background flex items-center justify-center text-lg border border-border">
+                                <div className="flex-shrink-0 w-6 h-6 rounded-md bg-background flex items-center justify-center text-sm border border-border mt-0.5">
                                   {getNodeIcon(node.service)}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground">
+                                  <p className="text-xs font-medium text-foreground break-words leading-tight">
                                     {getNodeName(node.service)}
                                   </p>
                                 </div>
                                 {isDisabled && (
-                                  <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                                  <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
                                 )}
                               </div>
                             );
@@ -387,21 +401,21 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                       onClick={() => handleUseTemplate(template)}
                       disabled={!canUse}
                       className={cn(
-                        "w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 mt-auto",
+                        "w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-all duration-200 mt-auto",
                         canUse
-                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:from-primary/90 hover:to-primary shadow-md hover:shadow-lg hover:scale-[1.02]"
+                          ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:from-primary/90 hover:to-primary shadow-md hover:shadow-lg"
                           : "bg-muted text-muted-foreground cursor-not-allowed"
                       )}
                     >
                       {canUse ? (
                         <>
-                          <span>Use Template</span>
-                          <ArrowRight className="w-4 h-4" />
+                          <span className="whitespace-nowrap">Use Template</span>
+                          <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" />
                         </>
                       ) : (
                         <>
-                          <AlertCircle className="w-4 h-4" />
-                          <span>Connect Integrations First</span>
+                          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="whitespace-nowrap text-xs">Connect First</span>
                         </>
                       )}
                     </button>

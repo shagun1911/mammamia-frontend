@@ -10,7 +10,7 @@ export interface AutomationNode {
     
     // Delay config
     delay?: number;
-    delayUnit?: "minutes" | "hours" | "days";
+    delayUnit?: "seconds" | "minutes" | "hours" | "days";
     
     // Communication config
     template?: string;
@@ -76,6 +76,11 @@ export const nodeServices = {
     { id: "whatsapp_template", name: "WhatsApp Template", icon: "💬", color: "#25d366" },
     { id: "send_email", name: "Send Email", icon: "📧", color: "#3b82f6" },
     { id: "save_to_crm", name: "Save to CRM", icon: "💾", color: "#8b5cf6" },
+    // Google Workspace Actions
+    { id: "keplero_google_calendar_check_availability", name: "Google Calendar - Check Availability", icon: "📅", color: "#4285f4", requiresIntegration: "google" },
+    { id: "keplero_google_calendar_create_event", name: "Google Calendar - Create Event", icon: "📅", color: "#4285f4", requiresIntegration: "google" },
+    { id: "keplero_google_sheet_append_row", name: "Google Sheets - Append Row", icon: "📊", color: "#34a853", requiresIntegration: "google" },
+    { id: "keplero_google_gmail_send", name: "Google Gmail - Send Email", icon: "📧", color: "#ea4335", requiresIntegration: "google" },
   ],
 };
 

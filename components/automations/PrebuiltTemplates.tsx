@@ -212,9 +212,9 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1200px] mx-auto px-4">
       {/* Header Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between max-w-[1200px] mx-auto px-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -229,7 +229,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
       </div>
 
       {/* Templates Grid - 2-3 columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 place-items-center">
         {automationTemplates.map((template) => {
           const missingIntegrations = template.requiredIntegrations?.filter(
             (integration) => !isIntegrationConnected(integration)
@@ -240,7 +240,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
             <div
               key={template.id}
               className={cn(
-                "group relative bg-card border rounded-2xl p-6 transition-all duration-200 h-full flex flex-col",
+               "group relative bg-card border rounded-2xl p-6 transition-all duration-200 h-full flex flex-col w-full max-w-[360px]",
                 canUse 
                   ? "border-border hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5" 
                   : "border-yellow-500/30 bg-yellow-500/5 opacity-75"
@@ -328,7 +328,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
                 </button>
                 
                 {expandedTemplate === template.id && (
-                  <div className="space-y-2 pl-6 border-l-2 border-border">
+                  <div className="space-y-2 pl-4 border-l-2 border-border max-w-[300px]">
                     {template.nodes.map((node, index) => {
                       const requiresIntegration =
                         node.service === "whatsapp_template" && !integrationStatus.whatsapp;
@@ -367,7 +367,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
                 onClick={() => handleUseTemplate(template)}
                 disabled={!canUse}
                 className={cn(
-                  "w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 mt-auto",
+                  "w-full max-w-[260px] mx-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 mt-auto",
                   canUse
                     ? "bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:from-primary/90 hover:to-primary shadow-md hover:shadow-lg hover:scale-[1.02]"
                     : "bg-muted text-muted-foreground cursor-not-allowed"

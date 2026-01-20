@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Plus, List, Trash2, Check, Zap } from "lucide-react";
+import { Plus, List, Trash2, Check, Zap, X, ArrowLeft } from "lucide-react";
 import { Automation, AutomationNode as NodeType, nodeServices } from "@/data/mockAutomations";
 import { AutomationNode } from "./AutomationNode";
 import { NodeConnector } from "./NodeConnector";
@@ -126,14 +126,69 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
   const handleUpdateNode = (config: NodeType["config"]) => {
     if (!selectedAutomation || !selectedNodeId) return;
 
+    // CRITICAL: Ensure Google Sheets config is properly formatted and persisted
+    let finalConfig = { ...config };
+    const node = selectedAutomation.nodes.find(n => n.id === selectedNodeId);
+    
+    if (node?.service === "keplero_google_sheet_append_row") {
+      // Ensure values array is properly formatted
+      if (finalConfig.values && Array.isArray(finalConfig.values)) {
+        // Filter out empty values but preserve array structure
+        finalConfig.values = finalConfig.values.filter((v: string) => v && typeof v === 'string' && v.trim() !== "");
+      } else {
+        // Ensure values is always an array
+        finalConfig.values = [];
+      }
+      
+      // Ensure sheetName is set
+      if (!finalConfig.sheetName || (typeof finalConfig.sheetName === 'string' && finalConfig.sheetName.trim() === "")) {
+        finalConfig.sheetName = "Sheet1";
+      }
+      
+      // Ensure range is set
+      if (!finalConfig.range || (typeof finalConfig.range === 'string' && finalConfig.range.trim() === "")) {
+        const sheetName = finalConfig.sheetName || "Sheet1";
+        finalConfig.range = `${sheetName}!A1`;
+      }
+      
+      // CRITICAL: Log to verify config is being written
+      console.log('[NodeBasedBuilder] Updating Google Sheets node config:', {
+        nodeId: selectedNodeId,
+        spreadsheetId: finalConfig.spreadsheetId,
+        sheetName: finalConfig.sheetName,
+        valuesLength: finalConfig.values?.length || 0,
+        values: finalConfig.values
+      });
+    }
+
+    // CRITICAL: Write config into automation graph state
     const updatedNodes = selectedAutomation.nodes.map((node) =>
-      node.id === selectedNodeId ? { ...node, config } : node
+      node.id === selectedNodeId ? { ...node, config: finalConfig } : node
     );
 
     const updatedAutomations = automations.map((a) =>
       a.id === selectedAutomationId ? { ...a, nodes: updatedNodes } : a
     );
+    
+    // Update automation state - this ensures config is in the graph
     updateAutomations(updatedAutomations);
+  };
+
+  // Validate automation completeness (non-breaking: only for Google Sheets)
+  const isAutomationIncomplete = () => {
+    if (!selectedAutomation) return true;
+    
+    // Check if any Google Sheets node is incomplete
+    const incompleteNode = selectedAutomation.nodes.find(node => {
+      if (node.service === "keplero_google_sheet_append_row") {
+        const hasSpreadsheetId = !!(node.config.spreadsheetId && node.config.spreadsheetId.trim() !== "");
+        const hasValues = !!(node.config.values && Array.isArray(node.config.values) && node.config.values.length > 0 && node.config.values.some((v: string) => v && v.trim() !== ""));
+        return !hasSpreadsheetId || !hasValues;
+      }
+      return false;
+    });
+    
+    return !!incompleteNode;
   };
 
   const handleDeleteNode = (nodeId: string) => {
@@ -236,52 +291,65 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
 
   const handleSaveAutomation = async () => {
     if (!selectedAutomation || !selectedAutomationId) return;
-
+  
     setSaving(true);
     try {
-      // Transform nodes to backend format
-      const backendNodes = selectedAutomation.nodes.map(node => ({
-        id: node.id,
-        type: node.type,
-        service: node.service,
-        config: node.config,
-        position: node.position
-      }));
-
-      const response = await apiClient.patch(`/automations/${selectedAutomationId}`, {
-        name: selectedAutomation.name,
-        nodes: backendNodes,
-        isActive: selectedAutomation.status === "enabled"
+      const backendNodes = selectedAutomation.nodes.map(node => {
+        let config = { ...node.config };
+  
+        if (node.service === "keplero_google_sheet_append_row") {
+          if (config.values && Array.isArray(config.values)) {
+            config.values = config.values.filter(
+              (v: string) => v && typeof v === "string" && v.trim() !== ""
+            );
+          } else {
+            config.values = [];
+          }
+  
+          if (!config.sheetName || config.sheetName.trim() === "") {
+            config.sheetName = "Sheet1";
+          }
+  
+          if (!config.range || config.range.trim() === "") {
+            config.range = `${config.sheetName}!A1`;
+          }
+  
+          console.log("[NodeBasedBuilder] Sending Google Sheets config:", {
+            nodeId: node.id,
+            spreadsheetId: config.spreadsheetId,
+            sheetName: config.sheetName,
+            valuesLength: config.values.length,
+            values: config.values,
+          });
+        }
+  
+        return {
+          id: node.id,
+          type: node.type,
+          service: node.service,
+          config,
+          position: node.position,
+        };
       });
-
-      // Update local state with response
-      const updatedAutomationData = response.data?.data || response.data;
-      if (updatedAutomationData) {
-        const updatedAutomations = automations.map((a) =>
-          a.id === selectedAutomationId
-            ? {
-                ...a,
-                name: updatedAutomationData.name || a.name,
-                nodes: updatedAutomationData.nodes || a.nodes,
-                status: (updatedAutomationData.isActive ? "enabled" : "disabled") as "enabled" | "disabled",
-              }
-            : a
-        );
-        updateAutomations(updatedAutomations);
-      }
-
-      toast.success('Automation saved successfully');
+  
+      const response = await apiClient.patch(
+        `/automations/${selectedAutomationId}`,
+        {
+          name: selectedAutomation.name,
+          nodes: backendNodes,
+          isActive: selectedAutomation.status === "enabled",
+        }
+      );
+  
+      toast.success("Automation saved successfully");
     } catch (error: any) {
-      console.error('Save error:', error);
-      const errorMessage = error.response?.data?.error?.message || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          'Failed to save automation';
-      toast.error(errorMessage);
+      console.error("Save error:", error);
+      toast.error("Failed to save automation");
     } finally {
       setSaving(false);
     }
   };
+  
 
   const handleDeleteAutomation = async () => {
     if (!selectedAutomation || !selectedAutomationId) return;
@@ -492,8 +560,9 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
           </button>
           <button 
             onClick={handleSaveAutomation}
-            disabled={saving || !selectedAutomation}
+            disabled={saving || !selectedAutomation || isAutomationIncomplete()}
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl text-sm font-semibold hover:brightness-110 hover:shadow-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            title={isAutomationIncomplete() ? "Please complete Google Sheets configuration (spreadsheet and column mapping required)" : ""}
           >
             <Check className="w-4 h-4" />
             <span>{saving ? 'Saving...' : 'Save'}</span>
@@ -501,70 +570,56 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
         </div>
       </div>
 
-      {/* Node selector dropdown */}
+      {/* Node selector dropdown - Fixed UI with scrolling and back button */}
       {showNodeSelector && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <h3 className="text-lg font-semibold text-foreground">
-                Add Node
-              </h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Fixed Header with Back/Close Button */}
+            <div className="p-4 border-b border-border shrink-0 bg-card/95 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setShowNodeSelector(false);
+                    setInsertPosition(null);
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors group"
+                  aria-label="Go back"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                  <span>Back</span>
+                </button>
+                <h3 className="text-lg font-semibold text-foreground">
+                  Add Action
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowNodeSelector(false);
+                    setInsertPosition(null);
+                  }}
+                  className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="p-4 space-y-4">
-              {insertPosition === 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                    Triggers
-                  </h4>
-                  <div className="space-y-2">
-                    {nodeServices.triggers.map((service) => (
-                      <button
-                        key={service.id}
-                        onClick={() =>
-                          handleSelectNodeType("trigger", service.id)
-                        }
-                        className="w-full flex items-center gap-3 px-3 py-2 bg-secondary border border-border rounded-lg hover:border-primary hover:bg-border transition-colors text-left"
-                      >
-                        <span className="text-xl">{service.icon}</span>
-                        <span className="text-sm font-medium text-foreground">
-                          {service.name}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {insertPosition !== 0 && (
-                <>
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-4">
+                {insertPosition === 0 && (
                   <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                      Delay
-                    </h4>
-                    <button
-                      onClick={handleAddDelay}
-                      className="w-full flex items-center gap-3 px-3 py-2 bg-secondary border border-border rounded-lg hover:border-primary hover:bg-border transition-colors text-left"
-                    >
-                      <span className="text-xl">⏱️</span>
-                      <span className="text-sm font-medium text-foreground">
-                        Delay
-                      </span>
-                    </button>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">
-                      Actions
+                    <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                      Triggers
                     </h4>
                     <div className="space-y-2">
-                      {nodeServices.actions.map((service) => (
+                      {nodeServices.triggers.map((service) => (
                         <button
                           key={service.id}
                           onClick={() =>
-                            handleSelectNodeType("action", service.id)
+                            handleSelectNodeType("trigger", service.id)
                           }
-                          className="w-full flex items-center gap-3 px-3 py-2 bg-secondary border border-border rounded-lg hover:border-primary hover:bg-border transition-colors text-left"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 bg-secondary border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors text-left"
                         >
                           <span className="text-xl">{service.icon}</span>
                           <span className="text-sm font-medium text-foreground">
@@ -574,17 +629,59 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
                       ))}
                     </div>
                   </div>
-                </>
-              )}
+                )}
+
+                {insertPosition !== 0 && (
+                  <>
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        Delay
+                      </h4>
+                      <button
+                        onClick={handleAddDelay}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 bg-secondary border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                      >
+                        <span className="text-xl">⏱️</span>
+                        <span className="text-sm font-medium text-foreground">
+                          Delay
+                        </span>
+                      </button>
+                    </div>
+
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">
+                        Actions
+                      </h4>
+                      <div className="space-y-2">
+                        {nodeServices.actions.map((service) => (
+                          <button
+                            key={service.id}
+                            onClick={() =>
+                              handleSelectNodeType("action", service.id)
+                            }
+                            className="w-full flex items-center gap-3 px-3 py-2.5 bg-secondary border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors text-left"
+                          >
+                            <span className="text-xl">{service.icon}</span>
+                            <span className="text-sm font-medium text-foreground">
+                              {service.name}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="p-4 border-t border-border">
+            {/* Fixed Footer */}
+            <div className="p-4 border-t border-border shrink-0 bg-card/95 backdrop-blur-sm">
               <button
                 onClick={() => {
                   setShowNodeSelector(false);
                   setInsertPosition(null);
                 }}
-                className="w-full px-4 py-2 bg-secondary border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
+                className="w-full px-4 py-2.5 bg-secondary border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
               >
                 Cancel
               </button>
