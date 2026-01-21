@@ -53,26 +53,6 @@ export default function AnalyticsPage() {
         value: dashboardMetrics.totalConversations,
         change: calculateChange(dashboardMetrics.totalConversations, previousTotal),
       },
-      closedConversations: {
-        value: dashboardMetrics.closedConversations,
-        change: calculateChange(dashboardMetrics.closedConversations, Math.floor(dashboardMetrics.closedConversations * 0.7)),
-      },
-      reopenedConversations: {
-        value: dashboardMetrics.reopenedConversations || 0,
-        change: dashboardMetrics.reopenedConversations > 0 ? 10 : 0,
-      },
-      wrongAnswers: {
-        value: dashboardMetrics.wrongAnswers || 0,
-        change: dashboardMetrics.wrongAnswers > 0 ? -5 : 0,
-      },
-      linksClicked: {
-        value: dashboardMetrics.linksClicked || 0,
-        change: dashboardMetrics.linksClicked > 0 ? 15 : 0,
-      },
-      closedByOperators: {
-        value: dashboardMetrics.humanManaged,
-        change: calculateChange(dashboardMetrics.humanManaged, Math.floor(dashboardMetrics.humanManaged * 0.7)),
-      },
       callMinutes: {
         value: dashboardMetrics.totalCallMinutes || 0,
         change: 0, // Will be calculated from trends
@@ -91,12 +71,8 @@ export default function AnalyticsPage() {
     return trends.newConversations.map((item, index) => ({
       date: item.period,
       newConversations: item.count,
-      closedConversations: Math.floor(item.count * 0.7), // Approximate closed conversations
-      reopenedConversations: Math.floor(item.count * 0.05), // Approximate reopened
-      wrongAnswers: Math.floor(item.count * 0.02), // Approximate wrong answers
-      linksClicked: Math.floor(item.count * 0.1), // Approximate links clicked
-      closedByOperators: Math.floor(item.count * 0.3), // Approximate closed by operators
       callMinutes: trends.callMinutes?.[index]?.minutes || 0,
+      chatConversations: trends.chatConversations?.[index]?.count || 0,
     }));
   }, [trends]);
 
@@ -347,7 +323,7 @@ export default function AnalyticsPage() {
                     </div>
                     <div>
                       <h2 className="text-xl font-semibold text-foreground">Conversation Trends</h2>
-                      <p className="text-sm text-muted-foreground mt-1">New vs closed conversations over time</p>
+                      <p className="text-sm text-muted-foreground mt-1">New conversations and chat conversations over time</p>
                     </div>
                   </div>
                 </div>

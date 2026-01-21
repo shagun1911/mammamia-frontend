@@ -12,7 +12,7 @@ export interface CampaignFilters {
 
 export interface CreateCampaignData {
   name: string;
-  channel: 'whatsapp' | 'sms' | 'email';
+  channel: 'whatsapp' | 'email';
   templateId?: string;
   message?: string;
   contactListIds: string[];

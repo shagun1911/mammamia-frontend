@@ -77,6 +77,14 @@ export function UsageTrendsChart({ data }: UsageTrendsChartProps) {
           name="Call Minutes"
           radius={[4, 4, 0, 0]}
         />
+        {data.some(item => item.chatConversations !== undefined) && (
+          <Bar 
+            dataKey="chatConversations" 
+            fill="#8b5cf6" 
+            name="Chat Conversations"
+            radius={[4, 4, 0, 0]}
+          />
+        )}
       </BarChart>
     </ResponsiveContainer>
   );

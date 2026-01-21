@@ -6,7 +6,8 @@ interface ConversationTrendsChartProps {
   data: Array<{
     date: string;
     newConversations: number;
-    closedConversations: number;
+    callMinutes?: number;
+    chatConversations?: number;
   }>;
 }
 
@@ -71,15 +72,17 @@ export function ConversationTrendsChart({ data }: ConversationTrendsChartProps) 
           dot={{ fill: '#3b82f6', r: 4 }}
           activeDot={{ r: 6 }}
         />
-        <Line 
-          type="monotone" 
-          dataKey="closedConversations" 
-          stroke="#10b981" 
-          strokeWidth={3}
-          name="Closed Conversations"
-          dot={{ fill: '#10b981', r: 4 }}
-          activeDot={{ r: 6 }}
-        />
+        {data.some(item => item.chatConversations !== undefined) && (
+          <Line 
+            type="monotone" 
+            dataKey="chatConversations" 
+            stroke="#10b981" 
+            strokeWidth={3}
+            name="Chat Conversations"
+            dot={{ fill: '#10b981', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+        )}
       </LineChart>
     </ResponsiveContainer>
   );

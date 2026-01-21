@@ -17,12 +17,8 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
   const [contactList, setContactList] = useState("");
 
   // Communication types
-  const [enableSMS, setEnableSMS] = useState(false);
   const [enableEmail, setEnableEmail] = useState(false);
   const [enableCall, setEnableCall] = useState(false);
-
-  // SMS template
-  const [smsMessage, setSmsMessage] = useState("");
 
   // Email template
   const [emailSubject, setEmailSubject] = useState("");
@@ -87,13 +83,8 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
 
     // Validate step 2
     if (step === 2) {
-      if (!enableCall && !enableSMS && !enableEmail) {
-        showAlert("Communication Channel Required", "Please select at least one communication type (Call, SMS, or Email).", "warning");
-        return;
-      }
-
-      if (enableSMS && !smsMessage.trim()) {
-        showAlert("SMS Message Required", "Please enter an SMS message to send to your contacts.", "warning");
+      if (!enableCall && !enableEmail) {
+        showAlert("Communication Channel Required", "Please select at least one communication type (Call or Email).", "warning");
         return;
       }
 
@@ -118,7 +109,6 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
   const handleSave = () => {
     const communicationTypes = [];
     if (enableCall) communicationTypes.push("call");
-    if (enableSMS) communicationTypes.push("sms");
     if (enableEmail) communicationTypes.push("email");
 
     // Final validation
@@ -141,7 +131,6 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
       name: campaignName,
       listId: contactList,
       communicationTypes,
-      smsBody: enableSMS ? { message: smsMessage } : undefined,
       emailBody: enableEmail ? { 
         subject: emailSubject, 
         body: emailBody, 
@@ -254,33 +243,6 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
             <h3 className="text-base font-semibold text-white mb-4">
               Select Communication Channels
             </h3>
-
-            {/* SMS Option */}
-            <div className="border border-border rounded-lg p-4">
-              <label className="flex items-center gap-3 mb-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enableSMS}
-                  onChange={(e) => setEnableSMS(e.target.checked)}
-                  className="w-5 h-5 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
-                />
-                <span className="text-base font-semibold text-white">SMS Message</span>
-              </label>
-              {enableSMS && (
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">
-                    Message Body
-                  </label>
-                  <textarea
-                    value={smsMessage}
-                    onChange={(e) => setSmsMessage(e.target.value)}
-                    placeholder="Enter your SMS message..."
-                    rows={3}
-                    className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-                  />
-                </div>
-              )}
-            </div>
 
             {/* Email Option */}
             <div className="border border-border rounded-lg p-4">
@@ -427,17 +389,11 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Channels:</span>
                   <span className="text-white">
-                    {[enableCall && "Call", enableSMS && "SMS", enableEmail && "Email"]
+                    {[enableCall && "Call", enableEmail && "Email"]
                       .filter(Boolean)
                       .join(", ") || "None selected"}
                   </span>
                 </div>
-                {enableSMS && (
-                  <div className="pt-2 border-t border-border mt-2">
-                    <span className="text-muted-foreground">SMS Message:</span>
-                    <p className="text-white text-xs mt-1 bg-secondary p-2 rounded">{smsMessage}</p>
-                  </div>
-                )}
                 {enableEmail && (
                   <div className="pt-2 border-t border-border mt-2">
                     <span className="text-muted-foreground">Email Subject:</span>
@@ -469,7 +425,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
             onClick={handleNext}
             disabled={
               (step === 1 && (!campaignName || !contactList)) ||
-              (step === 2 && !enableSMS && !enableEmail && !enableCall)
+              (step === 2 && !enableEmail && !enableCall)
             }
             className="px-6 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >

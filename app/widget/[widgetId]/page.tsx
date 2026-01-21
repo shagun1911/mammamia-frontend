@@ -93,6 +93,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
         name: userName,
         threadId: threadId,
         collection: selectedCollection,
+        widgetId: params.widgetId, // Pass widgetId to get organizationId
         messages: [
           { role: 'user', content: message, timestamp: new Date() },
           { role: 'bot', content: response, timestamp: new Date() }

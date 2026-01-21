@@ -24,7 +24,7 @@ const PROFILE_INFO = {
     bgColor: "bg-purple-500/10"
   },
   aistein: {
-    name: "AIstein Package",
+    name: "Aistein Package",
     chatLimit: 2000,
     voiceLimit: 2000,
     color: "text-emerald-500",

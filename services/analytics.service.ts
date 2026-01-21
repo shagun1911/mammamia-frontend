@@ -32,6 +32,7 @@ export interface TrendsData {
   responseTimes: Array<{ period: string; avgResponseTime: number }>;
   resolutionRates: Array<{ period: string; resolutionRate: number }>;
   callMinutes: Array<{ period: string; minutes: number }>;
+  chatConversations?: Array<{ period: string; count: number }>;
 }
 
 export interface PerformanceMetrics {
