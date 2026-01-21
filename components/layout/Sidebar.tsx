@@ -12,13 +12,12 @@ import {
   FlaskConical,
   BarChart3,
   Settings,
-  HelpCircle,
-  Bell,
   User,
   ChevronLeft,
   ChevronRight,
   Globe,
   Cog,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,13 +41,12 @@ const mainNavItems: NavItem[] = [
   { icon: Megaphone, label: "Campaigns", href: "/campaigns" },
   { icon: FlaskConical, label: "Chatbot Test", href: "/chatbot-test" },
   { icon: BarChart3, label: "Analytics", href: "/analytics" },
+  { icon: CreditCard, label: "Billing", href: "/billing" },
   { icon: Cog, label: "Configuration", href: "/configuration" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { icon: HelpCircle, label: "Help", href: "/help" },
-  { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: User, label: "Profile", href: "/profile" },
 ];
 

@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminService, OrganizationWithUsage } from "@/services/admin.service";
-import { ArrowLeft, Search, Building2, Phone, MessageSquare, Zap, Loader2, Filter } from "lucide-react";
+import { ArrowLeft, Search, Building2, Phone, MessageSquare, Zap, Loader2, Filter, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminOrganizationsPage() {
+  const searchParams = useSearchParams();
+  const integrationFilter = searchParams.get('integration');
+  
   const [search, setSearch] = useState("");
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -39,12 +43,37 @@ export default function AdminOrganizationsPage() {
   }
 
   const organizations = data || [];
-  const filteredOrganizations = search
-    ? organizations.filter(org =>
-        org.name.toLowerCase().includes(search.toLowerCase()) ||
-        org.slug.toLowerCase().includes(search.toLowerCase())
-      )
-    : organizations;
+  
+  // Apply filters
+  let filteredOrganizations = organizations;
+  
+  // Search filter
+  if (search) {
+    filteredOrganizations = filteredOrganizations.filter(org =>
+      org.name.toLowerCase().includes(search.toLowerCase()) ||
+      org.slug.toLowerCase().includes(search.toLowerCase())
+    );
+  }
+  
+  // Integration filter (from URL)
+  if (integrationFilter) {
+    filteredOrganizations = filteredOrganizations.filter(org => {
+      switch (integrationFilter) {
+        case 'google':
+          return (org.integrationCount?.google || 0) > 0;
+        case 'whatsapp':
+          return (org.integrationCount?.whatsapp || 0) > 0;
+        case 'instagram':
+          return (org.integrationCount?.instagram || 0) > 0;
+        case 'facebook':
+          return (org.integrationCount?.facebook || 0) > 0;
+        case 'ecommerce':
+          return (org.integrationCount?.ecommerce || 0) > 0;
+        default:
+          return true;
+      }
+    });
+  }
 
   return (
     <div className="p-8">
@@ -59,6 +88,18 @@ export default function AdminOrganizationsPage() {
         </Link>
         <h1 className="text-3xl font-bold text-foreground">Organizations</h1>
         <p className="text-muted-foreground">View usage analytics and plan information</p>
+        
+        {/* Active Filter Badge */}
+        {integrationFilter && (
+          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg">
+            <span className="text-sm font-medium">
+              Filtered by: <span className="capitalize">{integrationFilter}</span> Integration
+            </span>
+            <Link href="/admin/organizations" className="hover:bg-primary/20 rounded p-1">
+              <X className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -111,10 +152,6 @@ export default function AdminOrganizationsPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Organization</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Plan</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Package</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Call Minutes</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Chat Conversations</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Automations</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Integrations</th>
                 </tr>
               </thead>
@@ -144,43 +181,24 @@ export default function AdminOrganizationsPage() {
                         {org.planDetails?.status || org.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-foreground">
-                      {org.planDetails?.package ? (
-                        <span className="capitalize">{org.planDetails.package}</span>
-                      ) : (
-                        <span className="text-muted-foreground">Not available</span>
-                      )}
-                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-foreground">{org.usage.callMinutes.toLocaleString()}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-foreground">{org.usage.chatConversations.toLocaleString()}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-foreground">{org.usage.automations}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {org.integrations.google && (
+                        {org.integrations?.google && (
                           <div className="w-2 h-2 rounded-full bg-blue-500" title="Google" />
                         )}
-                        {org.integrations.whatsapp && (
+                        {org.integrations?.whatsapp && (
                           <div className="w-2 h-2 rounded-full bg-green-500" title="WhatsApp" />
                         )}
-                        {org.integrations.ecommerce.connected && (
+                        {org.integrations?.instagram && (
+                          <div className="w-2 h-2 rounded-full bg-pink-500" title="Instagram" />
+                        )}
+                        {org.integrations?.facebook && (
+                          <div className="w-2 h-2 rounded-full bg-blue-600" title="Facebook" />
+                        )}
+                        {org.integrations?.ecommerce?.connected && (
                           <div className="w-2 h-2 rounded-full bg-amber-500" title={`E-commerce: ${org.integrations.ecommerce.platform}`} />
                         )}
-                        {!org.integrations.google && !org.integrations.whatsapp && !org.integrations.ecommerce.connected && (
+                        {!org.integrations?.google && !org.integrations?.whatsapp && !org.integrations?.instagram && !org.integrations?.facebook && !org.integrations?.ecommerce?.connected && (
                           <span className="text-xs text-muted-foreground">None</span>
                         )}
                       </div>

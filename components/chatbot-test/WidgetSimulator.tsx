@@ -6,7 +6,6 @@ import { mockChatbotSettings } from "@/data/mockSettings";
 import { pythonRagService } from "@/services/pythonRag.service";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useSettings } from "@/hooks/useSettings";
-import { useAuth } from "@/contexts/AuthContext";
 import { v4 as uuidv4 } from "uuid";
 
 interface ChatMessage {
@@ -20,7 +19,6 @@ interface ChatMessage {
 export function WidgetSimulator() {
   const { collections, selectedCollection, setSelectedCollection, chatAgentPrompt, loadCollections } = useKnowledgeBase();
   const { data: dbSettings } = useSettings();
-  const { user } = useAuth();
   const [threadId] = useState(uuidv4());
   const [userName, setUserName] = useState("Test User");
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -48,16 +46,10 @@ export function WidgetSimulator() {
   // Save conversation to backend
   const saveConversation = async (message: string, response: string) => {
     try {
-      // CRITICAL: Get organizationId from authenticated user
-      const organizationId = user?.organizationId || user?.id;
-      const widgetId = user?.id; // widgetId is typically the userId
-      
       const payload = {
         name: userName,
         threadId: threadId,
         collection: selectedCollection,
-        widgetId: widgetId, // Pass widgetId to map to organizationId
-        organizationId: organizationId, // Pass organizationId directly
         messages: [
           { role: 'user', content: message, timestamp: new Date() },
           { role: 'bot', content: response, timestamp: new Date() }

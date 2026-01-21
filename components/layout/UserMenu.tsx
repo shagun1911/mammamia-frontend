@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Settings, HelpCircle, LogOut } from "lucide-react";
+import { User, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function UserMenu() {
@@ -66,22 +66,6 @@ export function UserMenu() {
             >
               <User className="w-4 h-4" />
               <span>Profile</span>
-            </Link>
-            <Link
-              href="/settings/chatbot"
-              className="flex items-center gap-3 h-10 px-4 text-sm text-popover-foreground hover:bg-accent transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </Link>
-            <Link
-              href="/help"
-              className="flex items-center gap-3 h-10 px-4 text-sm text-popover-foreground hover:bg-accent transition-colors"
-              onClick={() => setIsOpen(false)}
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span>Help & Support</span>
             </Link>
           </div>
 

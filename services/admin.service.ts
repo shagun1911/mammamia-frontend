@@ -10,6 +10,8 @@ export interface DashboardMetrics {
   failedExecutions: number;
   googleIntegrations: number;
   whatsappIntegrations: number;
+  instagramIntegrations: number;
+  facebookIntegrations: number;
   ecommerceIntegrations: number;
   totalCallMinutes: number;
   totalChatConversations: number;
@@ -126,10 +128,19 @@ export interface OrganizationWithUsage {
   integrations: {
     google: boolean;
     whatsapp: boolean;
+    instagram: boolean;
+    facebook: boolean;
     ecommerce: {
       connected: boolean;
       platform: string | null;
     };
+  };
+  integrationCount: {
+    google: number;
+    whatsapp: number;
+    instagram: number;
+    facebook: number;
+    ecommerce: number;
   };
   planDetails: {
     name: string;

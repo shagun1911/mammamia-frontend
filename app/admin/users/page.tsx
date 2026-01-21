@@ -3,34 +3,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminService, UserWithProfile } from "@/services/admin.service";
-import { ArrowLeft, Search, User, Loader2, ArrowUpCircle, Package, Phone, MessageSquare, TrendingUp } from "lucide-react";
+import { planService, Plan } from "@/services/plan.service";
+import { ArrowLeft, Search, User, Loader2, CreditCard, Check, X } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-
-const PROFILE_INFO = {
-  mileva: {
-    name: "Mileva Package",
-    chatLimit: 500,
-    voiceLimit: 250,
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10"
-  },
-  nobel: {
-    name: "Nobel Package",
-    chatLimit: 1000,
-    voiceLimit: 1000,
-    color: "text-purple-500",
-    bgColor: "bg-purple-500/10"
-  },
-  aistein: {
-    name: "Aistein Package",
-    chatLimit: 2000,
-    voiceLimit: 2000,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10"
-  }
-};
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -39,10 +16,10 @@ export default function AdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedUser, setSelectedUser] = useState<UserWithProfile | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [selectedProfileType, setSelectedProfileType] = useState<'mileva' | 'nobel' | 'aistein'>('nobel');
-  const [selectedOrgPlan, setSelectedOrgPlan] = useState<string>('');
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
-  const { data: users, isLoading } = useQuery<UserWithProfile[]>({
+  // Fetch users
+  const { data: users, isLoading: loadingUsers } = useQuery<UserWithProfile[]>({
     queryKey: ['admin', 'users', search, roleFilter, statusFilter],
     queryFn: () => adminService.getAllUsers({
       search: search || undefined,
@@ -51,36 +28,96 @@ export default function AdminUsersPage() {
     }),
   });
 
-  const upgradeMutation = useMutation({
-    mutationFn: ({ userId, profileType, orgPlan }: { userId: string; profileType: 'mileva' | 'nobel' | 'aistein'; orgPlan?: string }) =>
-      adminService.upgradeUserPlan(userId, profileType, orgPlan),
-    onSuccess: () => {
-      toast.success('User plan upgraded successfully!');
+  // Fetch plans
+  const { data: plans, isLoading: loadingPlans, error: plansError } = useQuery<Plan[]>({
+    queryKey: ['plans'],
+    queryFn: async () => {
+      try {
+        const result = await planService.getAllPlans();
+        console.log('✅ Fetched plans:', result);
+        return result;
+      } catch (error) {
+        console.error('❌ Error fetching plans:', error);
+        throw error;
+      }
+    },
+  });
+
+  // Assign plan mutation
+  const assignPlanMutation = useMutation({
+    mutationFn: ({ organizationId, planId }: { organizationId: string; planId: string }) => {
+      console.log('Mutation function called with:', { organizationId, planId });
+      return planService.assignPlanToOrganization(organizationId, planId);
+    },
+    onSuccess: (data) => {
+      console.log('Plan assigned successfully:', data);
+      toast.success('Plan assigned successfully! All users updated.');
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       setShowUpgradeModal(false);
       setSelectedUser(null);
+      setSelectedPlanId("");
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to upgrade user plan');
+      console.error('Plan assignment error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error details:', error.response?.data?.error?.details);
+      
+      const errorData = error.response?.data?.error;
+      let errorMessage = error.response?.data?.message || error.message || 'Failed to assign plan';
+      
+      // If there are validation details, show them
+      if (errorData?.details && Array.isArray(errorData.details) && errorData.details.length > 0) {
+        const detailMessages = errorData.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
+        errorMessage = `Validation failed: ${detailMessages}`;
+      }
+      
+      toast.error(errorMessage);
     }
   });
 
-  const handleUpgrade = () => {
-    if (!selectedUser) return;
-    upgradeMutation.mutate({
-      userId: selectedUser._id,
-      profileType: selectedProfileType,
-      orgPlan: selectedOrgPlan || undefined
+  const handleAssignPlan = () => {
+    console.log('Attempting to assign plan...');
+    console.log('Selected User:', selectedUser);
+    console.log('Organization ID:', selectedUser?.organization?._id);
+    console.log('User ID:', selectedUser?._id);
+    console.log('Selected Plan ID:', selectedPlanId);
+    
+    if (!selectedUser) {
+      toast.error('No user selected');
+      return;
+    }
+    
+    if (!selectedPlanId) {
+      toast.error('Please select a plan first');
+      return;
+    }
+    
+    // Use organization ID if available, otherwise use user ID (backend will create org)
+    const targetId = selectedUser.organization?._id || selectedUser._id;
+    
+    console.log('Sending mutation with:', {
+      organizationId: targetId,
+      planId: selectedPlanId
+    });
+    
+    assignPlanMutation.mutate({
+      organizationId: targetId,
+      planId: selectedPlanId
     });
   };
 
-  if (isLoading) {
+  if (loadingUsers || loadingPlans) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // Show error if plans failed to load
+  if (plansError) {
+    console.error('Plans error:', plansError);
   }
 
   const filteredUsers = users || [];
@@ -97,7 +134,7 @@ export default function AdminUsersPage() {
           <span>Back to Dashboard</span>
         </Link>
         <h1 className="text-3xl font-bold text-foreground">Users & Billing</h1>
-        <p className="text-muted-foreground">Manage user accounts and upgrade billing plans</p>
+        <p className="text-muted-foreground">Manage user accounts and assign billing plans</p>
       </div>
 
       {/* Filters */}
@@ -120,7 +157,6 @@ export default function AdminUsersPage() {
           <option value="all">All Roles</option>
           <option value="admin">Admin</option>
           <option value="operator">Operator</option>
-          <option value="viewer">Viewer</option>
         </select>
         <select
           value={statusFilter}
@@ -146,99 +182,59 @@ export default function AdminUsersPage() {
               <thead className="bg-secondary">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Current Package</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Usage</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Current Plan</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Organization</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredUsers.map((user) => {
-                  const profileInfo = user.profile?.profileType ? PROFILE_INFO[user.profile.profileType as keyof typeof PROFILE_INFO] : null;
                   return (
                     <tr key={user._id} className="hover:bg-secondary/50">
                       <td className="px-6 py-4">
                         <div className="font-medium text-foreground">{user.firstName} {user.lastName}</div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          {user.role} • {user.status}
+                          <span className="capitalize">{user.role}</span> • <span className="capitalize">{user.status}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {profileInfo ? (
-                          <div className={cn("px-3 py-1 rounded-full text-xs font-medium inline-block", profileInfo.bgColor, profileInfo.color)}>
-                            {profileInfo.name}
+                        {user.organization?.plan ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
+                            <CreditCard className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium text-primary capitalize">{user.organization.plan}</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-muted-foreground">No package</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {user.profile ? (
-                          <div className="space-y-2">
-                            <div>
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground">Chat</span>
-                                <span className="text-foreground">
-                                  {user.profile.chatConversationsUsed} / {user.profile.chatConversationsLimit}
-                                </span>
-                              </div>
-                              <div className="w-full bg-secondary rounded-full h-1.5">
-                                <div
-                                  className={cn(
-                                    "h-1.5 rounded-full",
-                                    (user.profile.usagePercentage?.chat || 0) >= 90 ? "bg-red-500" :
-                                    (user.profile.usagePercentage?.chat || 0) >= 70 ? "bg-yellow-500" : "bg-green-500"
-                                  )}
-                                  style={{ width: `${Math.min(user.profile.usagePercentage?.chat || 0, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-muted-foreground">Voice</span>
-                                <span className="text-foreground">
-                                  {user.profile.voiceMinutesUsed} / {user.profile.voiceMinutesLimit}
-                                </span>
-                              </div>
-                              <div className="w-full bg-secondary rounded-full h-1.5">
-                                <div
-                                  className={cn(
-                                    "h-1.5 rounded-full",
-                                    (user.profile.usagePercentage?.voice || 0) >= 90 ? "bg-red-500" :
-                                    (user.profile.usagePercentage?.voice || 0) >= 70 ? "bg-yellow-500" : "bg-green-500"
-                                  )}
-                                  style={{ width: `${Math.min(user.profile.usagePercentage?.voice || 0, 100)}%` }}
-                                />
-                              </div>
-                            </div>
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-500/10 border border-gray-500/20 rounded-lg">
+                            <CreditCard className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Free</span>
                           </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">No usage data</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         {user.organization ? (
                           <div>
                             <div className="text-sm font-medium text-foreground">{user.organization.name}</div>
-                            <div className="text-xs text-muted-foreground capitalize">{user.organization.plan} • {user.organization.status}</div>
+                            <div className="text-xs text-muted-foreground capitalize">{user.organization.status}</div>
                           </div>
                         ) : (
-                          <span className="text-sm text-muted-foreground">No organization</span>
+                          <div>
+                            <div className="text-sm text-muted-foreground">No organization</div>
+                            <div className="text-xs text-yellow-600 dark:text-yellow-500">Will be created on plan assignment</div>
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4">
                         <button
                           onClick={() => {
                             setSelectedUser(user);
-                            setSelectedProfileType((user.profile?.profileType as any) || 'nobel');
-                            setSelectedOrgPlan(user.organization?.plan || '');
+                            setSelectedPlanId("");
                             setShowUpgradeModal(true);
                           }}
-                          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
                         >
-                          <ArrowUpCircle className="w-4 h-4" />
-                          Upgrade Plan
+                          <CreditCard className="w-4 h-4" />
+                          {user.organization?.plan ? 'Change Plan' : 'Assign Plan'}
                         </button>
                       </td>
                     </tr>
@@ -252,130 +248,193 @@ export default function AdminUsersPage() {
 
       {/* Upgrade Modal */}
       {showUpgradeModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-border">
-              <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Package className="w-6 h-6" />
-                Upgrade Billing Plan
-              </h2>
-              <p className="text-muted-foreground mt-1">Upgrade plan for {selectedUser.email}</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-card border-b border-border p-6 z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                    <CreditCard className="w-6 h-6 text-primary" />
+                    {selectedUser.organization ? 'Change Billing Plan' : 'Assign Billing Plan'}
+                  </h2>
+                  <p className="text-muted-foreground mt-1">
+                    {selectedUser.organization ? (
+                      <>Change plan for <span className="font-medium text-foreground">{selectedUser.email}</span></>
+                    ) : (
+                      <>Assign plan for <span className="font-medium text-foreground">{selectedUser.email}</span> (organization will be created)</>
+                    )}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowUpgradeModal(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-6">
               {/* Current Plan */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Current Plan</h3>
-                <div className="bg-secondary rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Current Plan</h3>
+                <div className="bg-secondary/50 rounded-lg p-4 border border-border">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-foreground">
-                        {selectedUser.profile?.profileType ? PROFILE_INFO[selectedUser.profile.profileType as keyof typeof PROFILE_INFO].name : 'No Package'}
+                    <div className="flex-1">
+                      <div className="text-lg font-semibold text-foreground capitalize">
+                        {selectedUser.organization?.plan || 'Free'}
                       </div>
-                      {selectedUser.profile && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {selectedUser.profile.chatConversationsLimit} chats • {selectedUser.profile.voiceMinutesLimit} voice minutes
-                        </div>
-                      )}
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Organization: {selectedUser.organization?.name}
+                      </div>
                     </div>
-                    {selectedUser.organization && (
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-foreground capitalize">{selectedUser.organization.plan}</div>
-                        <div className="text-xs text-muted-foreground">Organization Plan</div>
+                    {!selectedUser.organization?.plan && (
+                      <div className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                        <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
+                          No plan assigned
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Select New Package */}
+              {/* Available Plans */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Select New Package</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {(['mileva', 'nobel', 'aistein'] as const).map((profileType) => {
-                    const info = PROFILE_INFO[profileType];
-                    const isSelected = selectedProfileType === profileType;
+                <h3 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
+                  Select New Plan {plans && `(${plans.length} available)`}
+                </h3>
+                {(!plans || plans.length === 0) && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-center mb-4">
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      No plans available. Please create plans in Plans Management first.
+                    </p>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {plans?.map((plan) => {
+                    const isSelected = selectedPlanId === plan._id;
+                    const isCurrentPlan = selectedUser.organization?.plan === plan.slug;
+                    
                     return (
                       <button
-                        key={profileType}
-                        onClick={() => setSelectedProfileType(profileType)}
+                        key={plan._id}
+                        onClick={() => setSelectedPlanId(plan._id)}
+                        disabled={!plan.isActive || isCurrentPlan}
                         className={cn(
-                          "p-4 border-2 rounded-lg text-left transition-all",
-                          isSelected
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
+                          "p-5 border-2 rounded-xl text-left transition-all relative overflow-hidden",
+                          isSelected && "border-primary bg-primary/5 shadow-lg",
+                          !isSelected && !isCurrentPlan && plan.isActive && "border-border hover:border-primary/50 hover:shadow-md",
+                          isCurrentPlan && "border-green-500/30 bg-green-500/5 cursor-not-allowed",
+                          !plan.isActive && "opacity-50 cursor-not-allowed"
                         )}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={cn("font-semibold", info.color)}>{info.name}</span>
-                          {isSelected && <TrendingUp className="w-4 h-4 text-primary" />}
-                        </div>
-                        <div className="text-xs text-muted-foreground space-y-1">
-                          <div className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
-                            {info.chatLimit} chat conversations
+                        {isCurrentPlan && (
+                          <div className="absolute top-3 right-3">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-600 dark:text-green-400 rounded-full text-xs font-medium">
+                              <Check className="w-3 h-3" />
+                              Current
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {info.voiceLimit} voice minutes
+                        )}
+                        
+                        <div className="mb-3">
+                          <h4 className="text-xl font-bold text-foreground">{plan.name}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
+                        </div>
+
+                        <div className="mb-4">
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-3xl font-bold text-primary">${plan.price}</span>
+                            <span className="text-sm text-muted-foreground">/month</span>
                           </div>
                         </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Call Minutes</span>
+                            <span className="font-medium text-foreground">
+                              {plan.features.callMinutes === -1 ? 'Unlimited' : plan.features.callMinutes}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Chat Conversations</span>
+                            <span className="font-medium text-foreground">
+                              {plan.features.chatConversations === -1 ? 'Unlimited' : plan.features.chatConversations}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Automations</span>
+                            <span className="font-medium text-foreground">
+                              {plan.features.automations === -1 ? 'Unlimited' : plan.features.automations}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Users</span>
+                            <span className="font-medium text-foreground">
+                              {plan.features.users === -1 ? 'Unlimited' : plan.features.users}
+                            </span>
+                          </div>
+                        </div>
+
+                        {plan.features.customFeatures && plan.features.customFeatures.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-border">
+                            <ul className="space-y-1">
+                              {plan.features.customFeatures.slice(0, 3).map((feature, idx) => (
+                                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                                  <Check className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Organization Plan (Optional) */}
-              {selectedUser.organization && (
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground mb-3">Organization Plan (Optional)</h3>
-                  <select
-                    value={selectedOrgPlan}
-                    onChange={(e) => setSelectedOrgPlan(e.target.value)}
-                    className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
-                  >
-                    <option value="">Keep current ({selectedUser.organization.plan})</option>
-                    <option value="free">Free</option>
-                    <option value="starter">Starter</option>
-                    <option value="professional">Professional</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
+              {/* Info Messages */}
+              {!plans || plans.length === 0 ? (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    <strong>Error:</strong> No plans available. Please create plans first in Plans Management.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                    <strong>Note:</strong> Changing the plan will immediately update all users in this organization and apply new usage limits.
+                  </p>
                 </div>
               )}
-
-              {/* Warning */}
-              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                  <strong>Note:</strong> Upgrading the plan will immediately update limits. If downgrading, usage will be capped to the new limits.
-                </p>
-              </div>
             </div>
 
-            <div className="p-6 border-t border-border flex items-center justify-end gap-3">
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-card border-t border-border p-6 flex items-center justify-end gap-3">
               <button
-                onClick={() => {
-                  setShowUpgradeModal(false);
-                  setSelectedUser(null);
-                }}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowUpgradeModal(false)}
+                className="px-6 py-2.5 text-sm font-medium text-foreground hover:bg-secondary rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={handleUpgrade}
-                disabled={upgradeMutation.isPending}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={handleAssignPlan}
+                disabled={!selectedPlanId || assignPlanMutation.isPending}
+                className="px-6 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
+                title={!selectedPlanId ? "Please select a plan first" : "Assign selected plan"}
               >
-                {upgradeMutation.isPending ? (
+                {assignPlanMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Upgrading...
+                    Assigning...
                   </>
                 ) : (
                   <>
-                    <ArrowUpCircle className="w-4 h-4" />
-                    Upgrade Plan
+                    <Check className="w-4 h-4" />
+                    Assign Plan {selectedPlanId ? '✓' : ''}
                   </>
                 )}
               </button>

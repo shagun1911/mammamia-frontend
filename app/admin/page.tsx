@@ -6,6 +6,7 @@ import { adminService, DashboardMetrics } from "@/services/admin.service";
 import { Building2, Users, Zap, CheckCircle2, XCircle, Activity, Loader2, Phone, MessageSquare, ShoppingCart } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 export default function AdminDashboardPage() {
   const { data: metrics, isLoading, error } = useQuery<DashboardMetrics>({
@@ -89,6 +90,20 @@ export default function AdminDashboardPage() {
       bgColor: "bg-green-600/10",
     },
     {
+      title: "Instagram Integrations",
+      value: metrics?.instagramIntegrations || 0,
+      icon: CheckCircle2,
+      color: "text-pink-500",
+      bgColor: "bg-pink-500/10",
+    },
+    {
+      title: "Facebook Integrations",
+      value: metrics?.facebookIntegrations || 0,
+      icon: CheckCircle2,
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+    },
+    {
       title: "E-commerce Integrations",
       value: metrics?.ecommerceIntegrations || 0,
       icon: ShoppingCart,
@@ -123,11 +138,13 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
-          return (
+          const isClickable = ['Facebook Integrations', 'Instagram Integrations', 'WhatsApp Integrations', 'Google Integrations', 'E-commerce Integrations'].includes(stat.title);
+          
+          const card = (
             <div
-              key={index}
               className={cn(
-                "bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow"
+                "bg-card border border-border rounded-xl p-6 shadow-sm transition-all",
+                isClickable && stat.value > 0 ? "hover:shadow-lg hover:border-primary cursor-pointer" : "hover:shadow-md"
               )}
             >
               <div className="flex items-center justify-between mb-4">
@@ -141,39 +158,24 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           );
+          
+          if (isClickable && stat.value > 0) {
+            let filterParam = '';
+            if (stat.title === 'Facebook Integrations') filterParam = 'facebook';
+            else if (stat.title === 'Instagram Integrations') filterParam = 'instagram';
+            else if (stat.title === 'WhatsApp Integrations') filterParam = 'whatsapp';
+            else if (stat.title === 'Google Integrations') filterParam = 'google';
+            else if (stat.title === 'E-commerce Integrations') filterParam = 'ecommerce';
+            
+            return (
+              <Link key={index} href={`/admin/organizations?integration=${filterParam}`}>
+                {card}
+              </Link>
+            );
+          }
+          
+          return <div key={index}>{card}</div>;
         })}
-      </div>
-
-      {/* Quick Links */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <a
-          href="/admin/organizations"
-          className="bg-card border border-border rounded-lg p-6 hover:border-primary transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-2">Organizations</h3>
-          <p className="text-sm text-muted-foreground">View usage analytics and plan information</p>
-        </a>
-        <a
-          href="/admin/automations"
-          className="bg-card border border-border rounded-lg p-6 hover:border-primary transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-2">Manage Automations</h3>
-          <p className="text-sm text-muted-foreground">View and manage all automations across organizations</p>
-        </a>
-        <a
-          href="/admin/executions"
-          className="bg-card border border-border rounded-lg p-6 hover:border-primary transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-2">Execution Logs</h3>
-          <p className="text-sm text-muted-foreground">Monitor automation executions and debug issues</p>
-        </a>
-        <a
-          href="/admin/integrations"
-          className="bg-card border border-border rounded-lg p-6 hover:border-primary transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-foreground mb-2">Integrations Status</h3>
-          <p className="text-sm text-muted-foreground">View integration status across all organizations</p>
-        </a>
       </div>
     </div>
   );

@@ -63,6 +63,12 @@ export function AdminSidebar({ onCollapseChange }: AdminSidebarProps) {
           icon: Users,
           href: "/admin/users",
           description: "User accounts & plan upgrades"
+        },
+        {
+          label: "Plans Management",
+          icon: CreditCard,
+          href: "/admin/plans",
+          description: "Create & manage plans"
         }
       ]
     },
@@ -105,32 +111,9 @@ export function AdminSidebar({ onCollapseChange }: AdminSidebarProps) {
         },
         {
           label: "Billing Overview",
-          icon: CreditCard,
+          icon: TrendingUp,
           href: "/admin/billing",
           description: "Revenue & subscriptions"
-        }
-      ]
-    },
-    {
-      title: "System",
-      items: [
-        {
-          label: "System Settings",
-          icon: Settings,
-          href: "/admin/settings",
-          description: "Platform configuration"
-        },
-        {
-          label: "Audit Logs",
-          icon: FileText,
-          href: "/admin/audit",
-          description: "System activity logs"
-        },
-        {
-          label: "Alerts & Notifications",
-          icon: AlertCircle,
-          href: "/admin/alerts",
-          description: "System alerts"
         }
       ]
     }

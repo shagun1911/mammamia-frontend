@@ -15,7 +15,7 @@ import { UserMenu } from "@/components/layout/UserMenu";
 export default function ProfilePage() {
   const { getSidebarWidth } = useSidebar();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"account" | "billing" | "security">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "security">("account");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
@@ -96,7 +96,6 @@ export default function ProfilePage() {
 
   const tabs = [
     { id: "account", label: "Account" },
-    { id: "billing", label: "Billing" },
     { id: "security", label: "Security" },
   ];
 
@@ -253,147 +252,7 @@ export default function ProfilePage() {
         )}
 
           {/* Billing Tab */}
-          {activeTab === "billing" && (
-            <div className="space-y-6">
-              {/* Current Plan */}
-              <div className="bg-gradient-to-br from-primary via-primary/90 to-primary/80 rounded-xl p-8 shadow-xl hover:shadow-2xl transition-shadow">
-              <h2 className="text-2xl font-bold text-foreground mb-2">
-                {currentPlan.name}
-              </h2>
-              <p className="text-3xl font-bold text-foreground mb-6">
-                ${currentPlan.price}
-                <span className="text-lg font-normal text-indigo-100">
-                  /{currentPlan.interval}
-                </span>
-              </p>
-              <ul className="space-y-2">
-                {currentPlan.features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2 text-foreground">
-                    <Check className="w-4 h-4 shrink-0" />
-                    <span className="text-sm">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
 
-              {/* Usage Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {usageStats.map((stat, index) => {
-                  const percentage = (stat.value / stat.limit) * 100;
-                  return (
-                    <div
-                      key={index}
-                      className="bg-card border border-border rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow"
-                    >
-                    <p className="text-[13px] text-muted-foreground mb-1">
-                      {stat.label}
-                    </p>
-                    <p className="text-2xl font-bold text-foreground mb-3">
-                      {stat.value.toLocaleString()}
-                    </p>
-                    <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      of {stat.limit.toLocaleString()} {stat.unit}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-              {/* Payment Method */}
-              <div className="bg-card border border-border rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
-                Payment Method
-              </h3>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center">
-                    <CreditCard className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {paymentMethod.brand} •••• {paymentMethod.last4}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Expires {paymentMethod.expiryMonth}/{paymentMethod.expiryYear}
-                    </p>
-                  </div>
-                </div>
-                <button className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:shadow-lg shadow-md transition-all cursor-pointer">
-                  Update
-                </button>
-              </div>
-            </div>
-
-              {/* Invoice History */}
-              <div className="bg-card border border-border rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-              <div className="p-6 border-b border-border">
-                <h3 className="text-lg font-semibold text-foreground">
-                  Invoice History
-                </h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-secondary">
-                      <th className="px-6 py-3 text-left text-[13px] font-semibold text-muted-foreground uppercase">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-[13px] font-semibold text-muted-foreground uppercase">
-                        Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-[13px] font-semibold text-muted-foreground uppercase">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-right text-[13px] font-semibold text-muted-foreground uppercase">
-                        Invoice
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoices.map((invoice) => (
-                      <tr
-                        key={invoice.id}
-                        className="border-b border-border hover:bg-secondary transition-colors"
-                      >
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          {new Date(invoice.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-foreground">
-                          ${invoice.amount}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2.5 py-1 rounded-xl text-xs font-medium ${
-                              invoice.status === "paid"
-                                ? "bg-green-500/20 text-green-400"
-                                : invoice.status === "pending"
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-red-500/20 text-red-400"
-                            }`}
-                          >
-                            {invoice.status.charAt(0).toUpperCase() +
-                              invoice.status.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button className="text-primary hover:text-primary/80 transition-colors cursor-pointer hover:scale-110">
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
 
           {/* Security Tab */}
           {activeTab === "security" && (

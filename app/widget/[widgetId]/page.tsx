@@ -89,37 +89,16 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
   // Save conversation to database
   const saveConversation = async (userName: string, message: string, response: string) => {
     try {
-      // CRITICAL: Get organizationId from localStorage user data (widget is public, no auth)
-      // widgetId is typically the userId, which we can use to find organizationId
-      let organizationId: string | undefined;
-      try {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-          organizationId = user.organizationId || user.id; // Fallback to user.id if no orgId
-        }
-      } catch (e) {
-        console.warn('[Widget] Could not parse user from localStorage:', e);
-      }
-      
       const payload = {
         name: userName,
         threadId: threadId,
         collection: selectedCollection,
-        widgetId: params.widgetId, // Pass widgetId to map to organizationId
-        organizationId: organizationId, // Pass organizationId if available
+        widgetId: params.widgetId, // Pass widgetId to get organizationId
         messages: [
           { role: 'user', content: message, timestamp: new Date() },
           { role: 'bot', content: response, timestamp: new Date() }
         ]
       };
-      
-      console.log('[Widget] Saving conversation:', {
-        name: userName,
-        widgetId: params.widgetId,
-        organizationId: organizationId,
-        messageCount: payload.messages.length
-      });
 
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
       const res = await fetch(`${API_URL}/conversations/widget`, {
