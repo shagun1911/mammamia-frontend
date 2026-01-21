@@ -44,11 +44,11 @@ function AuthCallbackContent() {
           .then((data) => {
             if (data.success && data.data) {
               localStorage.setItem("user", JSON.stringify(data.data));
-              toast.success("Login successful! Welcome.");
               
               // STRICT: Only redirect to admin if role === 'admin' in database
               console.log('[OAuth Callback] User logged in:', { email: data.data.email, role: data.data.role });
               
+              // Redirect immediately without showing toast (toast will show on the destination page if needed)
               if (data.data.role === 'admin') {
                 console.log('[OAuth Callback] Admin user, redirecting to /admin');
                 router.replace("/admin");
@@ -56,6 +56,9 @@ function AuthCallbackContent() {
                 console.log('[OAuth Callback] Normal user, redirecting to /conversations');
                 router.replace("/conversations");
               }
+              
+              // Show toast after redirect (this will be handled by the destination page)
+              toast.success("Login successful! Welcome.");
             } else {
               throw new Error("Failed to fetch user data");
             }

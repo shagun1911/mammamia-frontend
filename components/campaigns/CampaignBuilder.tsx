@@ -239,7 +239,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         )}
 
         {step === 2 && (
-          <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+          <div className="space-y-6 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
             <h3 className="text-base font-semibold text-white mb-4">
               Select Communication Channels
             </h3>
@@ -412,8 +412,8 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         )}
       </div>
 
-      {/* Bottom actions */}
-      <div className="flex justify-between mt-6">
+      {/* Bottom actions - sticky to ensure visibility */}
+      <div className="flex justify-between mt-6 sticky bottom-0 bg-background pt-4 pb-2 border-t border-border">
         <button
           onClick={step === 1 ? onClose : handleBack}
           className="px-6 py-3 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
