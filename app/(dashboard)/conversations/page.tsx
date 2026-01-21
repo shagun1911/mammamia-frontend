@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
-import { MessageSquare, Activity } from "lucide-react";
+import { MessageSquare, Activity, MessageCircle, Phone, Instagram, Facebook, Hash } from "lucide-react";
 
 export default function ConversationsPage() {
   const { getSidebarWidth } = useSidebar();
@@ -225,30 +225,106 @@ export default function ConversationsPage() {
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
       {/* Enhanced Professional Navbar */}
-      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
-            <MessageSquare className="w-6 h-6 text-white" />
+      <div className="h-auto px-8 py-4 flex flex-col gap-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+              <MessageSquare className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                Conversations
+                <Activity className="w-5 h-5 text-primary" />
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Manage and respond to customer conversations</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              Conversations
-              <Activity className="w-5 h-5 text-primary" />
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Manage and respond to customer conversations</p>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <UserMenu />
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <UserMenu />
+
+        {/* Platform Toggle Buttons */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Platform:</span>
+          <div className="flex items-center gap-2 bg-secondary/50 p-1 rounded-lg border border-border">
+            <button
+              onClick={() => setFilter("all")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === "all"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <Hash className="w-4 h-4" />
+              <span>All</span>
+            </button>
+            <div className="w-px h-6 bg-border" />
+            <button
+              onClick={() => setFilter("channel:website")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === "channel:website"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Chatbot</span>
+            </button>
+            <button
+              onClick={() => setFilter("channel:whatsapp")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === "channel:whatsapp"
+                  ? "bg-green-500 text-white shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>WhatsApp</span>
+            </button>
+            <button
+              onClick={() => setFilter("channel:instagram")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === "channel:instagram"
+                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <Instagram className="w-4 h-4" />
+              <span>Instagram</span>
+            </button>
+            <button
+              onClick={() => setFilter("channel:facebook")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === "channel:facebook"
+                  ? "bg-blue-600 text-white shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <Facebook className="w-4 h-4" />
+              <span>Facebook</span>
+            </button>
+            <button
+              onClick={() => setFilter("channel:phone")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === "channel:phone"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              }`}
+            >
+              <Phone className="w-4 h-4" />
+              <span>Phone</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Column 1 - Filters */}
-        <ConversationFilters onFilterChange={setFilter} />
+        <ConversationFilters onFilterChange={setFilter} selectedFilter={filter} />
 
         {/* Column 2 - Conversation List */}
         {conversations.length === 0 ? (

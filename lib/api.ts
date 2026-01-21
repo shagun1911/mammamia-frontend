@@ -3,7 +3,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 // API URL Configuration
 // IMPORTANT: Set NEXT_PUBLIC_API_URL in Vercel environment variables
 // Development: http://localhost:5001/api/v1
-// Production: https://kepleroai-backend-v1.onrender.com/api/v1
+// Production: https://aistein-backend-v1.onrender.com/api/v1
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
 
 console.log('🔧 API Client initialized with URL:', API_URL);

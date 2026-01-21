@@ -1,6 +1,6 @@
 "use client";
 
-import { HelpCircle, TrendingUp, TrendingDown, MessageSquare, CheckCircle, RotateCcw, XCircle, Link2, UserCheck } from "lucide-react";
+import { HelpCircle, TrendingUp, TrendingDown, MessageSquare, CheckCircle, RotateCcw, XCircle, Link2, UserCheck, Activity } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,8 @@ const metricIcons: Record<string, React.ElementType> = {
   "Wrong Answers": XCircle,
   "Links Clicked": Link2,
   "Conversations Closed by Operators": UserCheck,
+  "Call Minutes Used": Activity,
+  "Chat Conversations Done": MessageSquare,
 };
 
 const metricColors: Record<string, { gradient: string; stroke: string; bg: string; iconColor: string }> = {
@@ -57,6 +59,18 @@ const metricColors: Record<string, { gradient: string; stroke: string; bg: strin
     stroke: "#6366f1",
     bg: "from-indigo-500/10 to-violet-500/5",
     iconColor: "#6366f1",
+  },
+  "Call Minutes Used": {
+    gradient: "from-teal-500 to-cyan-500",
+    stroke: "#14b8a6",
+    bg: "from-teal-500/10 to-cyan-500/5",
+    iconColor: "#14b8a6",
+  },
+  "Chat Conversations Done": {
+    gradient: "from-blue-500 to-indigo-500",
+    stroke: "#3b82f6",
+    bg: "from-blue-500/10 to-indigo-500/5",
+    iconColor: "#3b82f6",
   },
 };
 
@@ -98,26 +112,34 @@ export function MetricCard({ name, value, change, data, isNegativeGood = false }
       </div>
 
       {/* Enhanced Mini chart */}
-      <div className="flex-1 mt-auto -mx-2 -mb-2">
-        <ResponsiveContainer width="100%" height={70}>
-          <AreaChart data={data}>
-            <defs>
-              <linearGradient id={`gradient-${name.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={colors.stroke} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={colors.stroke} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={colors.stroke}
-              strokeWidth={2.5}
-              fill={`url(#gradient-${name.replace(/\s+/g, '-')})`}
-              dot={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+      {data && data.length > 0 ? (
+        <div className="flex-1 mt-auto -mx-2 -mb-2">
+          <ResponsiveContainer width="100%" height={70}>
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id={`gradient-${name.replace(/\s+/g, '-')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={colors.stroke} stopOpacity={0.4} />
+                  <stop offset="100%" stopColor={colors.stroke} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke={colors.stroke}
+                strokeWidth={2.5}
+                fill={`url(#gradient-${name.replace(/\s+/g, '-')})`}
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="flex-1 mt-auto -mx-2 -mb-2 h-[70px] flex items-center justify-center">
+          <div className="w-full h-full bg-secondary/30 rounded-lg flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">No data</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

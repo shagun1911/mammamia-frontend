@@ -27,12 +27,15 @@ import { toast } from "@/lib/toast";
 
 interface ConversationFiltersProps {
   onFilterChange?: (filter: string) => void;
+  selectedFilter?: string;
 }
 
 export function ConversationFilters({
   onFilterChange,
+  selectedFilter: externalFilter,
 }: ConversationFiltersProps) {
-  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [internalFilter, setInternalFilter] = useState("all");
+  const selectedFilter = externalFilter !== undefined ? externalFilter : internalFilter;
   const [colleaguesExpanded, setColleaguesExpanded] = useState(false);
   const [foldersExpanded, setFoldersExpanded] = useState(true);
   const [channelsExpanded, setChannelsExpanded] = useState(true);
@@ -44,7 +47,9 @@ export function ConversationFilters({
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null);
 
   const handleFilterSelect = (filter: string) => {
-    setSelectedFilter(filter);
+    if (externalFilter === undefined) {
+      setInternalFilter(filter);
+    }
     onFilterChange?.(filter);
   };
 

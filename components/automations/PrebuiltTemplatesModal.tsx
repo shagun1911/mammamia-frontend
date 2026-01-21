@@ -144,7 +144,7 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       keplero_google_sheet_append_row: "Add to Google Sheets",
       keplero_google_gmail_send: "Send Gmail",
     };
-    return nameMap[service] || service.replace(/keplero_/g, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    return nameMap[service] || service.replace(/aistein_/g, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const handleUseTemplate = async (template: AutomationTemplate) => {

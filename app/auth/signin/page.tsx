@@ -22,7 +22,22 @@ export default function SignInPage() {
     // Only redirect if already authenticated on initial page load
     // This prevents interference with the explicit redirect in handleSubmit
     if (!loading && isAuthenticated && !email && !password) {
-      router.replace("/conversations");
+      // Check user role and redirect accordingly
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const user = JSON.parse(storedUser);
+          if (user.role === 'admin') {
+            router.replace("/admin");
+          } else {
+            router.replace("/conversations");
+          }
+        } catch {
+          router.replace("/conversations");
+        }
+      } else {
+        router.replace("/conversations");
+      }
     }
   }, [isAuthenticated, loading, router, email, password]);
 
@@ -31,10 +46,19 @@ export default function SignInPage() {
     setError("");
 
     try {
-      await login(email, password);
+      const loggedInUser = await login(email, password);
       toast.success("Login successful! Welcome back.");
-      // Redirect to dashboard after successful login (use replace to prevent back button issues)
-      router.replace("/conversations");
+      
+      // STRICT: Only redirect to admin if role === 'admin' in database
+      console.log('[SignIn] User logged in:', { email: loggedInUser?.email, role: loggedInUser?.role });
+      
+      if (loggedInUser?.role === 'admin') {
+        console.log('[SignIn] Admin user detected, redirecting to /admin');
+        router.replace("/admin");
+      } else {
+        console.log('[SignIn] Normal user detected, redirecting to /conversations');
+        router.replace("/conversations");
+      }
     } catch (err: any) {
       const errorMessage = err.message || "Invalid email or password";
       setError(errorMessage);

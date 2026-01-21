@@ -12,6 +12,9 @@ export interface DashboardMetrics {
   totalConversations: number;
   activeConversations: number;
   closedConversations: number;
+  reopenedConversations: number;
+  wrongAnswers: number;
+  linksClicked: number;
   aiManaged: number;
   humanManaged: number;
   avgResponseTime: number;
@@ -19,6 +22,8 @@ export interface DashboardMetrics {
   messagesToday: number;
   conversationsByChannel: Record<string, number>;
   conversationsByStatus: Record<string, number>;
+  totalCallMinutes: number;
+  totalChatConversations: number;
 }
 
 export interface TrendsData {
@@ -26,6 +31,7 @@ export interface TrendsData {
   messagesSent: Array<{ period: string; count: number }>;
   responseTimes: Array<{ period: string; avgResponseTime: number }>;
   resolutionRates: Array<{ period: string; resolutionRate: number }>;
+  callMinutes: Array<{ period: string; minutes: number }>;
 }
 
 export interface PerformanceMetrics {
@@ -59,7 +65,10 @@ class AnalyticsService {
       const response: any = await apiClient.get('/analytics/dashboard', {
         params: filters,
       });
-      return response.data;
+      // Handle successResponse wrapper
+      const data = response.data?.data || response.data;
+      console.log('[Analytics] Dashboard metrics received:', data);
+      return data;
     } catch (error: any) {
       console.error('Error fetching dashboard metrics:', error);
       throw new Error(error.message || 'Failed to fetch dashboard metrics');
@@ -74,7 +83,10 @@ class AnalyticsService {
       const response: any = await apiClient.get('/analytics/trends', {
         params: filters,
       });
-      return response.data;
+      // Handle successResponse wrapper
+      const data = response.data?.data || response.data;
+      console.log('[Analytics] Trends data received:', data);
+      return data;
     } catch (error: any) {
       console.error('Error fetching conversation trends:', error);
       throw new Error(error.message || 'Failed to fetch conversation trends');
@@ -108,6 +120,24 @@ class AnalyticsService {
     } catch (error: any) {
       console.error('Error fetching topics:', error);
       throw new Error(error.message || 'Failed to fetch topics');
+    }
+  }
+
+  /**
+   * Get top topics for analytics
+   */
+  async getTopTopics(filters?: AnalyticsFilters & { limit?: number }) {
+    try {
+      const response: any = await apiClient.get('/analytics/topics/top', {
+        params: filters,
+      });
+      // Handle successResponse wrapper
+      const data = response.data?.data || response.data;
+      console.log('[Analytics] Top topics received:', data);
+      return { data };
+    } catch (error: any) {
+      console.error('Error fetching top topics:', error);
+      throw new Error(error.message || 'Failed to fetch top topics');
     }
   }
 

@@ -9,7 +9,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Login user
    */
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<User> => {
     try {
       setLoading(true);
       const user = await authService.login({ email, password });
@@ -123,7 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       //   console.warn('WebSocket connection failed (non-critical):', error);
       // }
 
-      // Note: Redirect is handled by the calling component
+      // Return user for redirect logic
+      return user;
     } catch (error: any) {
       throw error;
     } finally {
