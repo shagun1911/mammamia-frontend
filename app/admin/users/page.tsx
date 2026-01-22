@@ -46,14 +46,13 @@ export default function AdminUsersPage() {
   // Assign plan mutation
   const assignPlanMutation = useMutation({
     mutationFn: ({ organizationId, planId }: { organizationId: string; planId: string }) => {
-      console.log('Mutation function called with:', { organizationId, planId });
+      console.log('✅ Assigning plan to user:', { userId: organizationId, planId });
       return planService.assignPlanToOrganization(organizationId, planId);
     },
     onSuccess: (data) => {
-      console.log('Plan assigned successfully:', data);
-      toast.success('Plan assigned successfully! All users updated.');
+      console.log('✅ Plan assigned successfully:', data);
+      toast.success('✅ Plan updated for this user only!');
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
       setShowUpgradeModal(false);
       setSelectedUser(null);
       setSelectedPlanId("");
@@ -77,12 +76,6 @@ export default function AdminUsersPage() {
   });
 
   const handleAssignPlan = () => {
-    console.log('Attempting to assign plan...');
-    console.log('Selected User:', selectedUser);
-    console.log('Organization ID:', selectedUser?.organization?._id);
-    console.log('User ID:', selectedUser?._id);
-    console.log('Selected Plan ID:', selectedPlanId);
-    
     if (!selectedUser) {
       toast.error('No user selected');
       return;
@@ -93,16 +86,15 @@ export default function AdminUsersPage() {
       return;
     }
     
-    // Use organization ID if available, otherwise use user ID (backend will create org)
-    const targetId = selectedUser.organization?._id || selectedUser._id;
-    
-    console.log('Sending mutation with:', {
-      organizationId: targetId,
+    // Use user ID directly (user-based system)
+    console.log('✅ Assigning plan:', {
+      userId: selectedUser._id,
+      userEmail: selectedUser.email,
       planId: selectedPlanId
     });
     
     assignPlanMutation.mutate({
-      organizationId: targetId,
+      organizationId: selectedUser._id, // Backend expects this param name
       planId: selectedPlanId
     });
   };
@@ -183,7 +175,6 @@ export default function AdminUsersPage() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">User</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Current Plan</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Organization</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-foreground uppercase">Actions</th>
                 </tr>
               </thead>
@@ -192,35 +183,33 @@ export default function AdminUsersPage() {
                   return (
                     <tr key={user._id} className="hover:bg-secondary/50">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-foreground">{user.firstName} {user.lastName}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          <span className="capitalize">{user.role}</span> • <span className="capitalize">{user.status}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <User className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">{user.firstName} {user.lastName}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                            <div className="flex gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded capitalize">{user.role}</span>
+                              <span className={cn(
+                                "text-xs px-2 py-0.5 rounded capitalize",
+                                user.status === 'active' ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-gray-500/10 text-gray-600 dark:text-gray-400"
+                              )}>{user.status}</span>
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        {user.organization?.plan ? (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/20 rounded-lg">
+                        {user.selectedProfile ? (
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-lg shadow-sm">
                             <CreditCard className="w-4 h-4 text-primary" />
-                            <span className="text-sm font-medium text-primary capitalize">{user.organization.plan}</span>
+                            <span className="text-sm font-semibold text-primary capitalize">{user.selectedProfile}</span>
                           </div>
                         ) : (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-500/10 border border-gray-500/20 rounded-lg">
+                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-500/10 border border-gray-500/20 rounded-lg">
                             <CreditCard className="w-4 h-4 text-gray-500" />
                             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Free</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {user.organization ? (
-                          <div>
-                            <div className="text-sm font-medium text-foreground">{user.organization.name}</div>
-                            <div className="text-xs text-muted-foreground capitalize">{user.organization.status}</div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="text-sm text-muted-foreground">No organization</div>
-                            <div className="text-xs text-yellow-600 dark:text-yellow-500">Will be created on plan assignment</div>
                           </div>
                         )}
                       </td>
@@ -231,10 +220,10 @@ export default function AdminUsersPage() {
                             setSelectedPlanId("");
                             setShowUpgradeModal(true);
                           }}
-                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 rounded-lg transition-all shadow-md hover:shadow-lg"
                         >
                           <CreditCard className="w-4 h-4" />
-                          {user.organization?.plan ? 'Change Plan' : 'Assign Plan'}
+                          {user.selectedProfile ? 'Change Plan' : 'Assign Plan'}
                         </button>
                       </td>
                     </tr>
@@ -256,14 +245,10 @@ export default function AdminUsersPage() {
                 <div>
                   <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
                     <CreditCard className="w-6 h-6 text-primary" />
-                    {selectedUser.organization ? 'Change Billing Plan' : 'Assign Billing Plan'}
+                    {selectedUser.selectedProfile ? 'Change Plan' : 'Assign Plan'}
                   </h2>
                   <p className="text-muted-foreground mt-1">
-                    {selectedUser.organization ? (
-                      <>Change plan for <span className="font-medium text-foreground">{selectedUser.email}</span></>
-                    ) : (
-                      <>Assign plan for <span className="font-medium text-foreground">{selectedUser.email}</span> (organization will be created)</>
-                    )}
+                    Update billing plan for <span className="font-medium text-foreground">{selectedUser.firstName} {selectedUser.lastName}</span> ({selectedUser.email})
                   </p>
                 </div>
                 <button
@@ -279,17 +264,17 @@ export default function AdminUsersPage() {
               {/* Current Plan */}
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Current Plan</h3>
-                <div className="bg-secondary/50 rounded-lg p-4 border border-border">
+                <div className="bg-gradient-to-r from-secondary/50 to-secondary/30 rounded-lg p-5 border border-border shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <div className="text-lg font-semibold text-foreground capitalize">
-                        {selectedUser.organization?.plan || 'Free'}
+                      <div className="text-xl font-bold text-foreground capitalize">
+                        {selectedUser.selectedProfile || 'Free'}
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
-                        Organization: {selectedUser.organization?.name}
+                        User: {selectedUser.firstName} {selectedUser.lastName}
                       </div>
                     </div>
-                    {!selectedUser.organization?.plan && (
+                    {!selectedUser.selectedProfile && (
                       <div className="px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                         <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">
                           No plan assigned
@@ -315,7 +300,7 @@ export default function AdminUsersPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {plans?.map((plan) => {
                     const isSelected = selectedPlanId === plan._id;
-                    const isCurrentPlan = selectedUser.organization?.plan === plan.slug;
+                    const isCurrentPlan = selectedUser.selectedProfile === plan.slug;
                     
                     return (
                       <button
@@ -404,9 +389,9 @@ export default function AdminUsersPage() {
                   </p>
                 </div>
               ) : (
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                    <strong>Note:</strong> Changing the plan will immediately update all users in this organization and apply new usage limits.
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                  <p className="text-sm text-blue-600 dark:text-blue-400">
+                    <strong>✓ Note:</strong> Changing the plan will update THIS USER ONLY and apply new usage limits immediately.
                   </p>
                 </div>
               )}

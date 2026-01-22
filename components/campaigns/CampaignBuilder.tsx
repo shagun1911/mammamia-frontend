@@ -196,24 +196,24 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         {step === 1 && (
           <div className="space-y-6">
             <div>
-              <label className="block text-base font-semibold text-white mb-3">
+              <label className="block text-base font-semibold text-foreground mb-3">
                 Campaign Name
               </label>
               <input
                 value={campaignName}
                 onChange={(e) => setCampaignName(e.target.value)}
                 placeholder="Enter campaign name"
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
             </div>
             <div>
-              <label className="block text-base font-semibold text-white mb-3">
+              <label className="block text-base font-semibold text-foreground mb-3">
                 Contact List
               </label>
               <select
                 value={contactList}
                 onChange={(e) => setContactList(e.target.value)}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 disabled={loadingLists}
               >
                 <option value="">Select list</option>
@@ -239,8 +239,8 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         )}
 
         {step === 2 && (
-          <div className="space-y-6 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
-            <h3 className="text-base font-semibold text-white mb-4">
+          <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+            <h3 className="text-base font-semibold text-foreground mb-4">
               Select Communication Channels
             </h3>
 
@@ -253,7 +253,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                   onChange={(e) => setEnableEmail(e.target.checked)}
                   className="w-5 h-5 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
                 />
-                <span className="text-base font-semibold text-white">Email</span>
+                <span className="text-base font-semibold text-foreground">Email</span>
               </label>
               {enableEmail && (
                 <div className="space-y-3">
@@ -265,7 +265,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                       value={emailSubject}
                       onChange={(e) => setEmailSubject(e.target.value)}
                       placeholder="Enter email subject..."
-                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                     />
                   </div>
                   <div>
@@ -277,7 +277,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                       onChange={(e) => setEmailBody(e.target.value)}
                       placeholder="Enter email body..."
                       rows={4}
-                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -302,7 +302,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                   onChange={(e) => setEnableCall(e.target.checked)}
                   className="w-5 h-5 rounded border-border text-primary focus:ring-primary focus:ring-offset-0"
                 />
-                <span className="text-base font-semibold text-white">Phone Call (AI Agent)</span>
+                <span className="text-base font-semibold text-foreground">Phone Call (AI Agent)</span>
               </label>
               {enableCall && (
                 <div className="space-y-3">
@@ -315,7 +315,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                       onChange={(e) => setCallPrompt(e.target.value)}
                       placeholder="Enter instructions for the AI agent..."
                       rows={4}
-                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -326,7 +326,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                       <select
                         value={callLanguage}
                         onChange={(e) => setCallLanguage(e.target.value)}
-                        className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                        className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                       >
                         <option value="en">English</option>
                         <option value="es">Spanish</option>
@@ -342,7 +342,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                       <select
                         value={callEmotion}
                         onChange={(e) => setCallEmotion(e.target.value)}
-                        className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-primary transition-colors"
+                        className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                       >
                         <option value="Calm">Calm</option>
                         <option value="Happy">Happy</option>
@@ -360,7 +360,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         {step === 3 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-xl font-semibold text-white mb-4">Review & Send Campaign</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-4">Review & Send Campaign</h3>
               <p className="text-sm text-muted-foreground mb-6">
                 Review your campaign details before sending. The campaign will be sent immediately to all contacts in the selected list.
               </p>
@@ -368,27 +368,27 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
 
             {/* Summary */}
             <div className="border border-border rounded-lg p-4 bg-secondary/30">
-              <h4 className="text-sm font-semibold text-white mb-3">Campaign Summary</h4>
+              <h4 className="text-sm font-semibold text-foreground mb-3">Campaign Summary</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Campaign Name:</span>
-                  <span className="text-white font-medium">{campaignName || "Not set"}</span>
+                  <span className="text-foreground font-medium">{campaignName || "Not set"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">List:</span>
-                  <span className="text-white">
+                  <span className="text-foreground">
                     {lists?.find((l: any) => (l.id || l._id) === contactList)?.name || "Not selected"}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Contacts:</span>
-                  <span className="text-white">
+                  <span className="text-foreground">
                     {lists?.find((l: any) => (l.id || l._id) === contactList)?.contactCount || 0}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Channels:</span>
-                  <span className="text-white">
+                  <span className="text-foreground">
                     {[enableCall && "Call", enableEmail && "Email"]
                       .filter(Boolean)
                       .join(", ") || "None selected"}
@@ -397,13 +397,13 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
                 {enableEmail && (
                   <div className="pt-2 border-t border-border mt-2">
                     <span className="text-muted-foreground">Email Subject:</span>
-                    <p className="text-white text-xs mt-1">{emailSubject}</p>
+                    <p className="text-foreground text-xs mt-1">{emailSubject}</p>
                   </div>
                 )}
                 {enableCall && (
                   <div className="pt-2 border-t border-border mt-2">
                     <span className="text-muted-foreground">AI Prompt:</span>
-                    <p className="text-white text-xs mt-1 bg-secondary p-2 rounded">{callPrompt}</p>
+                    <p className="text-foreground text-xs mt-1 bg-secondary p-2 rounded">{callPrompt}</p>
                   </div>
                 )}
               </div>
@@ -412,8 +412,8 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         )}
       </div>
 
-      {/* Bottom actions - sticky to ensure visibility */}
-      <div className="flex justify-between mt-6 sticky bottom-0 bg-background pt-4 pb-2 border-t border-border">
+      {/* Bottom actions */}
+      <div className="flex justify-between mt-6">
         <button
           onClick={step === 1 ? onClose : handleBack}
           className="px-6 py-3 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
@@ -427,14 +427,14 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
               (step === 1 && (!campaignName || !contactList)) ||
               (step === 2 && !enableEmail && !enableCall)
             }
-            className="px-6 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
         ) : (
           <button
             onClick={handleSave}
-            className="px-6 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
           >
             Start Campaign 🚀
           </button>

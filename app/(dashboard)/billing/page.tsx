@@ -31,12 +31,21 @@ interface OrganizationUsage {
 }
 
 interface BillingData {
-  organization: {
+  user: {
     _id: string;
-    name: string;
-    plan: string;
-    planId?: Plan;
-    status: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    selectedProfile: string;
+  };
+  plan?: Plan;
+  profile?: {
+    profileType: string;
+    chatConversationsLimit: number;
+    voiceMinutesLimit: number;
+    chatConversationsUsed: number;
+    voiceMinutesUsed: number;
+    automationsUsed: number;
   };
   usage: OrganizationUsage;
 }
@@ -45,14 +54,14 @@ export default function BillingPage() {
   const { user } = useAuth();
 
   const { data: billingData, isLoading } = useQuery<BillingData>({
-    queryKey: ['billing', user?.organizationId],
+    queryKey: ['user-billing', user?.id],
     queryFn: async () => {
       const response = await apiClient.get('/profile/billing');
       return response;
     },
-    enabled: !!user?.organizationId,
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time data
-    staleTime: 15000, // Consider data stale after 15 seconds
+    enabled: !!user?.id,
+    refetchInterval: 10000, // Refetch every 10 seconds for real-time data
+    staleTime: 5000, // Consider data stale after 5 seconds
   });
 
   if (isLoading) {
@@ -63,9 +72,10 @@ export default function BillingPage() {
     );
   }
 
-  const plan = billingData?.organization?.planId as Plan | undefined;
+  const plan = billingData?.plan;
   const usage = billingData?.usage;
-  const organization = billingData?.organization;
+  const profile = billingData?.profile;
+  const currentUser = billingData?.user;
 
   const getPercentage = (used: number, limit: number): number => {
     if (limit === -1) return 0; // Unlimited
@@ -94,11 +104,13 @@ export default function BillingPage() {
               <CreditCard className="w-6 h-6 text-primary" />
               <h2 className="text-2xl font-bold text-foreground">Current Plan</h2>
             </div>
-            <p className="text-muted-foreground">{organization?.name}</p>
+            <p className="text-muted-foreground">
+              {currentUser?.firstName} {currentUser?.lastName} ({currentUser?.email})
+            </p>
           </div>
           <div className="text-right">
             <div className="text-3xl font-bold text-primary capitalize">
-              {plan?.name || organization?.plan || 'Free'}
+              {plan?.name || currentUser?.selectedProfile || 'Free'}
             </div>
             <div className="text-sm text-muted-foreground">
               ${plan?.price || 0}/month
@@ -119,7 +131,7 @@ export default function BillingPage() {
                 <span className="text-xs text-muted-foreground">Call Minutes</span>
               </div>
               <div className="text-lg font-bold text-foreground">
-                {plan.features.callMinutes === -1 ? 'Unlimited' : plan.features.callMinutes}
+                {plan.features.callMinutes === -1 ? 'Unlimited' : (profile?.voiceMinutesLimit || plan.features.callMinutes)}
               </div>
             </div>
             <div className="bg-card/50 rounded-lg p-3">
@@ -128,7 +140,7 @@ export default function BillingPage() {
                 <span className="text-xs text-muted-foreground">Chats</span>
               </div>
               <div className="text-lg font-bold text-foreground">
-                {plan.features.chatConversations === -1 ? 'Unlimited' : plan.features.chatConversations}
+                {plan.features.chatConversations === -1 ? 'Unlimited' : (profile?.chatConversationsLimit || plan.features.chatConversations)}
               </div>
             </div>
             <div className="bg-card/50 rounded-lg p-3">
@@ -182,10 +194,10 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Call Minutes</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {usage?.callMinutes || 0} / {plan?.features.callMinutes === -1 ? '∞' : (plan?.features.callMinutes || 100)}
+                {profile?.voiceMinutesUsed || usage?.callMinutes || 0} / {plan?.features.callMinutes === -1 ? '∞' : (profile?.voiceMinutesLimit || plan?.features.callMinutes || 100)}
                 {plan?.features.callMinutes !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
-                    ({Math.max(0, (plan?.features.callMinutes || 0) - (usage?.callMinutes || 0))} left)
+                    ({Math.max(0, (profile?.voiceMinutesLimit || plan?.features.callMinutes || 0) - (profile?.voiceMinutesUsed || usage?.callMinutes || 0))} left)
                   </span>
                 )}
               </div>
@@ -221,10 +233,10 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Chat Messages</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {usage?.chatMessages || 0} / {plan?.features.chatConversations === -1 ? '∞' : (plan?.features.chatConversations || 100)}
+                {profile?.chatConversationsUsed || usage?.chatMessages || 0} / {plan?.features.chatConversations === -1 ? '∞' : (profile?.chatConversationsLimit || plan?.features.chatConversations || 100)}
                 {plan?.features.chatConversations !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
-                    ({Math.max(0, (plan?.features.chatConversations || 0) - (usage?.chatMessages || 0))} left)
+                    ({Math.max(0, (profile?.chatConversationsLimit || plan?.features.chatConversations || 0) - (profile?.chatConversationsUsed || usage?.chatMessages || 0))} left)
                   </span>
                 )}
               </div>
@@ -260,10 +272,10 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Active Automations</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {usage?.automations || 0} / {plan?.features.automations === -1 ? '∞' : (plan?.features.automations || 5)}
+                {profile?.automationsUsed || usage?.automations || 0} / {plan?.features.automations === -1 ? '∞' : (plan?.features.automations || 5)}
                 {plan?.features.automations !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
-                    ({Math.max(0, (plan?.features.automations || 0) - (usage?.automations || 0))} left)
+                    ({Math.max(0, (plan?.features.automations || 0) - (profile?.automationsUsed || usage?.automations || 0))} left)
                   </span>
                 )}
               </div>
@@ -301,7 +313,7 @@ export default function BillingPage() {
         </p>
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
-            Organization: <span className="font-medium text-foreground">{organization?.name}</span>
+            Contact your administrator to upgrade your plan
           </div>
           <a
             href="mailto:support@aistein.ai?subject=Plan%20Upgrade%20Request"
