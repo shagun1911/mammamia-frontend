@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Send, Minimize2, X, MessageCircle } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useParams } from "next/navigation";
 
 interface ChatMessage {
   id: string;
@@ -19,8 +19,28 @@ interface WidgetSettings {
   welcomeMessage: string;
 }
 
-export default function WidgetPage({ params }: { params: { widgetId: string } }) {
+export default function WidgetPage({ params }: { params?: { widgetId?: string } }) {
   const searchParams = useSearchParams();
+  const routeParams = useParams();
+  
+  // ========== CRITICAL: Resolve widgetId with fallback ==========
+  // In Next.js App Router, params might not be available immediately in client components
+  // Use useParams() hook as fallback for client components
+  const widgetId = params?.widgetId || (routeParams?.widgetId as string) || null;
+  
+  // ========== LOG PARAMS AT RENDER TIME ==========
+  console.log('[Widget Page] Render - params:', params);
+  console.log('[Widget Page] Render - routeParams:', routeParams);
+  console.log('[Widget Page] Render - resolved widgetId:', widgetId);
+  
+  // ========== FAIL FAST: Throw error if widgetId is missing ==========
+  if (!widgetId || widgetId === 'undefined') {
+    const error = new Error('widgetId missing from route params');
+    console.error('[Widget Page] ❌ CRITICAL ERROR:', error.message);
+    console.error('[Widget Page] params:', params);
+    console.error('[Widget Page] routeParams:', routeParams);
+    throw error;
+  }
   const [threadId] = useState(uuidv4());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -43,7 +63,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
     const fetchSettings = async () => {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-        const response = await fetch(`${API_URL}/settings/widget/${params.widgetId}`);
+        const response = await fetch(`${API_URL}/settings/widget/${widgetId}`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -60,7 +80,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
       }
     };
     fetchSettings();
-  }, [params.widgetId]);
+  }, [widgetId]);
 
   // Get collection from URL parameter (optional - backend will use Settings if not provided)
   useEffect(() => {
@@ -93,7 +113,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
         name: userName,
         threadId: threadId,
         collection: selectedCollection,
-        widgetId: params.widgetId, // Pass widgetId to get organizationId
+        widgetId: widgetId, // Pass widgetId to get organizationId
         messages: [
           { role: 'user', content: message, timestamp: new Date() },
           { role: 'bot', content: response, timestamp: new Date() }
@@ -158,7 +178,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
       sender: "user" as const,
       content: input,
       timestamp: new Date().toISOString(),
-    };
+    }; 
 
     setMessages((prev) => [...prev, userMessage]);
     const userQuery = input;
@@ -170,7 +190,7 @@ export default function WidgetPage({ params }: { params: { widgetId: string } })
 
       // Use backend chatbot endpoint which handles API keys, WooCommerce, and knowledge base settings
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-      const response = await fetch(`${API_URL}/chatbot/widget/${params.widgetId}/chat`, {
+      const response = await fetch(`${API_URL}/chatbot/widget/${widgetId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,12 +3,32 @@
 import { useState } from "react";
 import { Copy, Check, ExternalLink, Code } from "lucide-react";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 export function WidgetLinkGenerator() {
   const { collections, selectedCollection } = useKnowledgeBase();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
-  const [widgetId] = useState(() => `widget-${Date.now()}`);
+  
+  // CRITICAL: widgetId MUST be the logged-in user's MongoDB ObjectId
+  // Backend expects widgetId === userId (validated as 24-char hex ObjectId)
+  // User.id is the MongoDB ObjectId string
+  const widgetId = user?.id || null;
+
+  // CRITICAL: Validate widgetId is available (user must be logged in)
+  if (!widgetId) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-red-400 mb-2">Authentication Required</h3>
+          <p className="text-sm text-red-300">
+            You must be logged in to generate widget links. Please sign in to continue.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Generate widget URL with collection parameter
   const widgetUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/widget/${widgetId}${selectedCollection ? `?collection=${encodeURIComponent(selectedCollection)}` : ''}`;
@@ -18,7 +38,7 @@ export function WidgetLinkGenerator() {
 <script>
   window.KepleroAI = {
     widgetId: "${widgetId}",
-    collection: "${selectedCollection || 'default'}",
+    collection: "${selectedCollection || ''}",
     position: "bottom-right",
     primaryColor: "#6366f1"
   };

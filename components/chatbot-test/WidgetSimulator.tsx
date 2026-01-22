@@ -6,6 +6,7 @@ import { mockChatbotSettings } from "@/data/mockSettings";
 import { pythonRagService } from "@/services/pythonRag.service";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useSettings } from "@/hooks/useSettings";
+import { useAuth } from "@/contexts/AuthContext";
 import { v4 as uuidv4 } from "uuid";
 
 interface ChatMessage {
@@ -19,8 +20,13 @@ interface ChatMessage {
 export function WidgetSimulator() {
   const { collections, selectedCollection, setSelectedCollection, chatAgentPrompt, loadCollections } = useKnowledgeBase();
   const { data: dbSettings } = useSettings();
+  const { user } = useAuth();
   const [threadId] = useState(uuidv4());
   const [userName, setUserName] = useState("Test User");
+  
+  // CRITICAL: widgetId MUST be the logged-in user's MongoDB ObjectId
+  // Backend requires widgetId === userId (same as widget chat endpoint)
+  const widgetId = user?.id || null;
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -45,8 +51,15 @@ export function WidgetSimulator() {
 
   // Save conversation to backend
   const saveConversation = async (message: string, response: string) => {
+    // CRITICAL: widgetId is REQUIRED by backend
+    if (!widgetId) {
+      console.error('[WidgetSimulator] ❌ Cannot save conversation: widgetId is missing. User must be logged in.');
+      return;
+    }
+
     try {
       const payload = {
+        widgetId: widgetId, // REQUIRED: Backend uses this to resolve organizationId
         name: userName,
         threadId: threadId,
         collection: selectedCollection,
