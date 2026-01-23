@@ -46,6 +46,7 @@ interface BillingData {
     chatConversationsUsed: number;
     voiceMinutesUsed: number;
     automationsUsed: number;
+    automationsLimit: number;
   };
   usage: OrganizationUsage;
 }
@@ -97,7 +98,7 @@ export default function BillingPage() {
       </div>
 
       {/* Current Plan Card */}
-      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-xl p-6 mb-8">
+      <div className="bg-linear-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-xl p-6 mb-8">
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -149,7 +150,7 @@ export default function BillingPage() {
                 <span className="text-xs text-muted-foreground">Automations</span>
               </div>
               <div className="text-lg font-bold text-foreground">
-                {plan.features.automations === -1 ? 'Unlimited' : plan.features.automations}
+                {plan.features.automations === -1 ? 'Unlimited' : (profile?.automationsLimit || plan.features.automations)}
               </div>
             </div>
             <div className="bg-card/50 rounded-lg p-3">
@@ -169,7 +170,7 @@ export default function BillingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {plan.features.customFeatures.map((feature, idx) => (
                 <div key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                  <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+                  <Check className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
                   {feature}
                 </div>
               ))}
@@ -215,7 +216,7 @@ export default function BillingPage() {
                 </div>
                 {getPercentage(usage?.callMinutes || 0, plan?.features.callMinutes || 100) >= 90 && (
                   <div className="flex items-start gap-2 mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                     <p className="text-xs text-red-600 dark:text-red-400">
                       You're approaching your call minutes limit. Consider upgrading your plan.
                     </p>
@@ -254,7 +255,7 @@ export default function BillingPage() {
                 </div>
                 {getPercentage(usage?.chatMessages || 0, plan?.features.chatConversations || 100) >= 90 && (
                   <div className="flex items-start gap-2 mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                     <p className="text-xs text-red-600 dark:text-red-400">
                       You're approaching your chat conversations limit. Consider upgrading your plan.
                     </p>
@@ -272,10 +273,10 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Active Automations</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {profile?.automationsUsed || usage?.automations || 0} / {plan?.features.automations === -1 ? '∞' : (plan?.features.automations || 5)}
+                {(profile?.automationsUsed || usage?.automations || 0)} / {plan?.features.automations === -1 ? '∞' : (profile?.automationsLimit || plan?.features.automations || 5)}
                 {plan?.features.automations !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
-                    ({Math.max(0, (plan?.features.automations || 0) - (profile?.automationsUsed || usage?.automations || 0))} left)
+                    ({Math.max(0, (profile?.automationsLimit || plan?.features.automations || 0) - (profile?.automationsUsed || usage?.automations || 0))} left)
                   </span>
                 )}
               </div>
@@ -286,14 +287,14 @@ export default function BillingPage() {
                   <div
                     className={cn(
                       "h-2 rounded-full transition-all",
-                      getProgressColor(getPercentage(usage?.automations || 0, plan?.features.automations || 5))
+                      getProgressColor(getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 5)))
                     )}
-                    style={{ width: `${getPercentage(usage?.automations || 0, plan?.features.automations || 5)}%` }}
+                    style={{ width: `${getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 5))}%` }}
                   />
                 </div>
-                {getPercentage(usage?.automations || 0, plan?.features.automations || 5) >= 90 && (
+                {getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 5)) >= 90 && (
                   <div className="flex items-start gap-2 mt-2 p-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                     <p className="text-xs text-red-600 dark:text-red-400">
                       You're approaching your automations limit. Consider upgrading your plan.
                     </p>
@@ -306,7 +307,7 @@ export default function BillingPage() {
       </div>
 
       {/* Upgrade Plan Section */}
-      <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-xl p-6">
+      <div className="bg-linear-to-br from-primary/10 to-primary/5 border-2 border-primary/20 rounded-xl p-6">
         <h3 className="text-lg font-semibold text-foreground mb-2">Need More Resources?</h3>
         <p className="text-sm text-muted-foreground mb-4">
           Upgrade your plan to unlock more features, increase limits, and grow your business.

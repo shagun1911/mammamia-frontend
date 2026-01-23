@@ -3,6 +3,7 @@
 import { Message } from "@/data/mockConversations";
 import { cn } from "@/lib/utils";
 import { Paperclip, Download } from "lucide-react";
+import { useChatbotSettings } from "@/hooks/useChatbotSettings";
 
 interface MessageBubbleProps {
   message: Message & { attachments?: Array<{ type: string; url: string; filename: string; size: number }> };
@@ -15,6 +16,8 @@ export function MessageBubble({
   customerColor,
   customerAvatar,
 }: MessageBubbleProps) {
+  const { chatbotAvatar } = useChatbotSettings();
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const hours = date.getHours().toString().padStart(2, "0");
@@ -23,6 +26,7 @@ export function MessageBubble({
   };
 
   const isCustomer = message.sender === "customer";
+  const isAgent = message.sender === "agent";
 
   return (
     <div
@@ -40,7 +44,12 @@ export function MessageBubble({
           {customerAvatar}
         </div>
       )}
-
+      {/* Avatar for agent (assistant) messages */}
+      {isAgent && chatbotAvatar && (
+        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden">
+          <img src={chatbotAvatar} alt="Chatbot Avatar" className="w-full h-full object-cover" />
+        </div>
+      )}
       {/* Message content */}
       <div className={cn("flex flex-col", isCustomer ? "items-start" : "items-end", "max-w-[70%]")}>
         <div
