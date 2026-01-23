@@ -73,19 +73,20 @@ export default function PhoneSettingsDetailPage() {
   const [editLanguage, setEditLanguage] = useState("en");
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-
   // Update form state when settings load
   useEffect(() => {
     if (settings) {
-      setSelectedVoice(settings.selectedVoice);
+      setSelectedVoice(settings.selectedVoice || "adam");
       setCustomVoiceId(settings.customVoiceId || "");
       setVoiceType(settings.customVoiceId ? "custom" : "predefined");
-      setTwilioPhoneNumber(settings.twilioPhoneNumber);
-      setLivekitSipTrunkId(settings.livekitSipTrunkId);
+      setTwilioPhoneNumber(settings.twilioPhoneNumber || "");
+      setLivekitSipTrunkId(settings.livekitSipTrunkId || "");
       setTwilioTrunkSid(settings.twilioTrunkSid || "");
       setTerminationUri(settings.terminationUri || "");
       setOriginationUri(settings.originationUri || "");
-      setHumanOperatorPhone(settings.humanOperatorPhone);
+      setHumanOperatorPhone(settings.humanOperatorPhone || "");
+      setGreetingMessage(settings.greetingMessage || "Hello! How can I help you today?");
+      setLanguage(settings.language || "en");
     }
   }, [settings]);
 
@@ -98,30 +99,8 @@ export default function PhoneSettingsDetailPage() {
     }
   }, [aiBehavior]);
 
-  // Load greeting message and language from first inbound config
-  useEffect(() => {
-    if (inboundConfigs && inboundConfigs.length > 0) {
-      const firstConfig = inboundConfigs[0];
-      setGreetingMessage(firstConfig.greeting_message || "Hello! How can I help you today?");
-      setLanguage(firstConfig.language || "en");
-      console.log('📝 [Phone Settings] Loaded greeting message and language from first inbound config:', {
-        greeting_message: firstConfig.greeting_message,
-        language: firstConfig.language
-      });
-    }
-  }, [inboundConfigs]);
-
   const handleSaveSettings = async () => {
-    console.log('💾 [Phone Settings] ==========================================');
-    console.log('💾 [Phone Settings] SAVE SETTINGS CALLED');
-    console.log('📝 [Phone Settings] Greeting message:', greetingMessage);
-    console.log('🌍 [Phone Settings] Language:', language);
-    console.log('🎤 [Phone Settings] Selected voice:', selectedVoice);
-    console.log('💾 [Phone Settings] ==========================================');
-    
     try {
-      // Save phone settings (including greeting message for outbound calls)
-      console.log('📞 [Phone Settings] Step 1: Saving phone settings...');
       await updateSettings({
         selectedVoice,
         customVoiceId,
@@ -131,87 +110,35 @@ export default function PhoneSettingsDetailPage() {
         greetingMessage,
         language,
       });
-      console.log('✅ [Phone Settings] Phone settings saved (outbound-call-config updated)');
-
-      // Update greeting message and language for all inbound configs
+     
       if (inboundConfigs && inboundConfigs.length > 0) {
-        console.log(`📞 [Phone Settings] Step 2: Updating ${inboundConfigs.length} inbound configs`);
-        
-        const updatePromises = inboundConfigs.map(async (config) => {
-          console.log(`🔄 [Phone Settings] Updating config for ${config.calledNumber}`);
-          console.log(`📦 [Phone Settings] Update data:`, {
-            calledNumber: config.calledNumber,
-            greeting_message: greetingMessage,
-            language: language,
-          });
-          
-          try {
-            const result = await updateConfig.mutateAsync({
+        await Promise.all(
+          inboundConfigs.map((config) =>
+            updateConfig.mutateAsync({
               calledNumber: config.calledNumber,
               greeting_message: greetingMessage,
-              language: language,
-            });
-            console.log(`✅ [Phone Settings] Successfully updated ${config.calledNumber}`, result);
-            return { success: true, calledNumber: config.calledNumber };
-          } catch (error: any) {
-            console.error(`❌ [Phone Settings] Failed to update ${config.calledNumber}:`, error);
-            console.error(`📊 [Phone Settings] Error details:`, {
-              message: error.message,
-              response: error.response?.data
-            });
-            return { success: false, calledNumber: config.calledNumber, error: error.message };
-          }
-        });
-        
-        const results = await Promise.all(updatePromises);
-        
-        const successCount = results.filter(r => r.success).length;
-        const failCount = results.filter(r => !r.success).length;
-        
-        console.log('📊 [Phone Settings] Update results:', {
-          total: results.length,
-          success: successCount,
-          failed: failCount,
-          details: results
-        });
-        
-        if (successCount > 0) {
-          toast.success(`Greeting message saved! Updated in both outbound-call-config and ${successCount} inbound-agent-config(s)`);
-        }
-        
-        if (failCount > 0) {
-          toast.error(`Failed to update ${failCount} inbound config(s). Check console for details.`);
-        }
-        
-        // Refresh the configs to show updated values
-        console.log('🔄 [Phone Settings] Refreshing configs...');
-        await syncConfig.mutateAsync();
-        console.log('✅ [Phone Settings] Configs refreshed');
-        
-      } else {
-        console.warn('⚠️  [Phone Settings] No inbound configs found to update');
-        toast.success('Greeting message saved to outbound-call-config (phone settings)!');
+              language,
+            })
+          )
+        );
+        if (typeof syncConfig.mutateAsync === 'function') await syncConfig.mutateAsync();
       }
     } catch (error: any) {
-      console.error('❌ [Phone Settings] Save failed:', error);
       toast.error(error.message || 'Failed to save settings');
     }
   };
 
-  const handleSaveEscalationRules = () => {
-    if (!aiBehavior) return;
-
-    updateVoiceAgentHumanOperator.mutate({
-      escalationRules,
-    });
-  };
-
-  const handleSaveSystemPrompt = () => {
+  const handleSaveSystemPrompt = async () => {
     if (!systemPrompt.trim()) {
       toast.error("System prompt cannot be empty");
       return;
     }
-    updateVoiceAgentPrompt.mutate(systemPrompt);
+    try {
+      await updateVoiceAgentPrompt.mutateAsync(systemPrompt);
+
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save system prompt");
+    }
   };
 
   const handleDeleteOutboundNumber = async () => {
@@ -226,7 +153,7 @@ export default function PhoneSettingsDetailPage() {
         terminationUri: "",
         originationUri: "",
       });
-      toast.success("Outbound number deleted successfully");
+     
     } catch (error: any) {
       toast.error(error.message || "Failed to delete outbound number");
     }
@@ -238,7 +165,7 @@ export default function PhoneSettingsDetailPage() {
     }
     try {
       await deleteConfig.mutateAsync(phoneNumber);
-      toast.success(`Inbound number ${phoneNumber} deleted successfully`);
+      if (typeof syncConfig.mutateAsync === 'function') await syncConfig.mutateAsync();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete inbound number");
     }
@@ -293,36 +220,15 @@ export default function PhoneSettingsDetailPage() {
 
       console.log('✅ [SIP Trunk Setup] Full response received:');
       console.log(JSON.stringify(result, null, 2));
-      console.log('📊 [SIP Trunk Setup] Response fields:', {
-        status: result.status,
-        message: result.message,
-        livekit_trunk_id: result.livekit_trunk_id,
-        twilio_trunk_sid: result.twilio_trunk_sid,
-        termination_uri: result.termination_uri,
-        origination_uri: result.origination_uri,
-        credential_list_sid: result.credential_list_sid,
-        ip_acl_sid: result.ip_acl_sid,
-        username: result.username,
-        origination_uri_sid: result.origination_uri_sid
-      });
 
       // Auto-fill the form with returned values
-      console.log('💾 [SIP Trunk Setup] Setting form values...');
       setTwilioPhoneNumber(fullSetupPhone);
       setLivekitSipTrunkId(result.livekit_trunk_id);
       setTwilioTrunkSid(result.twilio_trunk_sid);
       setTerminationUri(result.termination_uri);
       setOriginationUri(result.origination_uri);
-      console.log('✅ [SIP Trunk Setup] Form values set:', {
-        twilioPhoneNumber: fullSetupPhone,
-        livekitSipTrunkId: result.livekit_trunk_id,
-        twilioTrunkSid: result.twilio_trunk_sid,
-        terminationUri: result.termination_uri,
-        originationUri: result.origination_uri
-      });
 
       // Save settings automatically
-      console.log('💾 [SIP Trunk Setup] Saving settings to database...');
       await updateSettings({
         selectedVoice,
         twilioPhoneNumber: fullSetupPhone,
@@ -332,33 +238,25 @@ export default function PhoneSettingsDetailPage() {
         originationUri: result.origination_uri,
         humanOperatorPhone,
       });
-      console.log('✅ [SIP Trunk Setup] Settings saved successfully');
 
       toast.success("SIP Trunk setup completed successfully!");
       setShowSetupMethods(false);
       setActiveSetupMethod(null);
-      
-      // Clear form
+
       setFullSetupLabel("");
       setFullSetupPhone("");
       setFullSetupTwilioSid("");
       setFullSetupTwilioToken("");
-      
-      console.log('🎉 [SIP Trunk Setup] Setup process completed!');
+
     } catch (error: any) {
       console.error('❌ [SIP Trunk Setup] Setup failed:', error);
-      console.error('📊 [SIP Trunk Setup] Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
       toast.error(error.message || "Failed to setup SIP trunk");
     } finally {
       setIsSettingUp(false);
     }
   };
 
-  // Inbound Setup - Step 1: Create Inbound Trunk
+  // Inbound Setup - Step 1
   const handleCreateInboundTrunk = async () => {
     if (!inboundName || !inboundPhoneNumbers) {
       toast.error("Please fill in all required fields");
@@ -367,373 +265,356 @@ export default function PhoneSettingsDetailPage() {
 
     setIsCreatingInbound(true);
     try {
-      const phoneNumbersArray = inboundPhoneNumbers.split(',').map(num => num.trim()).filter(Boolean);
-      
+      const phoneNumbersArray = inboundPhoneNumbers.split(',').map(n => n.trim()).filter(Boolean);
+
       const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
-      const url = `${API_URL}/calls/create-inbound-trunk`;
-      const requestBody = {
-        name: inboundName,
-        phone_numbers: phoneNumbersArray,
-        krisp_enabled: inboundKrispEnabled,
-      };
-
-      console.log('\n🚀 [Inbound Trunk] Creating inbound trunk...');
-      console.log('📍 [Inbound Trunk] URL:', url);
-      console.log('📦 [Inbound Trunk] Request Body:', JSON.stringify(requestBody, null, 2));
-
-      const response = await fetch(url, {
+      const response = await fetch(`${API_URL}/calls/create-inbound-trunk`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: inboundName,
+          phone_numbers: phoneNumbersArray,
+          krisp_enabled: inboundKrispEnabled,
+        }),
       });
 
-      console.log('📊 [Inbound Trunk] Response Status:', response.status, response.statusText);
-
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ [Inbound Trunk] Error Response:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.detail || 'Failed to create inbound trunk');
+        const err = await response.json();
+        throw new Error(err.detail || "Failed to create inbound trunk");
       }
 
       const data = await response.json();
-      console.log('✅ [Inbound Trunk] Response Body:', JSON.stringify(data, null, 2));
-      
-      // Store trunk info and move to step 2
       setInboundTrunkId(data.trunk_id);
       setInboundTrunkName(data.trunk_name);
       setInboundConnectedNumbers(data.phone_numbers);
       setInboundStep(2);
-      
-      toast.success('Inbound trunk created successfully!');
+
+      toast.success("Inbound trunk created successfully!");
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create inbound trunk');
-      console.error('❌ [Inbound Trunk] Error:', error);
+      toast.error(error.message);
     } finally {
       setIsCreatingInbound(false);
     }
   };
 
-  // Inbound Setup - Step 2: Create Dispatch Rule
+  // Inbound Setup - Step 2
   const handleCreateDispatchRule = async () => {
     if (!inboundTrunkId) {
-      toast.error("Trunk ID is missing");
+      toast.error("Trunk ID missing");
       return;
     }
 
     setIsCreatingInbound(true);
     try {
       const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
-      
-      // Build URL with query parameters
-      const queryParams = new URLSearchParams({
-        sip_trunk_id: inboundTrunkId,
-        name: inboundTrunkName,
-        agent_name: "inbound-agent",
-      });
-      const url = `${API_URL}/calls/create-dispatch-rule?${queryParams.toString()}`;
 
-      console.log('\n🚀 [Dispatch Rule] Creating dispatch rule...');
-      console.log('📍 [Dispatch Rule] URL:', url);
-      console.log('📦 [Dispatch Rule] Query Parameters:', {
+      const params = new URLSearchParams({
         sip_trunk_id: inboundTrunkId,
         name: inboundTrunkName,
         agent_name: "inbound-agent",
       });
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch(`${API_URL}/calls/create-dispatch-rule?${params}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
-
-      console.log('📊 [Dispatch Rule] Response Status:', response.status, response.statusText);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ [Dispatch Rule] Error Response:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.detail || 'Failed to create dispatch rule');
+        const err = await response.json();
+        throw new Error(err.detail || "Failed to create dispatch rule");
       }
 
       const data = await response.json();
-      console.log('✅ [Dispatch Rule] Response Body:', JSON.stringify(data, null, 2));
-      
-      // Save to database
-      console.log('💾 [Dispatch Rule] Saving to database...');
-      
-      // Merge with existing phone numbers instead of replacing
+
       const existingNumbers = settings?.inboundPhoneNumbers || [];
-      const newNumbers = inboundConnectedNumbers.filter(num => !existingNumbers.includes(num));
-      const allPhoneNumbers = [...existingNumbers, ...newNumbers];
-      
-      console.log('📞 [Dispatch Rule] Existing numbers:', existingNumbers);
-      console.log('📞 [Dispatch Rule] New numbers from trunk:', inboundConnectedNumbers);
-      console.log('📞 [Dispatch Rule] Numbers to add:', newNumbers);
-      console.log('📞 [Dispatch Rule] Combined numbers:', allPhoneNumbers);
-      
-      const updateData = {
-        inboundTrunkId: inboundTrunkId,
-        inboundTrunkName: inboundTrunkName,
+      const newNumbers = inboundConnectedNumbers.filter(n => !existingNumbers.includes(n));
+      const allNumbers = [...existingNumbers, ...newNumbers];
+
+      await updateSettings({
+        inboundTrunkId,
+        inboundTrunkName,
         inboundDispatchRuleId: data.dispatch_rule_id,
         inboundDispatchRuleName: data.dispatch_rule_name,
-        inboundPhoneNumbers: allPhoneNumbers,
-      };
-      console.log('💾 [Dispatch Rule] Update data:', JSON.stringify(updateData, null, 2));
-      
-      // Await the mutation to ensure it completes
-      try {
-        await updateSettings(updateData);
-        console.log('✅ [Dispatch Rule] Saved to database successfully');
-        console.log('ℹ️ [Dispatch Rule] Auto-sync will trigger from phoneSettings.service.ts');
-        
-        toast.success('Inbound setup completed successfully!');
-        setInboundStep(3); // Success screen
-        
-        // Refresh configs to show the synced data
-        setTimeout(() => {
-          console.log('🔄 [Dispatch Rule] Refreshing inbound agent configs display...');
-          syncConfig.mutate();
-        }, 2000);
-      } catch (dbError: any) {
-        console.error('❌ [Dispatch Rule] Database save error:', dbError);
-        toast.error('Dispatch rule created but failed to save settings: ' + (dbError.message || 'Unknown error'));
-      }
+        inboundPhoneNumbers: allNumbers,
+      });
+
+      // ✅ IMPORTANT FIX
+      await syncConfig.mutateAsync();
+
+      toast.success("Inbound setup completed successfully!");
+      setInboundStep(3);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create dispatch rule');
-      console.error('❌ [Dispatch Rule] Error:', error);
+      toast.error(error.message);
     } finally {
       setIsCreatingInbound(false);
     }
   };
+// Reset inbound setup
+const resetInboundSetup = () => {
+  setInboundStep(1);
+  setInboundName("");
+  setInboundPhoneNumbers("");
+  setInboundKrispEnabled(true);
+  setInboundTrunkId("");
+  setInboundTrunkName("");
+  setInboundConnectedNumbers([]);
+};
 
-  // Reset inbound setup
-  const resetInboundSetup = () => {
-    setInboundStep(1);
-    setInboundName("");
-    setInboundPhoneNumbers("");
-    setInboundKrispEnabled(true);
-    setInboundTrunkId("");
-    setInboundTrunkName("");
-    setInboundConnectedNumbers([]);
-  };
+// Handle edit config
+const handleEditConfig = (config: any) => {
+  console.log('🖊️ [Edit Config] Starting edit for config:', config._id);
+  console.log('📋 [Edit Config] Current values:', {
+    greeting_message: config.greeting_message,
+    language: config.language
+  });
 
-  // Handle edit config
-  const handleEditConfig = (config: any) => {
-    console.log('🖊️ [Edit Config] Starting edit for config:', config._id);
-    console.log('📋 [Edit Config] Current values:', {
-      greeting_message: config.greeting_message,
-      language: config.language
-    });
-    
-    setEditingConfigId(config._id);
-    setEditGreetingMessage(config.greeting_message || "Hello! How can I help you today?");
-    setEditLanguage(config.language || "en");
-  };
+  setEditingConfigId(config._id);
+  setEditGreetingMessage(
+    config.greeting_message || "Hello! How can I help you today?"
+  );
+  setEditLanguage(config.language || "en");
+};
 
-  // Handle cancel edit
-  const handleCancelEdit = () => {
-    console.log('❌ [Edit Config] Canceling edit');
+// Handle cancel edit
+const handleCancelEdit = () => {
+  console.log('❌ [Edit Config] Canceling edit');
+  setEditingConfigId(null);
+  setEditGreetingMessage("");
+  setEditLanguage("en");
+};
+
+// Handle save config
+const handleSaveConfig = async (config: any) => {
+  console.log('💾 [Save Config] ==========================================');
+  console.log('💾 [Save Config] SAVE CONFIG CALLED');
+  console.log('💾 [Save Config] Config ID:', config._id);
+  console.log('💾 [Save Config] Called Number:', config.calledNumber);
+  console.log('💾 [Save Config] New greeting message:', editGreetingMessage);
+  console.log('💾 [Save Config] New language:', editLanguage);
+  console.log('💾 [Save Config] ==========================================');
+
+  setIsSavingConfig(true);
+  try {
+    const updateData = {
+      calledNumber: config.calledNumber,
+      greeting_message: editGreetingMessage,
+      language: editLanguage,
+    };
+
+    console.log(
+      '📤 [Save Config] Sending update request with data:',
+      JSON.stringify(updateData, null, 2)
+    );
+
+    await updateConfig.mutateAsync(updateData);
+
+    console.log('✅ [Save Config] Config updated successfully');
+
+    toast.success('Configuration updated successfully');
     setEditingConfigId(null);
     setEditGreetingMessage("");
     setEditLanguage("en");
-  };
+  } catch (error: any) {
+    console.error('❌ [Save Config] Error updating config:', error);
+    console.error('📊 [Save Config] Error details:', {
+      message: error.message,
+      response: error.response?.data
+    });
+    toast.error(error.message || 'Failed to update configuration');
+  } finally {
+    setIsSavingConfig(false);
+  }
+};
 
-  // Handle save config
-  const handleSaveConfig = async (config: any) => {
-    console.log('💾 [Save Config] ==========================================');
-    console.log('💾 [Save Config] SAVE CONFIG CALLED');
-    console.log('💾 [Save Config] Config ID:', config._id);
-    console.log('💾 [Save Config] Called Number:', config.calledNumber);
-    console.log('💾 [Save Config] New greeting message:', editGreetingMessage);
-    console.log('💾 [Save Config] New language:', editLanguage);
-    console.log('💾 [Save Config] ==========================================');
-    
-    setIsSavingConfig(true);
-    try {
-      const updateData = {
-        calledNumber: config.calledNumber,
-        greeting_message: editGreetingMessage,
-        language: editLanguage,
-      };
-      
-      console.log('📤 [Save Config] Sending update request with data:', JSON.stringify(updateData, null, 2));
-      
-      await updateConfig.mutateAsync(updateData);
-      
-      console.log('✅ [Save Config] Config updated successfully');
-      
-      toast.success('Configuration updated successfully');
-      setEditingConfigId(null);
-      setEditGreetingMessage("");
-      setEditLanguage("en");
-    } catch (error: any) {
-      console.error('❌ [Save Config] Error updating config:', error);
-      console.error('📊 [Save Config] Error details:', {
-        message: error.message,
-        response: error.response?.data
-      });
-      toast.error(error.message || 'Failed to update configuration');
-    } finally {
-      setIsSavingConfig(false);
-    }
-  };
-
-  // Generic SIP Trunk Setup (Method 2)
-  const handleGenericSetup = async () => {
-    if (settings?.isConfigured && settings.twilioPhoneNumber) {
-      toast.error("Please delete the existing outbound number before adding a new one");
-      return;
-    }
-    if (!genericSetupLabel || !genericSetupPhone || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    setIsSettingUp(true);
-    try {
-      const result = await phoneSettingsService.createGenericSipTrunk({
-        label: genericSetupLabel,
-        phone_number: genericSetupPhone,
-        sip_address: genericSetupSipAddress,
-        username: genericSetupUsername,
-        password: genericSetupPassword,
-        transport: genericSetupTransport,
-      });
-
-      // Auto-fill the form with returned values
-      setTwilioPhoneNumber(result.phone_number);
-      setLivekitSipTrunkId(result.livekit_trunk_id);
-
-      // Save settings automatically
-      await updateSettings({
-        selectedVoice,
-        twilioPhoneNumber: result.phone_number,
-        livekitSipTrunkId: result.livekit_trunk_id,
-        humanOperatorPhone,
-      });
-
-      toast.success("Generic SIP Trunk created successfully!");
-      setShowSetupMethods(false);
-      setActiveSetupMethod(null);
-      
-      // Clear form
-      setGenericSetupLabel("");
-      setGenericSetupPhone("");
-      setGenericSetupSipAddress("");
-      setGenericSetupUsername("");
-      setGenericSetupPassword("");
-      setGenericSetupTransport("udp");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create Generic SIP trunk");
-      console.error("Setup error:", error);
-    } finally {
-      setIsSettingUp(false);
-    }
-  };
-
-
-  if (isLoading) {
-    return (
-      <div className="p-8">
-        <div className="animate-pulse">
-          <div className="h-8 w-48 bg-secondary rounded mb-6"></div>
-          <div className="h-64 bg-card rounded-xl"></div>
-        </div>
-      </div>
+// Generic SIP Trunk Setup (Method 2)
+const handleGenericSetup = async () => {
+  if (settings?.isConfigured && settings.twilioPhoneNumber) {
+    toast.error(
+      "Please delete the existing outbound number before adding a new one"
     );
+    return;
   }
 
+  if (
+    !genericSetupLabel ||
+    !genericSetupPhone ||
+    !genericSetupSipAddress ||
+    !genericSetupUsername ||
+    !genericSetupPassword
+  ) {
+    toast.error("Please fill in all required fields");
+    return;
+  }
+
+  setIsSettingUp(true);
+  try {
+    const result = await phoneSettingsService.createGenericSipTrunk({
+      label: genericSetupLabel,
+      phone_number: genericSetupPhone,
+      sip_address: genericSetupSipAddress,
+      username: genericSetupUsername,
+      password: genericSetupPassword,
+      transport: genericSetupTransport,
+    });
+
+    // Auto-fill the form with returned values
+    setTwilioPhoneNumber(result.phone_number);
+    setLivekitSipTrunkId(result.livekit_trunk_id);
+
+    // Save settings automatically
+    await updateSettings({
+      selectedVoice,
+      twilioPhoneNumber: result.phone_number,
+      livekitSipTrunkId: result.livekit_trunk_id,
+      humanOperatorPhone,
+    });
+
+    toast.success("Generic SIP Trunk created successfully!");
+    setShowSetupMethods(false);
+    setActiveSetupMethod(null);
+
+    // Clear form
+    setGenericSetupLabel("");
+    setGenericSetupPhone("");
+    setGenericSetupSipAddress("");
+    setGenericSetupUsername("");
+    setGenericSetupPassword("");
+    setGenericSetupTransport("udp");
+  } catch (error: any) {
+    toast.error(error.message || "Failed to create Generic SIP trunk");
+    console.error("Setup error:", error);
+  } finally {
+    setIsSettingUp(false);
+  }
+};
+
+const handleSaveEscalationRules = async () => {
+  try {
+    await updateVoiceAgentHumanOperator.mutateAsync({ escalationRules });
+    toast.success("Escalation rules saved successfully");
+  } catch (error: any) {
+    toast.error(error.message || "Failed to save escalation rules");
+  }
+};
+
+if (isLoading) {
   return (
-    <div className="h-full overflow-auto">
-      <div className="max-w-7xl mx-auto p-6">
-        {/* Small Header */}
-        <div className="mb-6 pb-4 border-b border-border">
-          <h2 className="text-xl font-semibold text-foreground">Phone Settings</h2>
-          <p className="text-sm text-muted-foreground mt-1">Configure AI-powered voice conversations with SIP providers and LiveKit</p>
-        </div>
-        {/* Small Header */}
-        <div className="mb-6 pb-4 border-b border-border">
-          <div className="flex items-center gap-4 mb-4">
-            <button
-              onClick={() => router.push("/configuration/phone")}
-              className="w-10 h-10 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-5 h-5 text-foreground" />
-            </button>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Phone Settings</h2>
-              <p className="text-sm text-muted-foreground mt-1">Configure your voice agent and phone integration</p>
-            </div>
+    <div className="p-8">
+      <div className="animate-pulse">
+        <div className="h-8 w-48 bg-secondary rounded mb-6"></div>
+        <div className="h-64 bg-card rounded-xl"></div>
+      </div>
+    </div>
+  );
+}
+
+return (
+  <div className="h-full overflow-auto">
+    <div className="max-w-7xl mx-auto p-6">
+      {/* Small Header */}
+      <div className="mb-6 pb-4 border-b border-border">
+        <h2 className="text-xl font-semibold text-foreground">
+          Phone Settings
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure AI-powered voice conversations with SIP providers and LiveKit
+        </p>
+      </div>
+
+      {/* Back Header */}
+      <div className="mb-6 pb-4 border-b border-border">
+        <div className="flex items-center gap-4 mb-4">
+          <button
+            onClick={() => router.push("/configuration/phone")}
+            className="w-10 h-10 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">
+              Phone Settings
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure your voice agent and phone integration
+            </p>
           </div>
         </div>
+      </div>
 
-        <div className="flex items-center justify-between mb-6">
-          <div></div>
+      {/* Connected Numbers Display */}
+      <div className="flex items-center gap-4 mb-6">
+        {settings?.isConfigured && settings.twilioPhoneNumber && (
+          <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2.5">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <div>
+              <div className="text-xs text-green-400 font-medium mb-0.5">
+                Outbound Number
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono text-foreground">
+                  {settings.twilioPhoneNumber}
+                </span>
+                <button
+                  onClick={handleCopyNumber}
+                  className="p-1 hover:bg-green-500/10 rounded transition-colors cursor-pointer"
+                  title="Copy number"
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                  )}
+                </button>
+                <button
+                  onClick={handleDeleteOutboundNumber}
+                  className="p-1 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-red-400 hover:text-red-500"
+                  title="Delete outbound number"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
-        {/* Connected Numbers Display */}
-        <div className="flex items-center gap-4">
-          {/* Outbound Number */}
-          {settings?.isConfigured && settings.twilioPhoneNumber && (
-            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-2.5">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <div>
-                <div className="text-xs text-green-400 font-medium mb-0.5">Outbound Number</div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-mono text-foreground">{settings.twilioPhoneNumber}</span>
+      {/* Inbound Numbers */}
+      {inboundConfigs && inboundConfigs.length > 0 && (
+        <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5">
+          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+          <div>
+            <div className="text-xs text-blue-400 font-medium mb-0.5">Inbound Numbers ({inboundConfigs.length})</div>
+            <div className="flex flex-wrap items-center gap-2">
+              {inboundConfigs.map((config) => (
+                <div key={config._id} className="flex items-center gap-1 bg-background/50 rounded px-2 py-1">
+                  <span className="text-xs font-mono text-foreground">{config.calledNumber}</span>
                   <button
-                    onClick={handleCopyNumber}
-                    className="p-1 hover:bg-green-500/10 rounded transition-colors cursor-pointer"
-                    title="Copy number"
+                    onClick={() => handleDeleteInboundNumber(config.calledNumber)}
+                    className="p-0.5 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-red-400 hover:text-red-500"
+                    title={`Delete ${config.calledNumber}`}
                   >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                    )}
-                  </button>
-                  <button
-                    onClick={handleDeleteOutboundNumber}
-                    className="p-1 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-red-400 hover:text-red-500"
-                    title="Delete outbound number"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
-              </div>
+              ))}
             </div>
-          )}
-
-          {/* Inbound Numbers */}
-          {inboundConfigs && inboundConfigs.length > 0 && (
-            <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-2.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-              <div>
-                <div className="text-xs text-blue-400 font-medium mb-0.5">Inbound Numbers ({inboundConfigs.length})</div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {inboundConfigs.map((config) => (
-                    <div key={config._id} className="flex items-center gap-1 bg-background/50 rounded px-2 py-1">
-                      <span className="text-xs font-mono text-foreground">{config.calledNumber}</span>
-                      <button
-                        onClick={() => handleDeleteInboundNumber(config.calledNumber)}
-                        className="p-0.5 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-red-400 hover:text-red-500"
-                        title={`Delete ${config.calledNumber}`}
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 bg-secondary rounded-lg p-1 mb-6 max-w-2xl">
@@ -1611,9 +1492,8 @@ export default function PhoneSettingsDetailPage() {
           </div>
         </div>
       )}
-
-      </div>
     </div>
-  );
+  </div>
+);
 }
 
