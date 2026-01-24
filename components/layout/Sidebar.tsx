@@ -105,7 +105,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-base font-bold text-sidebar-foreground leading-tight">IslandAI</span>
+              <span className="text-base font-bold text-sidebar-foreground leading-tight">Aistein.It</span>
             </div>
           )}
         </div>

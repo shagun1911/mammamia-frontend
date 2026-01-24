@@ -47,6 +47,14 @@ export const mockChatbotSettings: ChatbotSettings = {
     en: "Hello! How can I help you today?",
     es: "¡Hola! ¿Cómo puedo ayudarte hoy?",
     fr: "Bonjour! Comment puis-je vous aider aujourd'hui?",
+    de: "Hallo! Wie kann ich Ihnen heute helfen?",
+    it: "Ciao! Come posso aiutarti oggi?",
+    pt: "Olá! Como posso ajudar você hoje?",
+    ar: "مرحباً! كيف يمكنني مساعدتك اليوم؟",
+    tr: "Merhaba! Bugün size nasıl yardımcı olabilirim?",
+    zh: "你好！今天我能为你做些什么？",
+    ja: "こんにちは！今日はどのようなお手伝いができますか？",
+    ko: "안녕하세요! 오늘 어떻게 도와드릴까요?",
   },
   notifications: {
     newConversation: true,
@@ -66,4 +74,18 @@ export const presetColors = [
   "#ef4444", // Red
   "#6b7280", // Gray
 ];
+
+export const widgetTranslations: Record<string, { online: string; placeholder: string; ready: string; askName: string }> = {
+  en: { online: "Online", placeholder: "Type your message...", ready: "Ready to help", askName: "👋 Hello! Before we start, may I know your name?" },
+  es: { online: "En línea", placeholder: "Escribe tu mensaje...", ready: "Listo para ayudar", askName: "👋 ¡Hola! Antes de empezar, ¿puedo saber tu nombre?" },
+  fr: { online: "En ligne", placeholder: "Tapez votre message...", ready: "Prêt à aider", askName: "👋 Bonjour! Avant de commencer, puis-je connaître votre nom?" },
+  de: { online: "Online", placeholder: "Nachricht eingeben...", ready: "Bereit zu helfen", askName: "👋 Hallo! Bevor wir beginnen, darf ich Ihren Namen erfahren?" },
+  it: { online: "Online", placeholder: "Scrivi il tuo messaggio...", ready: "Pronto ad aiutare", askName: "👋 Ciao! Prima di iniziare, posso sapere come ti chiami?" },
+  pt: { online: "Online", placeholder: "Digite sua mensagem...", ready: "Pronto para ajudar", askName: "👋 Olá! Antes de começarmos, posso saber seu nome?" },
+  ar: { online: "متصل", placeholder: "اكتب رسالتك...", ready: "جاهز للمساعدة", askName: "👋 مرحباً! قبل أن نبدأ، هل يمكنني معرفة اسمك؟" },
+  tr: { online: "Çevrimiçi", placeholder: "Mesajınızı yazın...", ready: "Yardıma hazır", askName: "👋 Merhaba! Başlamadan önce isminizi öğrenebilir miyim?" },
+  zh: { online: "在线", placeholder: "输入您的消息...", ready: "随时为您服务", askName: "👋 你好！在开始之前，我可以知道你的名字吗？" },
+  ja: { online: "オンライン", placeholder: "メッセージを入力...", ready: "ご支援します", askName: "👋 こんにちは！始める前に、お名前を教えていただけますか？" },
+  ko: { online: "온라인", placeholder: "메시지를 입력하세요...", ready: "도와드릴 준비가 되었습니다", askName: "👋 안녕하세요! 시작하기 전에 성함을 알려주시겠습니까?" },
+};
 

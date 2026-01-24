@@ -120,10 +120,10 @@ export default function AdminOrganizationsPage() {
           className="px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
         >
           <option value="all">All Plans</option>
-          <option value="free">Free</option>
-          <option value="starter">Starter</option>
-          <option value="professional">Professional</option>
-          <option value="enterprise">Enterprise</option>
+          <option value="mileva-pack">Mileva Pack</option>
+          <option value="nobel-pack">Nobel Pack</option>
+          <option value="aistein-pro-pack">Aistein Pro Pack</option>
+          <option value="set-up">Set Up</option>
         </select>
         <select
           value={statusFilter}

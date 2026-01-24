@@ -1,5 +1,5 @@
 /**
- * KepleroAI Chatbot Widget
+ * Aistein Chatbot Widget
  * 
  * CRITICAL: This widget MUST resolve widgetId correctly to prevent backend errors.
  * Backend expects: widgetId === MongoDB ObjectId (24 hex chars)
@@ -11,15 +11,15 @@
   // ========== 1️⃣ SINGLE SOURCE OF TRUTH FOR widgetId ==========
   /**
    * Resolves widgetId with priority:
-   * 1. window.KepleroAI.widgetId (from embed script config)
+   * 1. window.Aistein.widgetId (from embed script config)
    * 2. URL path /widget/:widgetId
    * 
    * @returns {string|null} Resolved widgetId or null
    */
   function resolveWidgetId() {
     // Priority 1: embed script config
-    if (window.KepleroAI && typeof window.KepleroAI.widgetId === 'string' && window.KepleroAI.widgetId.trim() !== '') {
-      return window.KepleroAI.widgetId.trim();
+    if (window.Aistein && typeof window.Aistein.widgetId === 'string' && window.Aistein.widgetId.trim() !== '') {
+      return window.Aistein.widgetId.trim();
     }
 
     // Priority 2: URL path (/widget/:widgetId)
@@ -35,18 +35,18 @@
   const widgetId = resolveWidgetId();
 
   if (!widgetId) {
-    console.error('[Keplero Widget] ❌ widgetId could not be resolved');
-    console.error('[Keplero Widget] pathname:', window.location.pathname);
-    console.error('[Keplero Widget] KepleroAI config:', window.KepleroAI);
+    console.error('[Aistein Widget] ❌ widgetId could not be resolved');
+    console.error('[Aistein Widget] pathname:', window.location.pathname);
+    console.error('[Aistein Widget] Aistein config:', window.Aistein);
     throw new Error('Widget ID is required but was not found. Please ensure the widget is configured correctly.');
   }
 
   // ========== 4️⃣ TEMPORARY DEBUG LOG ==========
-  console.log('[Keplero Widget] ✅ Resolved widgetId:', widgetId);
-  console.log('[Keplero Widget] URL:', window.location.href);
+  console.log('[Aistein Widget] ✅ Resolved widgetId:', widgetId);
+  console.log('[Aistein Widget] URL:', window.location.href);
 
   // ========== WIDGET CONFIGURATION ==========
-  const config = window.KepleroAI || {};
+  const config = window.Aistein || {};
   const API_URL = config.apiUrl || (window.location.origin.includes('localhost') 
     ? 'http://localhost:5001/api/v1' 
     : window.location.origin + '/api/v1');
@@ -97,7 +97,7 @@
       const data = await response.json();
       return data.data?.answer || data.answer || "I'm having trouble connecting right now. Please try again later.";
     } catch (error) {
-      console.error('[Keplero Widget] API error:', error);
+      console.error('[Aistein Widget] API error:', error);
       throw error;
     }
   }
@@ -120,14 +120,14 @@
         })
       });
     } catch (error) {
-      console.error('[Keplero Widget] Failed to save conversation:', error);
+      console.error('[Aistein Widget] Failed to save conversation:', error);
     }
   }
 
   // ========== WIDGET UI ==========
   function createWidget() {
     // Container
-    const container = createElement('div', 'keplero-widget-container');
+    const container = createElement('div', 'aistein-widget-container');
     container.style.cssText = `
       position: fixed;
       ${position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
@@ -137,7 +137,7 @@
     `;
 
     // Chat window
-    const chatWindow = createElement('div', 'keplero-widget-window');
+    const chatWindow = createElement('div', 'aistein-widget-window');
     chatWindow.style.cssText = `
       width: 380px;
       height: 600px;
@@ -152,7 +152,7 @@
     `;
 
     // Header
-    const header = createElement('div', 'keplero-widget-header');
+    const header = createElement('div', 'aistein-widget-header');
     header.style.cssText = `
       background: ${primaryColor};
       color: white;
@@ -167,11 +167,11 @@
         <div style="font-weight: 600; font-size: 16px;">AI Assistant</div>
         <div style="font-size: 12px; opacity: 0.9;">Online</div>
       </div>
-      <button id="keplero-toggle" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">−</button>
+      <button id="aistein-toggle" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">−</button>
     `;
 
     // Messages container
-    const messagesContainer = createElement('div', 'keplero-widget-messages');
+    const messagesContainer = createElement('div', 'aistein-widget-messages');
     messagesContainer.style.cssText = `
       flex: 1;
       overflow-y: auto;
@@ -180,7 +180,7 @@
     `;
 
     // Input area
-    const inputArea = createElement('div', 'keplero-widget-input-area');
+    const inputArea = createElement('div', 'aistein-widget-input-area');
     inputArea.style.cssText = `
       padding: 16px;
       background: white;
@@ -189,7 +189,7 @@
       gap: 8px;
     `;
 
-    const input = createElement('input', 'keplero-widget-input');
+    const input = createElement('input', 'aistein-widget-input');
     input.type = 'text';
     input.placeholder = 'Type your message...';
     input.style.cssText = `
@@ -201,7 +201,7 @@
       outline: none;
     `;
 
-    const sendButton = createElement('button', 'keplero-widget-send');
+    const sendButton = createElement('button', 'aistein-widget-send');
     sendButton.textContent = 'Send';
     sendButton.style.cssText = `
       padding: 12px 20px;
@@ -215,7 +215,7 @@
     `;
 
     // Toggle button (floating)
-    const toggleButton = createElement('button', 'keplero-widget-toggle');
+    const toggleButton = createElement('button', 'aistein-widget-toggle');
     toggleButton.style.cssText = `
       width: 60px;
       height: 60px;
@@ -249,7 +249,7 @@
     header.addEventListener('click', () => {
       isMinimized = !isMinimized;
       chatWindow.style.transform = isMinimized ? 'translateY(calc(100% - 60px))' : 'translateY(0)';
-      document.getElementById('keplero-toggle').textContent = isMinimized ? '+' : '−';
+      document.getElementById('aistein-toggle').textContent = isMinimized ? '+' : '−';
     });
 
     toggleButton.addEventListener('click', () => {
@@ -292,13 +292,13 @@
         }
       } catch (error) {
         updateMessage(loadingId, 'Sorry, I encountered an error. Please try again.');
-        console.error('[Keplero Widget] Error:', error);
+        console.error('[Aistein Widget] Error:', error);
       }
     }
 
     function addMessage(role, content) {
       const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      const messageEl = createElement('div', 'keplero-widget-message');
+      const messageEl = createElement('div', 'aistein-widget-message');
       messageEl.id = messageId;
       messageEl.style.cssText = `
         margin-bottom: 12px;
@@ -306,7 +306,7 @@
         ${role === 'user' ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}
       `;
 
-      const bubble = createElement('div', 'keplero-widget-bubble');
+      const bubble = createElement('div', 'aistein-widget-bubble');
       bubble.style.cssText = `
         max-width: 80%;
         padding: 10px 14px;
@@ -330,7 +330,7 @@
     function updateMessage(messageId, content) {
       const messageEl = document.getElementById(messageId);
       if (messageEl) {
-        const bubble = messageEl.querySelector('.keplero-widget-bubble');
+        const bubble = messageEl.querySelector('.aistein-widget-bubble');
         if (bubble) bubble.textContent = content;
       }
     }

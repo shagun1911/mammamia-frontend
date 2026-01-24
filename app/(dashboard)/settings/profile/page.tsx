@@ -3,16 +3,11 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle } from "lucide-react";
-
-interface ProfileType {
-  type: string;
-  name: string;
-  duration: string;
-  chatConversations: number;
-  voiceMinutes: number;
-  description: string;
-}
+import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle, Phone, MessageSquare, Users, CreditCard } from "lucide-react";
+import { planService, Plan } from "@/services/plan.service";
+import { apiClient } from "@/lib/api";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface UsageStats {
   hasProfile: boolean;
@@ -30,6 +25,12 @@ interface UsageStats {
     remaining: number;
     percentage: number;
   };
+  automations?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
   billingCycle?: {
     start: string;
     end: string;
@@ -38,118 +39,156 @@ interface UsageStats {
 }
 
 export default function ProfilePage() {
-  const [profiles, setProfiles] = useState<ProfileType[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [usage, setUsage] = useState<UsageStats | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const getProfileIcon = (type: string) => {
-    switch (type) {
-      case 'mileva':
-        return <Zap className="w-8 h-8" />;
-      case 'nobel':
+  const getProfileIcon = (slug: string) => {
+    switch (slug) {
+      case 'aistein-pro-pack':
         return <Crown className="w-8 h-8" />;
-      case 'aistein':
+      case 'mileva-pack':
+        return <Zap className="w-8 h-8" />;
+      case 'nobel-pack':
         return <Sparkles className="w-8 h-8" />;
+      case 'set-up':
+        return <TrendingUp className="w-8 h-8" />;
       default:
         return <TrendingUp className="w-8 h-8" />;
     }
   };
 
-  const getProfileColor = (type: string) => {
-    switch (type) {
-      case 'mileva':
-        return 'from-blue-500 to-cyan-500';
-      case 'nobel':
-        return 'from-purple-500 to-pink-500';
-      case 'aistein':
-        return 'from-amber-500 to-orange-500';
+  const getProfileColor = (slug: string) => {
+    switch (slug) {
+      case 'aistein-pro-pack':
+        return 'from-cyan-400 to-blue-500'; // Blue
+      case 'mileva-pack':
+        return 'from-green-400 to-emerald-500'; // Green
+      case 'nobel-pack':
+        return 'from-orange-400 to-amber-500'; // Orange
+      case 'set-up':
+        return 'from-purple-500 to-violet-600'; // Purple
       default:
-        return 'from-gray-500 to-gray-600';
+        return 'from-primary/80 to-primary';
     }
   };
 
   useEffect(() => {
-    fetchProfiles();
-    fetchUsage();
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchPlans(),
+          fetchBillingInfo()
+        ]);
+      } catch (error) {
+        console.error("Failed to load profile data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
-  const fetchProfiles = async () => {
+  const fetchPlans = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/available`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setProfiles(data.data.profiles);
-      }
+      const data = await planService.getAllPlans();
+      // Sort plans by price
+      setPlans(data.sort((a, b) => a.price - b.price));
     } catch (error) {
-      console.error("Failed to fetch profiles:", error);
+      console.error("Failed to fetch plans:", error);
+      toast.error("Failed to load available plans");
     }
   };
 
-  const fetchUsage = async () => {
+  const fetchBillingInfo = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/usage`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Use the billing endpoint which returns comprehensive data
+      const response = await apiClient.get('/profile/billing');
 
-      if (response.ok) {
-        const data = await response.json();
-        setUsage(data.data.usage);
-        setSelectedProfile(data.data.usage.selectedProfile);
+      if (response.success) {
+        const { plan, profile, usage: usageData, user } = response;
+
+        // Determine current plan ID
+        if (plan) {
+          setCurrentPlanId(plan._id);
+        } else if (user.selectedProfile) {
+          // Fallback if we have profile slug but no plan object returned
+          // We'll match it against plans list later if needed
+          setCurrentPlanId(user.selectedProfile);
+        }
+
+        // Transform to UsageStats format
+        const stats: UsageStats = {
+          hasProfile: !!profile,
+          selectedProfile: user.selectedProfile,
+          profileType: plan?.name || user.selectedProfile,
+          chatConversations: {
+            used: usageData?.chatMessages || profile?.chatConversationsUsed || 0,
+            limit: plan?.features?.chatConversations ?? (profile?.chatConversationsLimit || 0),
+            remaining: 0, // Calculated below
+            percentage: 0 // Calculated below
+          },
+          voiceMinutes: {
+            used: usageData?.callMinutes || profile?.voiceMinutesUsed || 0,
+            limit: plan?.features?.callMinutes ?? (profile?.voiceMinutesLimit || 0),
+            remaining: 0, // Calculated below
+            percentage: 0 // Calculated below
+          },
+          automations: {
+            used: usageData?.automations || profile?.automationsUsed || 0,
+            limit: plan?.features?.automations ?? (profile?.automationsLimit || 0),
+            remaining: 0, // Calculated below
+            percentage: 0 // Calculated below
+          }
+        };
+
+        // Calculate remaining and percentage
+        // Chat
+        const chatLimit = stats.chatConversations.limit;
+        if (chatLimit === -1) {
+          stats.chatConversations.remaining = -1; // Unlimited
+          stats.chatConversations.percentage = 0;
+        } else {
+          stats.chatConversations.remaining = Math.max(0, chatLimit - stats.chatConversations.used);
+          stats.chatConversations.percentage = Math.min((stats.chatConversations.used / chatLimit) * 100, 100);
+        }
+
+        // Voice
+        const voiceLimit = stats.voiceMinutes.limit;
+        if (voiceLimit === -1) {
+          stats.voiceMinutes.remaining = -1;
+          stats.voiceMinutes.percentage = 0;
+        } else {
+          stats.voiceMinutes.remaining = Math.max(0, voiceLimit - stats.voiceMinutes.used);
+          stats.voiceMinutes.percentage = Math.min((stats.voiceMinutes.used / voiceLimit) * 100, 100);
+        }
+
+        // Automations
+        if (stats.automations) {
+          const autoLimit = stats.automations.limit;
+          if (autoLimit === -1) {
+            stats.automations.remaining = -1;
+            stats.automations.percentage = 0;
+          } else {
+            stats.automations.remaining = Math.max(0, autoLimit - stats.automations.used);
+            stats.automations.percentage = Math.min((stats.automations.used / autoLimit) * 100, 100);
+          }
+        }
+
+        setUsage(stats);
       }
     } catch (error) {
-      console.error("Failed to fetch usage:", error);
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch billing info:", error);
     }
   };
 
-  const handleSelectProfile = async (profileType: string) => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/select`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ profileType }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSelectedProfile(profileType);
-        setUsage(data.data.usage);
-        setNotification({
-          type: 'success',
-          message: `Successfully switched to ${profileType.charAt(0).toUpperCase() + profileType.slice(1)} package`
-        });
-        setTimeout(() => setNotification(null), 5000);
-      } else {
-        setNotification({
-          type: 'error',
-          message: 'Failed to select profile'
-        });
-        setTimeout(() => setNotification(null), 5000);
-      }
-    } catch (error) {
-      console.error("Failed to select profile:", error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to select profile'
-      });
-      setTimeout(() => setNotification(null), 5000);
-    }
+  const handleSelectPlan = (plan: Plan) => {
+    // For now, redirect to email for upgrade as per Billing page
+    // In future, implement direct plan switching or Stripe integration
+    window.location.href = `mailto:support@aistein.ai?subject=Upgrade%20to%20${plan.name}%20Plan&body=I%20would%20like%20to%20upgrade%20my%20subscription%20to%20the%20${plan.name}%20plan.`;
   };
 
   if (loading) {
@@ -163,24 +202,6 @@ export default function ProfilePage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
-        {/* Notification */}
-        {notification && (
-          <div
-            className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-top-2 ${
-              notification.type === 'success'
-                ? 'bg-green-500 text-white'
-                : 'bg-red-500 text-white'
-            }`}
-          >
-            {notification.type === 'success' ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <AlertCircle className="w-5 h-5" />
-            )}
-            <span>{notification.message}</span>
-          </div>
-        )}
-
         {/* Small Header */}
         <div className="mb-6 pb-4 border-b border-border">
           <h2 className="text-xl font-semibold text-foreground">Profile & Subscription</h2>
@@ -188,26 +209,20 @@ export default function ProfilePage() {
         </div>
 
         {/* Current Usage Stats */}
-        {usage && usage.hasProfile && (
+        {usage && (
           <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-1">
-                  Current Plan: {usage.profileType ? (usage.profileType.charAt(0).toUpperCase() + usage.profileType.slice(1)) : 'No Plan'}
+                  Current Plan: {usage.profileType}
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   Track your usage and manage your subscription
                 </p>
               </div>
-              {usage.billingCycle && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  <span>{usage.billingCycle.daysRemaining} days remaining</span>
-                </div>
-              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Chat Conversations */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -215,18 +230,22 @@ export default function ProfilePage() {
                     Chat Conversations
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {usage.chatConversations.used} / {usage.chatConversations.limit}
+                    {usage.chatConversations.used} / {usage.chatConversations.limit === -1 ? '∞' : usage.chatConversations.limit}
                   </span>
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(usage.chatConversations.percentage, 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {usage.chatConversations.remaining} conversations remaining
-                </p>
+                {usage.chatConversations.limit !== -1 && (
+                  <>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${usage.chatConversations.percentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {usage.chatConversations.remaining} conversations remaining
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Voice Minutes */}
@@ -236,95 +255,160 @@ export default function ProfilePage() {
                     Voice Minutes
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {usage.voiceMinutes.used} / {usage.voiceMinutes.limit}
+                    {usage.voiceMinutes.used} / {usage.voiceMinutes.limit === -1 ? '∞' : usage.voiceMinutes.limit}
                   </span>
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(usage.voiceMinutes.percentage, 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {usage.voiceMinutes.remaining} minutes remaining
-                </p>
+                {usage.voiceMinutes.limit !== -1 && (
+                  <>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${usage.voiceMinutes.percentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {usage.voiceMinutes.remaining} minutes remaining
+                    </p>
+                  </>
+                )}
               </div>
+
+              {/* Automations */}
+              {usage.automations && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-foreground">
+                      Automations
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {usage.automations.used} / {usage.automations.limit === -1 ? '∞' : usage.automations.limit}
+                    </span>
+                  </div>
+                  {usage.automations.limit !== -1 && (
+                    <>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full transition-all"
+                          style={{ width: `${usage.automations.percentage}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {usage.automations.remaining} automations remaining
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </Card>
         )}
 
-        {/* Available Profiles */}
+        {/* Available Plans */}
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-6">
             Available Packages
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {profiles.map((profile) => (
-              <Card
-                key={profile.type}
-                className={`relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full ${
-                  selectedProfile === profile.type
-                    ? "border-primary border-2 shadow-xl"
-                    : "border-border"
-                }`}
-              >
-                {/* Gradient Header */}
-                <div className={`bg-gradient-to-r ${getProfileColor(profile.type)} p-6 text-white`}>
-                  <div className="flex items-center justify-between mb-4">
-                    {getProfileIcon(profile.type)}
-                    {selectedProfile === profile.type && (
-                      <div className="bg-white text-primary rounded-full p-1">
-                        <Check className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
-                  <h3 className="text-2xl font-bold mb-1">{profile.name}</h3>
-                  <p className="text-sm opacity-90">{profile.duration}</p>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+            {plans.map((plan) => {
+              const isCurrentPlan = currentPlanId === plan._id || currentPlanId === plan.slug;
 
-                {/* Features */}
-                <div className="p-6 space-y-4 flex flex-col flex-1">
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {profile.description}
-                  </p>
-
-                  <div className="space-y-3 flex-1">
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {profile.chatConversations.toLocaleString()} Chat Conversations
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          AI-powered chat interactions
-                        </p>
-                      </div>
+              return (
+                <Card
+                  key={plan._id}
+                  className={cn(
+                    "relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full",
+                    isCurrentPlan ? "border-primary border-2 shadow-xl" : "border-border"
+                  )}
+                >
+                  {/* Gradient Header */}
+                  <div className={`bg-gradient-to-r ${getProfileColor(plan.slug)} p-6 text-white`}>
+                    <div className="flex items-center justify-between mb-4">
+                      {getProfileIcon(plan.slug)}
+                      {isCurrentPlan && (
+                        <div className="bg-white text-primary rounded-full p-1">
+                          <Check className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
-
-                    <div className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {profile.voiceMinutes.toLocaleString()} Voice Minutes
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Incoming or outgoing calls
-                        </p>
-                      </div>
+                    <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold">${plan.price}</span>
+                      <span className="text-sm opacity-90">/month</span>
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => handleSelectProfile(profile.type)}
-                    disabled={selectedProfile === profile.type}
-                    className="w-full mt-auto cursor-pointer"
-                    variant={selectedProfile === profile.type ? "outline" : "default"}
-                  >
-                    {selectedProfile === profile.type ? "Current Plan" : "Select Plan"}
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                  {/* Features */}
+                  <div className="p-6 space-y-4 flex flex-col flex-1">
+                    <p className="text-sm text-muted-foreground mb-4 min-h-[40px]">
+                      {plan.description}
+                    </p>
+
+                    <div className="space-y-3 flex-1">
+                      <div className="flex items-start gap-3">
+                        <MessageSquare className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {plan.features.chatConversations === -1 ? 'Unlimited' : plan.features.chatConversations.toLocaleString()} Chats
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <Phone className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {plan.features.callMinutes === -1 ? 'Unlimited' : plan.features.callMinutes.toLocaleString()} Voice Minutes
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {plan.features.automations === -1 ? 'Unlimited' : plan.features.automations.toLocaleString()} Automations
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <Users className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {plan.features.users === -1 ? 'Unlimited' : plan.features.users.toLocaleString()} Users
+                          </p>
+                        </div>
+                      </div>
+
+                      {plan.features.customFeatures && plan.features.customFeatures.length > 0 && (
+                        <div className="pt-2 border-t border-border mt-2">
+                          {plan.features.customFeatures.slice(0, 3).map((feature, idx) => (
+                            <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
+                              <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
+                              <span className="truncate">{feature}</span>
+                            </div>
+                          ))}
+                          {plan.features.customFeatures.length > 3 && (
+                            <p className="text-xs text-muted-foreground mt-1 pl-5">
+                              + {plan.features.customFeatures.length - 3} more...
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <Button
+                      onClick={() => handleSelectPlan(plan)}
+                      disabled={isCurrentPlan}
+                      className="w-full mt-auto cursor-pointer"
+                      variant={isCurrentPlan ? "outline" : "default"}
+                    >
+                      {isCurrentPlan ? "Current Plan" : "Upgrade"}
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Upload, Plus, Pencil, Trash2, ChevronDown, Sparkles, UserCircle, MessageSquare, Globe } from "lucide-react";
+import { Upload, Plus, Pencil, Trash2, ChevronDown, Sparkles, UserCircle, MessageSquare, Globe, Loader2 } from "lucide-react";
 import { mockChatbotSettings } from "@/data/mockSettings";
 import { ToggleRow } from "@/components/settings/ToggleRow";
 import { ColorPicker } from "@/components/settings/ColorPicker";
@@ -9,6 +9,7 @@ import { useSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useKnowledgeBases } from "@/hooks/useKnowledgeBase";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { toast } from "sonner";
+import { googleTranslate } from "@/lib/googleTranslate";
 
 interface EscalationRule {
   id: string;
@@ -34,6 +35,7 @@ export default function ChatbotSettingsPage() {
   const [escalationRules, setEscalationRules] = useState<EscalationRule[]>([{ id: "1", condition: "" }]);
   const [greetingMessage, setGreetingMessage] = useState("");
   const [language, setLanguage] = useState("en");
+  const [isTranslating, setIsTranslating] = useState(false);
 
   // Load settings from database when available
   useEffect(() => {
@@ -105,11 +107,11 @@ export default function ChatbotSettingsPage() {
   const handleSave = async () => {
     try {
       // Find selected knowledge bases details
-      const selectedKBs = knowledgeBases?.filter((kb: any) => 
+      const selectedKBs = knowledgeBases?.filter((kb: any) =>
         selectedKnowledgeBaseIds.includes(kb._id)
       );
       const collectionNames = selectedKBs?.map((kb: any) => kb.collectionName) || [];
-      
+
       // Save chatbot settings
       await updateSettings.mutateAsync({
         chatbotName: settings.customization.chatbotName,
@@ -159,7 +161,7 @@ export default function ChatbotSettingsPage() {
 
   const updateEscalationRule = (id: string, condition: string) => {
     setEscalationRules(
-      escalationRules.map(rule => 
+      escalationRules.map(rule =>
         rule.id === id ? { ...rule, condition } : rule
       )
     );
@@ -194,374 +196,412 @@ export default function ChatbotSettingsPage() {
         </div>
 
         <div className="max-w-[900px] mx-auto space-y-6">
-        {/* Section 1 - General */}
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-5">General</h2>
-          
-          <div className="space-y-0">
-            <ToggleRow
-              label="Enable website widget"
-              description="Show the chat widget on your website"
-              checked={settings.general.enableWebsiteWidget}
-              onChange={(checked) =>
-                setSettings({
-                  ...settings,
-                  general: { ...settings.general, enableWebsiteWidget: checked },
-                })
-              }
-            />
-            <ToggleRow
-              label="Email required"
-              description="Require email before starting conversation"
-              checked={settings.general.emailRequired}
-              onChange={(checked) =>
-                setSettings({
-                  ...settings,
-                  general: { ...settings.general, emailRequired: checked },
-                })
-              }
-            />
-            <ToggleRow
-              label="Phone required"
-              description="Require phone number before starting conversation"
-              checked={settings.general.phoneRequired}
-              onChange={(checked) =>
-                setSettings({
-                  ...settings,
-                  general: { ...settings.general, phoneRequired: checked },
-                })
-              }
-            />
-            <ToggleRow
-              label="Bubble messages"
-              description="Show messages in bubble style"
-              checked={settings.general.bubbleMessages}
-              onChange={(checked) =>
-                setSettings({
-                  ...settings,
-                  general: { ...settings.general, bubbleMessages: checked },
-                })
-              }
-              isLast
-            />
-          </div>
-        </div>
+          {/* Section 1 - General */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-5">General</h2>
 
-        {/* Section 2 - Customization */}
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-5">Customization</h2>
-          
-          <div className="grid gap-5">
-            {/* Logo upload */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Logo
-              </label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="hidden"
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-20 h-20 border-2 border-dashed border-border rounded-xl flex items-center justify-center hover:border-primary transition-colors overflow-hidden relative cursor-pointer"
-              >
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <Upload className="w-6 h-6 text-muted-foreground" />
-                )}
-              </button>
-              {logoUrl && (
-                <button
-                  onClick={() => {
-                    setLogoUrl(null);
-                    setLogoFile(null);
-                  }}
-                  className="text-xs text-red-500 hover:text-red-400 mt-2 cursor-pointer"
-                >
-                  Remove logo
-                </button>
-              )}
-            </div>
-
-            {/* Chatbot name */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Chatbot Name
-              </label>
-              <input
-                value={settings.customization.chatbotName}
-                onChange={(e) =>
+            <div className="space-y-0">
+              <ToggleRow
+                label="Enable website widget"
+                description="Show the chat widget on your website"
+                checked={settings.general.enableWebsiteWidget}
+                onChange={(checked) =>
                   setSettings({
                     ...settings,
-                    customization: { ...settings.customization, chatbotName: e.target.value },
+                    general: { ...settings.general, enableWebsiteWidget: checked },
                   })
                 }
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+              />
+              <ToggleRow
+                label="Email required"
+                description="Require email before starting conversation"
+                checked={settings.general.emailRequired}
+                onChange={(checked) =>
+                  setSettings({
+                    ...settings,
+                    general: { ...settings.general, emailRequired: checked },
+                  })
+                }
+              />
+              <ToggleRow
+                label="Phone required"
+                description="Require phone number before starting conversation"
+                checked={settings.general.phoneRequired}
+                onChange={(checked) =>
+                  setSettings({
+                    ...settings,
+                    general: { ...settings.general, phoneRequired: checked },
+                  })
+                }
+              />
+              <ToggleRow
+                label="Bubble messages"
+                description="Show messages in bubble style"
+                checked={settings.general.bubbleMessages}
+                onChange={(checked) =>
+                  setSettings({
+                    ...settings,
+                    general: { ...settings.general, bubbleMessages: checked },
+                  })
+                }
+                isLast
               />
             </div>
+          </div>
 
-            {/* Color picker */}
-            <ColorPicker
-              selectedColor={settings.customization.widgetColor}
-              onColorChange={(color) =>
-                setSettings({
-                  ...settings,
-                  customization: { ...settings.customization, widgetColor: color },
-                })
-              }
-            />
+          {/* Section 2 - Customization */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-5">Customization</h2>
 
-            {/* Default Knowledge Bases (Multiple Selection) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-foreground">
-                  Default Knowledge Bases ({selectedKnowledgeBaseIds.length} selected)
+            <div className="grid gap-5">
+              {/* Logo upload */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-3">
+                  Logo
                 </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={selectAllKnowledgeBases}
-                    className="text-xs text-primary hover:underline cursor-pointer"
-                  >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={clearAllKnowledgeBases}
-                    className="text-xs text-muted-foreground hover:underline cursor-pointer"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-              
-              <div className="relative">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
                 <button
-                  type="button"
-                  onClick={() => setShowKBDropdown(!showKBDropdown)}
-                  className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-left text-foreground focus:outline-none focus:border-primary transition-colors flex items-center justify-between cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 border-2 border-dashed border-border rounded-xl flex items-center justify-center hover:border-primary transition-colors overflow-hidden relative cursor-pointer"
                 >
-                  <span className="truncate text-sm">
-                    {selectedKnowledgeBaseIds.length === 0 
-                      ? 'Select knowledge bases for calls & AI responses'
-                      : selectedKnowledgeBaseIds.length === 1
-                      ? knowledgeBases?.find((kb: any) => kb._id === selectedKnowledgeBaseIds[0])?.name || 'Unknown'
-                      : `${selectedKnowledgeBaseIds.length} knowledge bases selected`
-                    }
-                  </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${showKBDropdown ? 'rotate-180' : ''}`} />
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                  )}
                 </button>
-                
-                {showKBDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-secondary border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {!knowledgeBases || knowledgeBases.length === 0 ? (
-                      <div className="px-4 py-3 text-sm text-muted-foreground">
-                        No knowledge bases available. Create one first.
-                      </div>
-                    ) : (
-                      knowledgeBases.map((kb: any) => (
-                        <label
-                          key={kb._id}
-                          className="flex items-center px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedKnowledgeBaseIds.includes(kb._id)}
-                            onChange={() => toggleKnowledgeBase(kb._id)}
-                            className="mr-3 h-4 w-4 text-primary focus:ring-primary border-border rounded"
-                          />
-                          <span className="text-sm text-foreground">
-                            {kb.name}
-                          </span>
-                        </label>
-                      ))
-                    )}
-                  </div>
+                {logoUrl && (
+                  <button
+                    onClick={() => {
+                      setLogoUrl(null);
+                      setLogoFile(null);
+                    }}
+                    className="text-xs text-red-500 hover:text-red-400 mt-2 cursor-pointer"
+                  >
+                    Remove logo
+                  </button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Selected knowledge bases will be used for outbound calls and automated AI responses
-              </p>
-            </div>
-          </div>
-        </div>
 
-        {/* Section 3 - Chatbot Behavior */}
-        <div className="bg-card border border-border rounded-xl p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-5">Chatbot Behavior</h2>
-          
-          <div className="space-y-6">
-            {/* System Prompt */}
-            <div>
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    System Prompt <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Define the personality and behavior of your chatbot. This prompt guides how the AI responds to users.
-                  </p>
-                </div>
-              </div>
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Use Previous System Prompt
+              {/* Chatbot name */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-3">
+                  Chatbot Name
                 </label>
-                <select
-                  value={systemPrompt}
-                  onChange={(e) => {
-                    if (e.target.value === 'new') {
-                      setSystemPrompt('');
-                    } else {
-                      setSystemPrompt(e.target.value);
-                    }
-                  }}
-                  className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                >
-                  <option value="new">Create New System Prompt</option>
-                  {aiBehavior?.chatAgent?.systemPrompt && (
-                    <option value={aiBehavior.chatAgent.systemPrompt}>
-                      Current: {aiBehavior.chatAgent.systemPrompt.substring(0, 50)}...
-                    </option>
-                  )}
-                  <option value="You are a helpful AI assistant designed to provide excellent customer service. Be friendly, professional, and helpful.">
-                    Default: You are a helpful AI assistant...
-                  </option>
-                </select>
+                <input
+                  value={settings.customization.chatbotName}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      customization: { ...settings.customization, chatbotName: e.target.value },
+                    })
+                  }
+                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                />
               </div>
-              <textarea
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="E.g., You are a helpful AI assistant. Be friendly and concise. Always ask for email before providing quotes..."
-                rows={6}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-            </div>
 
-            {/* Escalation Conditions */}
-            <div>
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
-                  <UserCircle className="w-5 h-5 text-orange-500" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Escalation Conditions
+              {/* Color picker */}
+              <ColorPicker
+                selectedColor={settings.customization.widgetColor}
+                onColorChange={(color) =>
+                  setSettings({
+                    ...settings,
+                    customization: { ...settings.customization, widgetColor: color },
+                  })
+                }
+              />
+
+              {/* Default Knowledge Bases (Multiple Selection) */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-foreground">
+                    Default Knowledge Bases ({selectedKnowledgeBaseIds.length} selected)
                   </label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Define when the chatbot should escalate conversations to a human operator
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {escalationRules.map((rule) => (
-                  <div key={rule.id} className="flex gap-3">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={rule.condition}
-                        onChange={(e) => updateEscalationRule(rule.id, e.target.value)}
-                        placeholder="E.g., Customer requests to speak with a manager, Complex technical issue, Refund request over $500..."
-                        className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                    {escalationRules.length > 1 && (
-                      <button
-                        onClick={() => removeEscalationRule(rule.id)}
-                        className="w-10 h-10 flex items-center justify-center rounded-lg border border-border hover:border-red-500 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAllKnowledgeBases}
+                      className="text-xs text-primary hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearAllKnowledgeBases}
+                      className="text-xs text-muted-foreground hover:underline cursor-pointer"
+                    >
+                      Clear
+                    </button>
                   </div>
-                ))}
-              </div>
-              <button
-                onClick={addEscalationRule}
-                className="mt-3 flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                Add Another Condition
-              </button>
-            </div>
+                </div>
 
-            {/* Greeting Message */}
-            <div>
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <MessageSquare className="w-5 h-5 text-blue-500" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Greeting Message <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    The initial message shown when a user starts a conversation
-                  </p>
-                </div>
-              </div>
-              <textarea
-                value={greetingMessage}
-                onChange={(e) => setGreetingMessage(e.target.value)}
-                placeholder="Hello! How can I help you today?"
-                rows={4}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-            </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowKBDropdown(!showKBDropdown)}
+                    className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-left text-foreground focus:outline-none focus:border-primary transition-colors flex items-center justify-between cursor-pointer"
+                  >
+                    <span className="truncate text-sm">
+                      {selectedKnowledgeBaseIds.length === 0
+                        ? 'Select knowledge bases for calls & AI responses'
+                        : selectedKnowledgeBaseIds.length === 1
+                          ? knowledgeBases?.find((kb: any) => kb._id === selectedKnowledgeBaseIds[0])?.name || 'Unknown'
+                          : `${selectedKnowledgeBaseIds.length} knowledge bases selected`
+                      }
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showKBDropdown ? 'rotate-180' : ''}`} />
+                  </button>
 
-            {/* Language */}
-            <div>
-              <div className="flex items-start gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                  <Globe className="w-5 h-5 text-green-500" />
+                  {showKBDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-secondary border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {!knowledgeBases || knowledgeBases.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                          No knowledge bases available. Create one first.
+                        </div>
+                      ) : (
+                        knowledgeBases.map((kb: any) => (
+                          <label
+                            key={kb._id}
+                            className="flex items-center px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedKnowledgeBaseIds.includes(kb._id)}
+                              onChange={() => toggleKnowledgeBase(kb._id)}
+                              className="mr-3 h-4 w-4 text-primary focus:ring-primary border-border rounded"
+                            />
+                            <span className="text-sm text-foreground">
+                              {kb.name}
+                            </span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    Language <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Select the primary language for your chatbot
-                  </p>
-                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Selected knowledge bases will be used for outbound calls and automated AI responses
+                </p>
               </div>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="it">Italian</option>
-                <option value="pt">Portuguese</option>
-                <option value="ar">Arabic</option>
-                <option value="tr">Turkish</option>
-                <option value="zh">Chinese</option>
-                <option value="ja">Japanese</option>
-                <option value="ko">Korean</option>
-              </select>
             </div>
           </div>
-        </div>
 
-        {/* Save button */}
-        <div className="sticky bottom-0 pt-4 pb-2 bg-background">
-          <button
-            onClick={handleSave}
-            disabled={updateSettings.isPending || updateChatAgentPrompt.isPending || updateChatAgentHumanOperator.isPending || isLoading}
-            className="w-full h-12 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-          >
-            {(updateSettings.isPending || updateChatAgentPrompt.isPending || updateChatAgentHumanOperator.isPending) ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
+          {/* Section 3 - Chatbot Behavior */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-5">Chatbot Behavior</h2>
+
+            <div className="space-y-6">
+              {/* System Prompt */}
+              <div>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      System Prompt <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Define the personality and behavior of your chatbot. This prompt guides how the AI responds to users.
+                    </p>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Use Previous System Prompt
+                  </label>
+                  <select
+                    value={systemPrompt}
+                    onChange={(e) => {
+                      if (e.target.value === 'new') {
+                        setSystemPrompt('');
+                      } else {
+                        setSystemPrompt(e.target.value);
+                      }
+                    }}
+                    className="w-full bg-secondary border border-border rounded-lg px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="new">Create New System Prompt</option>
+                    {aiBehavior?.chatAgent?.systemPrompt && (
+                      <option value={aiBehavior.chatAgent.systemPrompt}>
+                        Current: {aiBehavior.chatAgent.systemPrompt.substring(0, 50)}...
+                      </option>
+                    )}
+                    <option value="You are a helpful AI assistant designed to provide excellent customer service. Be friendly, professional, and helpful.">
+                      Default: You are a helpful AI assistant...
+                    </option>
+                  </select>
+                </div>
+                <textarea
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="E.g., You are a helpful AI assistant. Be friendly and concise. Always ask for email before providing quotes..."
+                  rows={6}
+                  className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                />
+              </div>
+
+              {/* Escalation Conditions */}
+              <div>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                    <UserCircle className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Escalation Conditions
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Define when the chatbot should escalate conversations to a human operator
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {escalationRules.map((rule) => (
+                    <div key={rule.id} className="flex gap-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={rule.condition}
+                          onChange={(e) => updateEscalationRule(rule.id, e.target.value)}
+                          placeholder="E.g., Customer requests to speak with a manager, Complex technical issue, Refund request over $500..."
+                          className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        />
+                      </div>
+                      {escalationRules.length > 1 && (
+                        <button
+                          onClick={() => removeEscalationRule(rule.id)}
+                          className="w-10 h-10 flex items-center justify-center rounded-lg border border-border hover:border-red-500 hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={addEscalationRule}
+                  className="mt-3 flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Another Condition
+                </button>
+              </div>
+
+              {/* Greeting Message */}
+              <div>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                    <MessageSquare className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Greeting Message <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      The initial message shown when a user starts a conversation
+                    </p>
+                  </div>
+                </div>
+                <textarea
+                  value={greetingMessage}
+                  onChange={(e) => setGreetingMessage(e.target.value)}
+                  placeholder="Hello! How can I help you today?"
+                  rows={4}
+                  className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                />
+              </div>
+
+              {/* Language */}
+              <div>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+                    <Globe className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Language <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Select the primary language for your chatbot
+                    </p>
+                  </div>
+                </div>
+                <div className="relative">
+                  <select
+                    value={language}
+                    disabled={isTranslating}
+                    onChange={async (e) => {
+                      const newLanguage = e.target.value;
+                      const oldLanguage = language;
+                      setLanguage(newLanguage);
+
+                      if (greetingMessage && greetingMessage.trim()) {
+                        setIsTranslating(true);
+                        try {
+                          const translated = await googleTranslate.translate(greetingMessage, newLanguage, oldLanguage);
+                          if (translated) {
+                            setGreetingMessage(translated);
+                            toast.success(`Greeting translated to ${newLanguage.toUpperCase()}`);
+                          }
+                        } catch (error) {
+                          console.error("Translation failed:", error);
+                          // Fallback to default if translation fails
+                          const defaultMessage = mockChatbotSettings.welcomeMessages[newLanguage];
+                          if (defaultMessage) {
+                            setGreetingMessage(defaultMessage);
+                          }
+                        } finally {
+                          setIsTranslating(false);
+                        }
+                      } else {
+                        // No current message, set default
+                        const defaultMessage = mockChatbotSettings.welcomeMessages[newLanguage];
+                        if (defaultMessage) {
+                          setGreetingMessage(defaultMessage);
+                        }
+                      }
+                    }}
+                    className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                    <option value="it">Italian</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="ar">Arabic</option>
+                    <option value="tr">Turkish</option>
+                    <option value="zh">Chinese</option>
+                    <option value="ja">Japanese</option>
+                    <option value="ko">Korean</option>
+                  </select>
+                  {isTranslating && (
+                    <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Save button */}
+          <div className="sticky bottom-0 pt-4 pb-2 bg-background">
+            <button
+              onClick={handleSave}
+              disabled={updateSettings.isPending || updateChatAgentPrompt.isPending || updateChatAgentHumanOperator.isPending || isLoading}
+              className="w-full h-12 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {(updateSettings.isPending || updateChatAgentPrompt.isPending || updateChatAgentHumanOperator.isPending) ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

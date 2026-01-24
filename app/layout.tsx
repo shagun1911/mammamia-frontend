@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IslandAI - Chatbot Management Platform",
+  title: "Aistein.It - Chatbot Management Platform",
   description: "AI-powered chatbot management platform",
 };
 

@@ -218,8 +218,8 @@ export default function AdminBillingPage() {
             <CreditCard className="w-5 h-5 text-muted-foreground" />
           </div>
           <p className="text-3xl font-bold text-foreground transition-all duration-300">
-            {Object.entries(overview.planBreakdown || {}).reduce((sum, [slug, count]: [string, any]) => {
-              return slug !== 'free' ? sum + count : sum;
+              {Object.entries(overview.planBreakdown || {}).reduce((sum, [slug, count]: [string, any]) => {
+              return slug !== 'mileva-pack' ? sum + count : sum;
             }, 0)}
           </p>
         </div>
@@ -255,9 +255,9 @@ export default function AdminBillingPage() {
                     <div
                       className={cn(
                         "h-2 rounded-full transition-all",
-                        plan.slug === 'free' ? "bg-gray-500" :
-                          plan.slug === 'starter' ? "bg-blue-500" :
-                            plan.slug === 'professional' ? "bg-purple-500" :
+                        plan.slug === 'mileva-pack' ? "bg-gray-500" :
+                          plan.slug === 'nobel-pack' ? "bg-blue-500" :
+                            plan.slug === 'aistein-pro-pack' ? "bg-purple-500" :
                               "bg-green-500"
                       )}
                       style={{ width: `${percentage}%` }}
@@ -327,9 +327,9 @@ export default function AdminBillingPage() {
                     <td className="p-3">
                       <span className={cn(
                         "px-2 py-1 rounded-full text-xs font-medium",
-                        org.plan === 'free' ? "bg-gray-500/20 text-gray-600 dark:text-gray-400" :
-                          org.plan === 'starter' ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" :
-                            org.plan === 'professional' ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" :
+                        org.plan === 'mileva-pack' ? "bg-gray-500/20 text-gray-600 dark:text-gray-400" :
+                          org.plan === 'nobel-pack' ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" :
+                            org.plan === 'aistein-pro-pack' ? "bg-purple-500/20 text-purple-600 dark:text-purple-400" :
                               "bg-green-500/20 text-green-600 dark:text-green-400"
                       )}>
                         {org.plan}

@@ -32,18 +32,20 @@ class GoogleTranslateService {
     }
   }
 
-  async translate(text: string, targetLang: string): Promise<string> {
+  async translate(text: string, targetLang: string, sourceLang?: string): Promise<string> {
     if (!text || !text.trim()) return text;
-    if (targetLang === "en") return text;
-    
+    // Only skip if target matches source (if known) or if target is English AND source is English (or implied)
+    if (targetLang === sourceLang) return text;
+    if (targetLang === "en" && sourceLang === "en") return text;
+
     // Check if API key is configured
     if (!GOOGLE_TRANSLATE_API_KEY) {
       console.warn("❌ Google Translate API key not configured");
       return text;
     }
 
-    console.log(`🌍 Translating to ${targetLang}:`, text.substring(0, 50) + '...');
-    const cacheKey = text.trim();
+    console.log(`🌍 Translating to ${targetLang} (from ${sourceLang || 'auto'}):`, text.substring(0, 50) + '...');
+    const cacheKey = `${text.trim()}_${sourceLang || 'auto'}`;
 
     // Check cache first
     if (this.cache[cacheKey]?.[targetLang]) {
@@ -58,7 +60,7 @@ class GoogleTranslateService {
     }
 
     // Make new translation request
-    const translationPromise = this.fetchTranslation(text, targetLang);
+    const translationPromise = this.fetchTranslation(text, targetLang, sourceLang);
     this.pendingRequests.set(pendingKey, translationPromise);
 
     try {
@@ -69,9 +71,21 @@ class GoogleTranslateService {
     }
   }
 
-  private async fetchTranslation(text: string, targetLang: string): Promise<string> {
+  private async fetchTranslation(text: string, targetLang: string, sourceLang?: string): Promise<string> {
     try {
       console.log('📡 Making API request to Google Translate...');
+
+      const payload: any = {
+        q: text,
+        target: targetLang,
+        format: "text",
+      };
+
+      // Only add source if provided
+      if (sourceLang) {
+        payload.source = sourceLang;
+      }
+
       const response = await fetch(
         `${TRANSLATE_API_URL}?key=${GOOGLE_TRANSLATE_API_KEY}`,
         {
@@ -79,12 +93,7 @@ class GoogleTranslateService {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            q: text,
-            target: targetLang,
-            source: "en",
-            format: "text",
-          }),
+          body: JSON.stringify(payload),
         }
       );
 
@@ -120,12 +129,12 @@ class GoogleTranslateService {
 
   async translateBatch(texts: string[], targetLang: string): Promise<string[]> {
     console.log(`🔄 Batch translating ${texts.length} texts to ${targetLang}`);
-    
+
     if (targetLang === "en") {
       console.log('⏩ Skipping translation - target is English');
       return texts;
     }
-    
+
     // Check if API key is configured
     if (!GOOGLE_TRANSLATE_API_KEY) {
       console.warn("❌ Google Translate API key not configured for batch translation");
@@ -135,13 +144,14 @@ class GoogleTranslateService {
     try {
       // Filter out empty texts and get unique ones
       const uniqueTexts = [...new Set(texts.filter((t) => t && t.trim()))];
-      
+
       // Check which texts are already cached
       const uncachedTexts: string[] = [];
       const results: string[] = new Array(texts.length);
 
       texts.forEach((text, index) => {
-        const cacheKey = text.trim();
+        // Assume English source for batch for now or update signature later
+        const cacheKey = `${text.trim()}_en`;
         if (this.cache[cacheKey]?.[targetLang]) {
           results[index] = this.cache[cacheKey][targetLang];
         } else if (text && text.trim()) {
@@ -180,7 +190,7 @@ class GoogleTranslateService {
           // Cache the translations
           uncachedTexts.forEach((text, idx) => {
             const translatedText = translations[idx]?.translatedText || text;
-            const cacheKey = text.trim();
+            const cacheKey = `${text.trim()}_en`;
             if (!this.cache[cacheKey]) {
               this.cache[cacheKey] = {};
             }

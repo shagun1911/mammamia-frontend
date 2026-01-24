@@ -12,27 +12,30 @@ interface ChatMessage {
   timestamp: string;
 }
 
+import { widgetTranslations } from "@/data/mockSettings";
+
 interface WidgetSettings {
   chatbotName: string;
   chatbotAvatar: string | null;
   primaryColor: string;
   welcomeMessage: string;
+  language: string;
 }
 
 export default function WidgetPage({ params }: { params?: { widgetId?: string } }) {
   const searchParams = useSearchParams();
   const routeParams = useParams();
-  
+
   // ========== CRITICAL: Resolve widgetId with fallback ==========
   // In Next.js App Router, params might not be available immediately in client components
   // Use useParams() hook as fallback for client components
   const widgetId = params?.widgetId || (routeParams?.widgetId as string) || null;
-  
+
   // ========== LOG PARAMS AT RENDER TIME ==========
   console.log('[Widget Page] Render - params:', params);
   console.log('[Widget Page] Render - routeParams:', routeParams);
   console.log('[Widget Page] Render - resolved widgetId:', widgetId);
-  
+
   // ========== FAIL FAST: Throw error if widgetId is missing ==========
   if (!widgetId || widgetId === 'undefined') {
     const error = new Error('widgetId missing from route params');
@@ -55,7 +58,8 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
     chatbotName: 'AI Assistant',
     chatbotAvatar: null,
     primaryColor: '#6366f1',
-    welcomeMessage: '👋 Hello! Before we start, may I know your name?'
+    welcomeMessage: '👋 Hello! Before we start, may I know your name?',
+    language: 'en'
   });
 
   // Fetch widget settings
@@ -67,11 +71,13 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
+            const lang = data.data.language || 'en';
             setWidgetSettings({
               chatbotName: data.data.chatbotName || 'AI Assistant',
               chatbotAvatar: data.data.chatbotAvatar || null,
               primaryColor: data.data.primaryColor || '#6366f1',
-              welcomeMessage: data.data.welcomeMessage || '👋 Hello! Before we start, may I know your name?'
+              welcomeMessage: data.data.welcomeMessage || widgetTranslations[lang]?.askName || widgetTranslations.en.askName,
+              language: lang
             });
           }
         }
@@ -93,18 +99,34 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
   }, [searchParams]);
 
   // Send welcome message asking for name
+  // Send welcome message asking for name
   useEffect(() => {
-    if (messages.length === 0 && isAskingName) {
-      setMessages([
-        {
-          id: "welcome",
-          sender: "bot",
-          content: widgetSettings.welcomeMessage,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+    if (isAskingName) {
+      setMessages(prev => {
+        const welcomeMsgExists = prev.some(m => m.id === "welcome");
+
+        if (!welcomeMsgExists) {
+          // Add new welcome message
+          return [
+            {
+              id: "welcome",
+              sender: "bot",
+              content: widgetSettings.welcomeMessage,
+              timestamp: new Date().toISOString(),
+            },
+            ...prev
+          ];
+        } else {
+          // Update existing welcome message
+          return prev.map(m =>
+            m.id === "welcome"
+              ? { ...m, content: widgetSettings.welcomeMessage }
+              : m
+          );
+        }
+      });
     }
-  }, [messages.length, isAskingName, widgetSettings.welcomeMessage]);
+  }, [widgetSettings.welcomeMessage, isAskingName]);
 
   // Save conversation to database
   const saveConversation = async (userName: string, message: string, response: string) => {
@@ -155,8 +177,24 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
       setIsAskingName(false);
       setInput("");
 
-      // Send greeting with name
-      const greetingText = `Nice to meet you, ${userName}! How can I help you today?`;
+      // Localized name confirmation messages
+      const nameConfirmations: Record<string, string> = {
+        en: "Nice to meet you, {name}! How can I help you today?",
+        es: "¡Mucho gusto, {name}! ¿Cómo puedo ayudarte hoy?",
+        fr: "Enchanté, {name}! Comment puis-je vous aider aujourd'hui?",
+        de: "Freut mich, Sie kennenzulernen, {name}! Wie kann ich Ihnen heute helfen?",
+        it: "Piacere di conoscerti, {name}! Come posso aiutarti oggi?",
+        pt: "Prazer em conhecê-lo, {name}! Como posso ajudar você hoje?",
+        ar: "تشرفت بمقابلتك يا {name}! كيف يمكنني مساعدتك اليوم؟",
+        tr: "Tanıştığımıza memnun oldum {name}! Bugün size nasıl yardımcı olabilirim?",
+        zh: "很高兴见到你，{name}！今天我能为你做些什么？",
+        ja: "{name}さん、はじめまして！今日はどのようなお手伝いができますか？",
+        ko: "{name}님, 만나서 반갑습니다! 오늘 어떻게 도와드릴까요?",
+      };
+
+      const template = nameConfirmations[widgetSettings.language] || nameConfirmations.en;
+      const greetingText = template.replace("{name}", userName);
+
       setTimeout(() => {
         const greeting = {
           id: (Date.now() + 1).toString(),
@@ -178,7 +216,7 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
       sender: "user" as const,
       content: input,
       timestamp: new Date().toISOString(),
-    }; 
+    };
 
     setMessages((prev) => [...prev, userMessage]);
     const userQuery = input;
@@ -206,10 +244,10 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
 
       const data = await response.json();
       botResponseText = data.data?.answer || data.answer || "I'm having trouble connecting right now. Please try again later.";
-      
+
       // Check if Python backend returned an error message as the answer
-      if (botResponseText.toLowerCase().includes('encountered an error') || 
-          botResponseText.toLowerCase().includes('error while generating')) {
+      if (botResponseText.toLowerCase().includes('encountered an error') ||
+        botResponseText.toLowerCase().includes('error while generating')) {
         console.error('[Widget] Python backend returned error message:', botResponseText);
         console.error('[Widget] Response data:', JSON.stringify(data, null, 2));
         // Keep the error message but log it for debugging
@@ -303,7 +341,11 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
             </div>
             <div>
               <h3 className="text-white font-semibold">{widgetSettings.chatbotName}</h3>
-              <p className="text-white/80 text-xs">Online • Ready to help</p>
+              <p className="text-white/80 text-xs">
+                {widgetTranslations[widgetSettings.language]?.online || widgetTranslations.en.online}
+                •
+                {widgetTranslations[widgetSettings.language]?.ready || widgetTranslations.en.ready}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -329,19 +371,17 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
               key={message.id}
               className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
             >
-                <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  message.sender === "user"
-                    ? "text-white shadow-md"
-                    : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md"
-                }`}
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${message.sender === "user"
+                  ? "text-white shadow-md"
+                  : "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-md"
+                  }`}
                 style={message.sender === "user" ? { backgroundColor: widgetSettings.primaryColor } : {}}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 <p
-                  className={`text-xs mt-1 ${
-                    message.sender === "user" ? "text-white/70" : "text-gray-500 dark:text-gray-400"
-                  }`}
+                  className={`text-xs mt-1 ${message.sender === "user" ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                    }`}
                 >
                   {new Date(message.timestamp).toLocaleTimeString([], {
                     hour: "2-digit",
@@ -371,7 +411,7 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Type your message..."
+              placeholder={widgetTranslations[widgetSettings.language]?.placeholder || widgetTranslations.en.placeholder}
               rows={1}
               className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
               style={{ minHeight: "44px", maxHeight: "120px" }}

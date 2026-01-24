@@ -34,9 +34,9 @@ export function WidgetLinkGenerator() {
   const widgetUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/widget/${widgetId}${selectedCollection ? `?collection=${encodeURIComponent(selectedCollection)}` : ''}`;
   
   // Generate embed code
-  const embedCode = `<!-- KepleroAI Chatbot Widget -->
+  const embedCode = `<!-- Aistein Chatbot Widget -->
 <script>
-  window.KepleroAI = {
+  window.Aistein = {
     widgetId: "${widgetId}",
     collection: "${selectedCollection || ''}",
     position: "bottom-right",

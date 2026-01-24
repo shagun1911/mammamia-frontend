@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { RotateCcw, Send, Minimize2, Database } from "lucide-react";
-import { mockChatbotSettings } from "@/data/mockSettings";
+import { mockChatbotSettings, widgetTranslations } from "@/data/mockSettings";
 import { pythonRagService } from "@/services/pythonRag.service";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useSettings } from "@/hooks/useSettings";
@@ -21,22 +21,42 @@ export function WidgetSimulator() {
   const { data: dbSettings } = useSettings();
   const [threadId] = useState(uuidv4());
   const [userName, setUserName] = useState("Test User");
+
+  // Get chatbot settings from database or fallback to mock
+  const chatbotName = dbSettings?.chatbotName || mockChatbotSettings.customization.chatbotName;
+  const chatbotAvatar = dbSettings?.chatbotAvatar || null;
+  const widgetColor = dbSettings?.primaryColor || mockChatbotSettings.customization.widgetColor;
+  const language = (dbSettings?.language || "en") as keyof typeof widgetTranslations;
+  const welcomeMessage = dbSettings?.autoReplyMessage || mockChatbotSettings.welcomeMessages[language] || mockChatbotSettings.welcomeMessages.en;
+  const translations = widgetTranslations[language] || widgetTranslations.en;
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       sender: "bot",
-      content: mockChatbotSettings.welcomeMessages.en,
+      content: welcomeMessage,
       timestamp: new Date().toISOString(),
     },
   ]);
   const [input, setInput] = useState("");
   const [isReady] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  
-  // Get chatbot settings from database or fallback to mock
-  const chatbotName = dbSettings?.chatbotName || mockChatbotSettings.customization.chatbotName;
-  const chatbotAvatar = dbSettings?.chatbotAvatar || null;
-  const widgetColor = dbSettings?.primaryColor || mockChatbotSettings.customization.widgetColor;
+
+  // Update welcome message when settings load
+  useEffect(() => {
+    if (dbSettings) {
+      setMessages(prev => {
+        // Only update if it's the initial message state (1 message, bot sender)
+        if (prev.length === 1 && prev[0].sender === 'bot') {
+          return [{
+            ...prev[0],
+            content: welcomeMessage
+          }];
+        }
+        return prev;
+      });
+    }
+  }, [dbSettings, welcomeMessage]);
 
   // Load collections on mount
   useEffect(() => {
@@ -93,7 +113,7 @@ export function WidgetSimulator() {
       if (selectedCollection) {
         // Use Python RAG for response
         const systemPrompt = `Knowledge base: ${selectedCollection}. Use documents from this collection to answer questions accurately.\n\n${chatAgentPrompt}`;
-        
+
         const response = await pythonRagService.chat({
           query: userQuery,
           collection_names: [selectedCollection], // Updated to array for multiple collections support
@@ -145,7 +165,7 @@ export function WidgetSimulator() {
       {
         id: "1",
         sender: "bot" as const,
-        content: mockChatbotSettings.welcomeMessages.en,
+        content: welcomeMessage,
         timestamp: new Date().toISOString(),
       },
     ]);
@@ -170,11 +190,10 @@ export function WidgetSimulator() {
       {/* Status indicator */}
       <div className="flex items-center justify-center mb-8">
         <div
-          className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-            isReady
-              ? "bg-green-500/20 text-green-500"
-              : "bg-yellow-500/20 text-yellow-500"
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full ${isReady
+            ? "bg-green-500/20 text-green-500"
+            : "bg-yellow-500/20 text-yellow-500"
+            }`}
         >
           <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
           <span className="text-sm font-medium">
@@ -189,8 +208,8 @@ export function WidgetSimulator() {
       <div className="max-w-[400px] mx-auto">
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[600px]">
           {/* Header */}
-          <div 
-            className="flex items-center justify-between p-4 border-b border-border" 
+          <div
+            className="flex items-center justify-between p-4 border-b border-border"
             style={{ backgroundColor: widgetColor }}
           >
             <div className="flex items-center gap-3">
@@ -205,7 +224,7 @@ export function WidgetSimulator() {
                 <h3 className="text-sm font-semibold text-white">
                   {chatbotName}
                 </h3>
-                <p className="text-xs text-white/80">Online</p>
+                <p className="text-xs text-white/80">{translations.online}</p>
               </div>
             </div>
             <button className="text-white hover:bg-white/10 p-1 rounded transition-colors">
@@ -218,16 +237,14 @@ export function WidgetSimulator() {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.sender === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${
-                    message.sender === "user"
-                      ? "text-white rounded-br-sm"
-                      : "bg-secondary text-foreground rounded-bl-sm"
-                  }`}
+                  className={`max-w-[80%] px-4 py-2.5 rounded-2xl ${message.sender === "user"
+                    ? "text-white rounded-br-sm"
+                    : "bg-secondary text-foreground rounded-bl-sm"
+                    }`}
                   style={message.sender === "user" ? { backgroundColor: widgetColor } : {}}
                 >
                   <p className="text-sm">{message.content}</p>
@@ -244,7 +261,7 @@ export function WidgetSimulator() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder="Type your message..."
+                placeholder={translations.placeholder}
                 className="flex-1 bg-secondary border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
               <button

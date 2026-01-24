@@ -25,7 +25,7 @@ export default function HelpPage() {
       icon: Mail,
       title: "Email Support",
       description: "Get help directly from our support team",
-      link: "mailto:support@IslandAIai.com",
+      link: "mailto:support@Aistein.Itai.com",
     },
     {
       icon: HelpCircle,

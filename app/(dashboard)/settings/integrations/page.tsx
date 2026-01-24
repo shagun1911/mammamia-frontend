@@ -338,8 +338,8 @@ export default function IntegrationsPage() {
       endTime.setHours(endTime.getHours() + 1);
       
       const data = await apiClient.post('/integrations/google/calendar/events', {
-        summary: 'KepleroAI Test Meeting',
-        description: 'This is a test event created from KepleroAI integrations.',
+        summary: 'Aistein.It Test Meeting',
+        description: 'This is a test event created from Aistein.It integrations.',
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         attendees: [],
