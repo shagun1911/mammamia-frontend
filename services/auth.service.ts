@@ -184,6 +184,23 @@ class AuthService {
   }
 
   /**
+   * Delete user account and all related data
+   */
+  async deleteAccount(): Promise<void> {
+    try {
+      await apiClient.delete('/auth/account');
+      // Clear storage after successful deletion
+      this.clearStorage();
+      // Redirect to login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/signin';
+      }
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete account');
+    }
+  }
+
+  /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {

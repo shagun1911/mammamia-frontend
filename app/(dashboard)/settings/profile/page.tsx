@@ -3,11 +3,20 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle, Phone, MessageSquare, Users, CreditCard } from "lucide-react";
+import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle, Trash2, Phone, MessageSquare, Users } from "lucide-react";
 import { planService, Plan } from "@/services/plan.service";
-import { apiClient } from "@/lib/api";
+import { authService } from "@/services/auth.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+interface ProfileType {
+  type: string;
+  name: string;
+  duration: string;
+  chatConversations: number;
+  voiceMinutes: number;
+  description: string;
+}
 
 interface UsageStats {
   hasProfile: boolean;
@@ -43,6 +52,10 @@ export default function ProfilePage() {
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const getProfileIcon = (slug: string) => {
     switch (slug) {
@@ -96,7 +109,7 @@ export default function ProfilePage() {
     try {
       const data = await planService.getAllPlans();
       // Sort plans by price
-      setPlans(data.sort((a, b) => a.price - b.price));
+      setPlans(data.sort((a: Plan, b: Plan) => a.price - b.price));
     } catch (error) {
       console.error("Failed to fetch plans:", error);
       toast.error("Failed to load available plans");
@@ -105,83 +118,62 @@ export default function ProfilePage() {
 
   const fetchBillingInfo = async () => {
     try {
-      // Use the billing endpoint which returns comprehensive data
-      const response = await apiClient.get('/profile/billing');
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/usage`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      if (response.success) {
-        const { plan, profile, usage: usageData, user } = response;
-
-        // Determine current plan ID
-        if (plan) {
-          setCurrentPlanId(plan._id);
-        } else if (user.selectedProfile) {
-          // Fallback if we have profile slug but no plan object returned
-          // We'll match it against plans list later if needed
-          setCurrentPlanId(user.selectedProfile);
+      if (response.ok) {
+        const data = await response.json();
+        setUsage(data.data.usage);
+        if (data.data.usage.selectedProfile) {
+          setCurrentPlanId(data.data.usage.selectedProfile);
         }
-
-        // Transform to UsageStats format
-        const stats: UsageStats = {
-          hasProfile: !!profile,
-          selectedProfile: user.selectedProfile,
-          profileType: plan?.name || user.selectedProfile,
-          chatConversations: {
-            used: usageData?.chatMessages || profile?.chatConversationsUsed || 0,
-            limit: plan?.features?.chatConversations ?? (profile?.chatConversationsLimit || 0),
-            remaining: 0, // Calculated below
-            percentage: 0 // Calculated below
-          },
-          voiceMinutes: {
-            used: usageData?.callMinutes || profile?.voiceMinutesUsed || 0,
-            limit: plan?.features?.callMinutes ?? (profile?.voiceMinutesLimit || 0),
-            remaining: 0, // Calculated below
-            percentage: 0 // Calculated below
-          },
-          automations: {
-            used: usageData?.automations || profile?.automationsUsed || 0,
-            limit: plan?.features?.automations ?? (profile?.automationsLimit || 0),
-            remaining: 0, // Calculated below
-            percentage: 0 // Calculated below
-          }
-        };
-
-        // Calculate remaining and percentage
-        // Chat
-        const chatLimit = stats.chatConversations.limit;
-        if (chatLimit === -1) {
-          stats.chatConversations.remaining = -1; // Unlimited
-          stats.chatConversations.percentage = 0;
-        } else {
-          stats.chatConversations.remaining = Math.max(0, chatLimit - stats.chatConversations.used);
-          stats.chatConversations.percentage = Math.min((stats.chatConversations.used / chatLimit) * 100, 100);
-        }
-
-        // Voice
-        const voiceLimit = stats.voiceMinutes.limit;
-        if (voiceLimit === -1) {
-          stats.voiceMinutes.remaining = -1;
-          stats.voiceMinutes.percentage = 0;
-        } else {
-          stats.voiceMinutes.remaining = Math.max(0, voiceLimit - stats.voiceMinutes.used);
-          stats.voiceMinutes.percentage = Math.min((stats.voiceMinutes.used / voiceLimit) * 100, 100);
-        }
-
-        // Automations
-        if (stats.automations) {
-          const autoLimit = stats.automations.limit;
-          if (autoLimit === -1) {
-            stats.automations.remaining = -1;
-            stats.automations.percentage = 0;
-          } else {
-            stats.automations.remaining = Math.max(0, autoLimit - stats.automations.used);
-            stats.automations.percentage = Math.min((stats.automations.used / autoLimit) * 100, 100);
-          }
-        }
-
-        setUsage(stats);
       }
     } catch (error) {
-      console.error("Failed to fetch billing info:", error);
+      console.error("Failed to fetch usage:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectProfile = async (profileType: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/select`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ profileType }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentPlanId(profileType);
+        setUsage(data.data.usage);
+        setNotification({
+          type: 'success',
+          message: `Successfully switched to ${profileType.charAt(0).toUpperCase() + profileType.slice(1)} package`
+        });
+        setTimeout(() => setNotification(null), 5000);
+      } else {
+        setNotification({
+          type: 'error',
+          message: 'Failed to select profile'
+        });
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (error) {
+      console.error("Failed to select profile:", error);
+      setNotification({
+        type: 'error',
+        message: 'Failed to select profile'
+      });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -189,6 +181,26 @@ export default function ProfilePage() {
     // For now, redirect to email for upgrade as per Billing page
     // In future, implement direct plan switching or Stripe integration
     window.location.href = `mailto:support@aistein.ai?subject=Upgrade%20to%20${plan.name}%20Plan&body=I%20would%20like%20to%20upgrade%20my%20subscription%20to%20the%20${plan.name}%20plan.`;
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast.error("Please type 'DELETE' to confirm");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await authService.deleteAccount();
+      toast.success("Your account has been deleted successfully");
+      // The service will handle redirect
+    } catch (error: any) {
+      console.error("Failed to delete account:", error);
+      toast.error(error.message || "Failed to delete account");
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
+    }
   };
 
   if (loading) {
@@ -382,7 +394,7 @@ export default function ProfilePage() {
 
                       {plan.features.customFeatures && plan.features.customFeatures.length > 0 && (
                         <div className="pt-2 border-t border-border mt-2">
-                          {plan.features.customFeatures.slice(0, 3).map((feature, idx) => (
+                          {plan.features.customFeatures.slice(0, 3).map((feature: string, idx: number) => (
                             <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
                               <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
                               <span className="truncate">{feature}</span>
@@ -436,6 +448,84 @@ export default function ProfilePage() {
             </li>
           </ul>
         </Card>
+
+        {/* Delete Account Section */}
+        <Card className="p-6 border-destructive/50 bg-destructive/5">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-destructive mb-2 flex items-center gap-2">
+                <Trash2 className="w-5 h-5" />
+                Delete Account
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Once you delete your account, there is no going back. This will permanently delete your account and all associated data including:
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-1 mb-4 ml-4">
+                <li>• Your profile and settings</li>
+                <li>• All conversations and messages</li>
+                <li>• All contacts and campaigns</li>
+                <li>• All integrations and configurations</li>
+                <li>• All knowledge bases and files</li>
+                <li>• All automations and tools</li>
+                <li>• Your organization (if you own one)</li>
+              </ul>
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="mt-2"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete My Account
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Card className="w-full max-w-md p-6 m-4">
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-destructive mb-2">Delete Account</h3>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone. This will permanently delete your account and all associated data.
+                </p>
+              </div>
+              <div className="mb-4">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Type <span className="font-bold text-destructive">DELETE</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                  placeholder="DELETE"
+                  disabled={isDeleting}
+                />
+              </div>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText("");
+                  }}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting || deleteConfirmText !== "DELETE"}
+                >
+                  {isDeleting ? "Deleting..." : "Delete Account"}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
