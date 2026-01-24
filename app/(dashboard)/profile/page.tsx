@@ -14,7 +14,7 @@ import { UserMenu } from "@/components/layout/UserMenu";
 
 export default function ProfilePage() {
   const { getSidebarWidth } = useSidebar();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<"account" | "security">("account");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -82,6 +82,11 @@ export default function ProfilePage() {
         setAvatarUrl(result);
         // Save to localStorage
         localStorage.setItem("userAvatar", result);
+        // Update user object in context if it exists
+        if (user) {
+          const updatedUser = { ...user, avatar: result };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
         toast.success("Avatar uploaded successfully!");
       };
       reader.readAsDataURL(file);

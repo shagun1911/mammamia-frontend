@@ -18,6 +18,7 @@ export interface User {
   name: string;
   firstName?: string;
   lastName?: string;
+  avatar?: string;
   role: string;
   isAdmin?: boolean;
   organizationId: string;

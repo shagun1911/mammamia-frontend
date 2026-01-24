@@ -10,6 +10,7 @@ import { Zap, Activity, Plus, Sparkles } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 export default function AutomationsPage() {
   const { getSidebarWidth } = useSidebar();
@@ -17,6 +18,24 @@ export default function AutomationsPage() {
   const [loading, setLoading] = useState(true);
   const [showPrebuiltModal, setShowPrebuiltModal] = useState(false);
   const nodeBuilderRef = useRef<{ handleNewAutomation: () => void }>(null);
+  const [showLoader, setShowLoader] = useState(true);
+  const startTimeRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!loading) {
+      // Ensure loader stays for at least 2.5 seconds
+      const elapsed = Date.now() - startTimeRef.current;
+      const minDisplayTime = 2500; // 2.5 seconds
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+      
+      setTimeout(() => {
+        setShowLoader(false);
+      }, remainingTime);
+    } else {
+      setShowLoader(true);
+      startTimeRef.current = Date.now();
+    }
+  }, [loading]);
 
   // Set CSS variable for sidebar width so modal can use it
   useEffect(() => {
@@ -77,7 +96,7 @@ export default function AutomationsPage() {
     }
   };
 
-  if (loading) {
+  if (loading || showLoader) {
     return (
       <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
         <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
@@ -100,10 +119,7 @@ export default function AutomationsPage() {
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground font-medium">Loading automations...</p>
-          </div>
+          <LoadingLogo size="md" text="Loading automations..." />
         </div>
       </div>
     );
@@ -111,31 +127,33 @@ export default function AutomationsPage() {
 
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      {/* Page Header */}
-      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
-            <Zap className="w-6 h-6 text-white" />
+      {/* Premium Page Header */}
+      <div className="h-20 px-8 flex items-center justify-between border-b border-border/60 bg-gradient-to-br from-background via-background to-primary/[0.02] backdrop-blur-xl shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset] flex-shrink-0 z-10">
+        <div className="flex items-center gap-5">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-[0_8px_24px_rgba(99,102,241,0.25)] ring-1 ring-primary/20">
+              <Zap className="w-7 h-7 text-white" />
+            </div>
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
               Automations
-              <Activity className="w-5 h-5 text-primary" />
+              <Activity className="w-5 h-5 text-primary/80" />
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Create, manage, and launch workflow automations</p>
+            <p className="text-sm text-muted-foreground/80 mt-1 font-medium">Create, manage, and launch workflow automations</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowPrebuiltModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-secondary border border-border text-foreground rounded-xl text-sm font-semibold hover:bg-accent hover:shadow-md transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-card/80 backdrop-blur-sm border border-border/50 text-foreground rounded-xl text-sm font-bold hover:bg-accent/50 hover:shadow-md hover:border-primary/20 transition-all duration-200"
           >
             <Sparkles className="w-4 h-4" />
             <span>Prebuilt Templates</span>
           </button>
           <button
             onClick={handleNewAutomation}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary/90 text-white rounded-xl text-sm font-bold hover:from-primary/90 hover:to-primary/80 hover:shadow-xl hover:shadow-primary/30 transition-all duration-200 shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
             <span>New Automation</span>

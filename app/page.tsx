@@ -1,37 +1,49 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 export default function Home() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const [showLoader, setShowLoader] = useState(true);
+  const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
     if (!loading) {
-      if (!user) {
-        router.replace("/auth/signin");
-      } else {
-        // STRICT: Only redirect to admin if role === 'admin' in database
-        console.log('[Home] User detected:', { email: user.email, role: user.role });
-        if (user.role === 'admin') {
-          console.log('[Home] Admin user, redirecting to /admin');
-          router.replace("/admin");
+      // Ensure loader stays for at least 2.5 seconds
+      const elapsed = Date.now() - startTimeRef.current;
+      const minDisplayTime = 2500; // 2.5 seconds
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+
+      setTimeout(() => {
+        setShowLoader(false);
+        if (!user) {
+          router.replace("/auth/signin");
         } else {
-          console.log('[Home] Normal user, redirecting to /conversations');
-          router.replace("/conversations");
+          // STRICT: Only redirect to admin if role === 'admin' in database
+          console.log('[Home] User detected:', { email: user.email, role: user.role });
+          if (user.role === 'admin') {
+            console.log('[Home] Admin user, redirecting to /admin');
+            router.replace("/admin");
+          } else {
+            console.log('[Home] Normal user, redirecting to /conversations');
+            router.replace("/conversations");
+          }
         }
-      }
+      }, remainingTime);
     }
   }, [user, loading, router]);
 
+  if (!showLoader && !loading) {
+    return null;
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-gray-300 dark:border-gray-700 border-t-primary rounded-full animate-spin" />
-        <div className="text-lg text-muted-foreground">Loading...</div>
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <LoadingLogo size="lg" text="Loading..." />
     </div>
   );
 }

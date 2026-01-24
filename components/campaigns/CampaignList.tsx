@@ -47,12 +47,12 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
 
   const getStatusBadge = (status: Campaign["status"]) => {
     const styles = {
-      draft: "bg-gray-500 text-white",
-      scheduled: "bg-blue-500 text-white",
-      running: "bg-green-500 text-white animate-pulse",
-      paused: "bg-yellow-500 text-white",
-      completed: "bg-green-600 text-white",
-      failed: "bg-red-500 text-white",
+      draft: "bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-sm",
+      scheduled: "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm",
+      running: "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30 animate-pulse",
+      paused: "bg-gradient-to-r from-yellow-500 to-yellow-600 text-white shadow-sm",
+      completed: "bg-gradient-to-r from-green-600 to-green-700 text-white shadow-sm",
+      failed: "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-sm",
     };
 
     const labels = {
@@ -67,7 +67,7 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
     return (
       <span
         className={cn(
-          "px-2.5 py-1 rounded-xl text-xs font-medium",
+          "px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide uppercase",
           styles[status] || styles.draft
         )}
       >
@@ -152,22 +152,31 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
         return (
           <div
             key={campaignId}
-            className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-all"
+            className="group bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-7 hover:shadow-2xl hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 hover:-translate-y-0.5"
           >
-            {/* Header Row */}
-            <div className="flex items-start justify-between mb-4">
+            {/* Premium Header Row */}
+            <div className="flex items-start justify-between mb-5">
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold text-foreground">{campaign.name}</h3>
+                <div className="flex items-center gap-3 mb-3">
+                  <h3 className="text-xl font-bold text-foreground tracking-tight">{campaign.name}</h3>
                   {getStatusBadge(normalizedStatus as Campaign["status"])}
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>{campaign.contactList || (campaign.listId?.name || 'Unknown List')}</span>
+                <div className="flex items-center gap-5 text-sm text-muted-foreground/80 font-medium">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary/40"></span>
+                    {campaign.contactList || (campaign.listId?.name || 'Unknown List')}
+                  </span>
                   {campaign.scheduledAt && (
-                    <span>Scheduled: {formatDate(campaign.scheduledAt)}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500/40"></span>
+                      Scheduled: {formatDate(campaign.scheduledAt)}
+                    </span>
                   )}
                   {campaign.createdAt && (
-                    <span>Created: {formatDate(campaign.createdAt)}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40"></span>
+                      Created: {formatDate(campaign.createdAt)}
+                    </span>
                   )}
                 </div>
               </div>
@@ -179,7 +188,7 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
                       router.push(`/campaigns/${id}`);
                     }
                   }}
-                  className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 hover:shadow-sm"
                   title="View Details"
                 >
                   <Eye className="w-4 h-4" />
@@ -187,7 +196,7 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
                 {normalizedStatus === 'draft' && (
                   <button
                     onClick={() => onEdit(campaign)}
-                    className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-200 hover:shadow-sm"
                     title="Edit"
                   >
                     <Pencil className="w-4 h-4" />
@@ -196,7 +205,7 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
                 {normalizedStatus === 'draft' && (
                   <button
                     onClick={() => onDelete(campaignId, normalizedStatus)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                    className="p-2.5 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200 hover:shadow-sm"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -205,55 +214,55 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
               </div>
             </div>
 
-            {/* Progress Bar for Running/Paused/Completed Campaigns */}
+            {/* Premium Progress Bar for Running/Paused/Completed Campaigns */}
             {(isRunning || isPaused || normalizedStatus === 'completed' || normalizedStatus === 'failed') && stats.total > 0 && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">Progress</span>
-                  <span className="text-sm text-muted-foreground">{progress}%</span>
+              <div className="mb-6 p-4 bg-gradient-to-br from-secondary/30 to-secondary/10 rounded-xl border border-border/30">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-bold text-foreground tracking-tight">Progress</span>
+                  <span className="text-sm font-bold text-primary">{progress}%</span>
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2.5 overflow-hidden">
+                <div className="w-full bg-secondary/60 rounded-full h-3 overflow-hidden shadow-inner">
                   <div
                     className={cn(
-                      "h-2.5 rounded-full transition-all duration-300",
-                      isRunning && "bg-green-500",
-                      isPaused && "bg-yellow-500",
-                      normalizedStatus === 'completed' && "bg-green-600",
-                      normalizedStatus === 'failed' && "bg-red-500"
+                      "h-3 rounded-full transition-all duration-500 shadow-sm",
+                      isRunning && "bg-gradient-to-r from-green-500 to-green-600",
+                      isPaused && "bg-gradient-to-r from-yellow-500 to-yellow-600",
+                      normalizedStatus === 'completed' && "bg-gradient-to-r from-green-600 to-green-700",
+                      normalizedStatus === 'failed' && "bg-gradient-to-r from-red-500 to-red-600"
                     )}
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                  <span>Total: {stats.total}</span>
-                  <span>Sent: {stats.sent}</span>
-                  <span>Delivered: {stats.delivered}</span>
-                  <span className={cn(stats.failed > 0 && "text-red-500")}>Failed: {stats.failed}</span>
-                  <span>Pending: {stats.pending}</span>
+                <div className="flex items-center justify-between mt-4 text-xs font-semibold text-muted-foreground/80">
+                  <span className="px-2 py-1 rounded-lg bg-background/50">Total: {stats.total}</span>
+                  <span className="px-2 py-1 rounded-lg bg-green-500/10 text-green-600">Sent: {stats.sent}</span>
+                  <span className="px-2 py-1 rounded-lg bg-blue-500/10 text-blue-600">Delivered: {stats.delivered}</span>
+                  <span className={cn("px-2 py-1 rounded-lg", stats.failed > 0 ? "bg-red-500/10 text-red-600" : "bg-background/50")}>Failed: {stats.failed}</span>
+                  <span className="px-2 py-1 rounded-lg bg-background/50">Pending: {stats.pending}</span>
                 </div>
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Premium Action Buttons */}
+            <div className="flex items-center gap-3 flex-wrap">
               {normalizedStatus === 'draft' && (
                 <button
                   onClick={() => handleAction('start', campaignId)}
                   disabled={startCampaign.isPending}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl text-sm font-bold hover:from-green-700 hover:to-green-800 hover:shadow-xl hover:shadow-green-500/30 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-green-500/20"
                 >
                   <Play className="w-4 h-4" />
-                  {startCampaign.isPending ? 'Starting...' : 'Start'}
+                  {startCampaign.isPending ? 'Starting...' : 'Start Campaign'}
                 </button>
               )}
               {isRunning && (
                 <button
                   onClick={() => handleAction('pause', campaignId)}
                   disabled={pauseCampaign.isPending}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm font-medium hover:bg-yellow-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-3 bg-gradient-to-r from-yellow-600 to-yellow-700 text-white rounded-xl text-sm font-bold hover:from-yellow-700 hover:to-yellow-800 hover:shadow-xl hover:shadow-yellow-500/30 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-yellow-500/20"
                 >
                   <Pause className="w-4 h-4" />
-                  {pauseCampaign.isPending ? 'Pausing...' : 'Pause'}
+                  {pauseCampaign.isPending ? 'Pausing...' : 'Pause Campaign'}
                 </button>
               )}
               {isPaused && (
@@ -261,10 +270,10 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
                   <button
                     onClick={() => handleAction('resume', campaignId)}
                     disabled={resumeCampaign.isPending}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                    className="px-5 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl text-sm font-bold hover:from-green-700 hover:to-green-800 hover:shadow-xl hover:shadow-green-500/30 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-green-500/20"
                   >
                     <Play className="w-4 h-4" />
-                    {resumeCampaign.isPending ? 'Resuming...' : 'Resume'}
+                    {resumeCampaign.isPending ? 'Resuming...' : 'Resume Campaign'}
                   </button>
                 </>
               )}
@@ -272,7 +281,7 @@ export function CampaignList({ campaigns, onEdit, onDelete }: CampaignListProps)
                 <button
                   onClick={() => handleAction('retry', campaignId)}
                   disabled={retryFailed.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-200 disabled:opacity-50 flex items-center gap-2 shadow-lg shadow-blue-500/20"
                 >
                   <RotateCcw className="w-4 h-4" />
                   {retryFailed.isPending ? 'Retrying...' : `Retry Failed (${stats.failed})`}

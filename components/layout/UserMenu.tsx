@@ -32,7 +32,7 @@ export function UserMenu() {
     await logout();
   };
 
-  // Get user initials for avatar
+  // Get user initials for avatar fallback
   const getInitials = (name?: string) => {
     if (!name) return "U";
     const names = name.split(" ");
@@ -42,13 +42,43 @@ export function UserMenu() {
     return name[0].toUpperCase();
   };
 
+  // Get avatar URL - check user.avatar first, then localStorage
+  const getAvatarUrl = () => {
+    if (user?.avatar) {
+      return user.avatar;
+    }
+    const savedAvatar = localStorage.getItem("userAvatar");
+    return savedAvatar || null;
+  };
+
+  const avatarUrl = getAvatarUrl();
+
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium hover:brightness-110 transition-all"
+        className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium hover:brightness-110 transition-all overflow-hidden"
       >
-        {getInitials(user?.name)}
+        {avatarUrl ? (
+          <img 
+            src={avatarUrl} 
+            alt={user?.name || "User"} 
+            className="w-full h-full object-cover rounded-full"
+            onError={(e) => {
+              // Fallback to initials if image fails to load
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              if (target.parentElement) {
+                const initialsSpan = document.createElement('span');
+                initialsSpan.textContent = getInitials(user?.name);
+                initialsSpan.className = 'text-xs font-medium';
+                target.parentElement.appendChild(initialsSpan);
+              }
+            }}
+          />
+        ) : (
+          <span className="text-xs font-medium">{getInitials(user?.name)}</span>
+        )}
       </button>
 
       {isOpen && (

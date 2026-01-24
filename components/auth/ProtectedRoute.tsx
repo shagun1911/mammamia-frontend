@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { LoadingLogo } from '@/components/LoadingLogo';
 
 /**
  * Protected Route Component
@@ -13,14 +14,30 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const hasRedirected = useRef(false);
+  const [showLoader, setShowLoader] = useState(true);
+  const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
-    // Only redirect once to prevent infinite loops
-    if (!loading && !isAuthenticated && !hasRedirected.current) {
-      hasRedirected.current = true;
-      // Save the attempted URL to redirect back after login
-      sessionStorage.setItem('redirectAfterLogin', pathname);
-      router.replace('/auth/signin');
+    if (!loading) {
+      // Ensure loader stays for at least 2.5 seconds
+      const elapsed = Date.now() - startTimeRef.current;
+      const minDisplayTime = 2500; // 2.5 seconds
+      const remainingTime = Math.max(0, minDisplayTime - elapsed);
+
+      setTimeout(() => {
+        setShowLoader(false);
+        
+        // Only redirect once to prevent infinite loops
+        if (!isAuthenticated && !hasRedirected.current) {
+          hasRedirected.current = true;
+          // Save the attempted URL to redirect back after login
+          sessionStorage.setItem('redirectAfterLogin', pathname);
+          router.replace('/auth/signin');
+        }
+      }, remainingTime);
+    } else {
+      // Reset timer when loading starts again
+      startTimeRef.current = Date.now();
     }
     
     // Reset flag when authenticated
@@ -29,14 +46,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, loading, router, pathname]);
 
-  // Show loading spinner while checking authentication
-  if (loading) {
+  // Show loading spinner while checking authentication or during minimum display time
+  if (loading || showLoader) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-gray-700 border-t-[#6366f1] rounded-full animate-spin" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+        <LoadingLogo size="md" text="Loading..." />
       </div>
     );
   }

@@ -96,43 +96,56 @@ export function ConversationCard({
       <div
         onClick={onClick}
         className={cn(
-          "h-[80px] px-5 py-4 border-b border-border cursor-pointer transition-all duration-200 relative group",
-          "hover:bg-accent/50 hover:shadow-sm",
-          isSelected && "bg-accent border-l-4 border-l-primary shadow-sm"
+          "h-[88px] px-6 py-5 border-b border-border/50 cursor-pointer transition-all duration-300 relative group",
+          "hover:bg-gradient-to-r hover:from-accent/60 hover:to-accent/30 hover:shadow-md hover:border-l-2 hover:border-l-primary/50",
+          isSelected && "bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-l-4 border-l-primary shadow-[inset_0_0_0_1px_rgba(99,102,241,0.1)]"
         )}
       >
-        <div className="flex items-center gap-3.5 h-full">
-          {/* Enhanced Avatar */}
-          <div
-            className="w-11 h-11 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0 shadow-sm ring-2 ring-background"
-            style={{ backgroundColor: conversation.customer.color }}
-          >
-            {conversation.customer.avatar}
+        <div className="flex items-center gap-4 h-full">
+          {/* Premium Avatar with Glow */}
+          <div className="relative shrink-0">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm shadow-lg ring-2 ring-background/50 transition-transform group-hover:scale-105"
+              style={{ 
+                backgroundColor: conversation.customer.color,
+                boxShadow: `0 4px 12px ${conversation.customer.color}40`
+              }}
+            >
+              {conversation.customer.avatar}
+            </div>
+            {conversation.unread && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full border-2 border-background shadow-lg animate-pulse"></div>
+            )}
           </div>
 
-          {/* Enhanced Content */}
-          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="text-sm font-semibold text-foreground truncate">
+          {/* Premium Content */}
+          <div className="flex-1 min-w-0 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                <span className="text-sm font-bold text-foreground truncate tracking-tight">
                   {conversation.customer.name}
                 </span>
                 {isBookmarked && (
-                  <BookmarkCheck className="w-3.5 h-3.5 text-yellow-500 shrink-0" fill="currentColor" />
+                  <BookmarkCheck className="w-4 h-4 text-yellow-500 shrink-0 drop-shadow-sm" fill="currentColor" />
+                )}
+                {conversation.unread && (
+                  <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
+                    NEW
+                  </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs text-muted-foreground font-medium">
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground/80 font-semibold tracking-wide">
                   {formatTime(conversation.timestamp)}
                 </span>
                 {isVoiceMessage && (
-                  <div className="p-1 rounded bg-indigo-500/10">
-                    <Phone className="w-3 h-3 text-indigo-500" />
+                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-indigo-500/20 to-indigo-500/10 border border-indigo-500/20">
+                    <Phone className="w-3.5 h-3.5 text-indigo-500" />
                   </div>
                 )}
                 {hasRecording && (
-                  <div className="p-1 rounded bg-green-500/10">
-                    <Mic className="w-3 h-3 text-green-500" />
+                  <div className="p-1.5 rounded-lg bg-gradient-to-br from-green-500/20 to-green-500/10 border border-green-500/20">
+                    <Mic className="w-3.5 h-3.5 text-green-500" />
                   </div>
                 )}
                 {/* Menu Button - Always Visible */}
@@ -143,21 +156,21 @@ export function ConversationCard({
                       setShowMenu(!showMenu);
                     }}
                     className={cn(
-                      "p-1.5 rounded-lg transition-all",
-                      "hover:bg-secondary text-muted-foreground hover:text-foreground",
-                      showMenu && "bg-secondary text-foreground"
+                      "p-2 rounded-xl transition-all duration-200",
+                      "hover:bg-secondary/80 text-muted-foreground hover:text-foreground hover:shadow-sm",
+                      showMenu && "bg-secondary text-foreground shadow-sm"
                     )}
                     title="More options"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                   
-                  {/* Dropdown Menu */}
+                  {/* Premium Dropdown Menu */}
                   {showMenu && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-xl z-[100] py-1 overflow-hidden">
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-card/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-2xl z-[100] py-2 overflow-hidden ring-1 ring-black/5">
                       <button
                         onClick={handleAddToFolder}
-                        className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-accent flex items-center gap-3 transition-colors"
+                        className="w-full px-4 py-3 text-left text-sm font-medium text-foreground hover:bg-gradient-to-r hover:from-accent hover:to-accent/50 flex items-center gap-3 transition-all duration-200"
                       >
                         <Folder className="w-4 h-4 text-primary shrink-0" />
                         <span>Add to folder</span>
@@ -165,7 +178,7 @@ export function ConversationCard({
                       <button
                         onClick={handleBookmark}
                         disabled={isBookmarking}
-                        className="w-full px-4 py-2.5 text-left text-sm text-foreground hover:bg-accent flex items-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full px-4 py-3 text-left text-sm font-medium text-foreground hover:bg-gradient-to-r hover:from-accent hover:to-accent/50 flex items-center gap-3 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isBookmarked ? (
                           <>
@@ -184,7 +197,7 @@ export function ConversationCard({
                 </div>
               </div>
             </div>
-            <p className="text-[13px] text-muted-foreground truncate leading-relaxed">
+            <p className="text-[13px] text-muted-foreground/90 truncate leading-relaxed font-medium">
               {conversation.lastMessage}
             </p>
           </div>

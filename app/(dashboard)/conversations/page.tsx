@@ -224,19 +224,22 @@ export default function ConversationsPage() {
 
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      {/* Enhanced Professional Navbar */}
-      <div className="h-auto px-8 py-4 flex flex-col gap-4 border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+      {/* Premium Professional Navbar */}
+      <div className="h-auto px-8 py-5 flex flex-col gap-5 border-b border-border/60 bg-gradient-to-br from-background via-background to-primary/[0.02] backdrop-blur-xl shadow-[0_1px_0_0_rgba(255,255,255,0.05)_inset] flex-shrink-0 z-10">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
-              <MessageSquare className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-[0_8px_24px_rgba(99,102,241,0.25)] ring-1 ring-primary/20">
+                <MessageSquare className="w-7 h-7 text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background shadow-lg"></div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+              <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
                 Conversations
-                <Activity className="w-5 h-5 text-primary" />
+                <Activity className="w-5 h-5 text-primary/80" />
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Manage and respond to customer conversations</p>
+              <p className="text-sm text-muted-foreground/80 mt-1 font-medium">Manage and respond to customer conversations across all channels</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -246,28 +249,28 @@ export default function ConversationsPage() {
           </div>
         </div>
 
-        {/* Platform Toggle Buttons */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-2">Platform:</span>
-          <div className="flex items-center gap-2 bg-secondary/50 p-1 rounded-lg border border-border">
+        {/* Premium Platform Toggle Buttons */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-muted-foreground/70 uppercase tracking-widest mr-1">Platform:</span>
+          <div className="flex items-center gap-1.5 bg-card/80 backdrop-blur-sm p-1.5 rounded-xl border border-border/50 shadow-sm">
             <button
               onClick={() => setFilter("all")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 filter === "all"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <Hash className="w-4 h-4" />
               <span>All</span>
             </button>
-            <div className="w-px h-6 bg-border" />
+            <div className="w-px h-7 bg-border/50" />
             <button
               onClick={() => setFilter("channel:website")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 filter === "channel:website"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <MessageCircle className="w-4 h-4" />
@@ -275,10 +278,10 @@ export default function ConversationsPage() {
             </button>
             <button
               onClick={() => setFilter("channel:whatsapp")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 filter === "channel:whatsapp"
-                  ? "bg-green-500 text-white shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg shadow-green-500/30 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <MessageSquare className="w-4 h-4" />
@@ -286,10 +289,10 @@ export default function ConversationsPage() {
             </button>
             <button
               onClick={() => setFilter("channel:instagram")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 filter === "channel:instagram"
-                  ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-gradient-to-r from-purple-500 via-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/30 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <Instagram className="w-4 h-4" />
@@ -297,10 +300,10 @@ export default function ConversationsPage() {
             </button>
             <button
               onClick={() => setFilter("channel:facebook")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 filter === "channel:facebook"
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/30 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <Facebook className="w-4 h-4" />
@@ -308,10 +311,10 @@ export default function ConversationsPage() {
             </button>
             <button
               onClick={() => setFilter("channel:phone")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 filter === "channel:phone"
-                  ? "bg-primary text-primary-foreground shadow-md"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg shadow-primary/30 scale-[1.02]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
               <Phone className="w-4 h-4" />
@@ -346,11 +349,11 @@ export default function ConversationsPage() {
             onClose={handleCloseDetail}
           />
         ) : conversations.length > 0 ? (
-          <div className="flex-1 bg-background flex items-center justify-center overflow-hidden">
+          <div className="flex-1 bg-gradient-to-br from-background via-background to-primary/[0.01] flex items-center justify-center overflow-hidden">
             <div className="text-center max-w-md px-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/20 via-primary/15 to-primary/10 flex items-center justify-center mx-auto mb-6 shadow-inner ring-1 ring-primary/10">
                 <svg
-                  className="w-10 h-10 text-primary"
+                  className="w-12 h-12 text-primary/80"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -358,15 +361,15 @@ export default function ConversationsPage() {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                     d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">
+              <h3 className="text-xl font-bold text-foreground mb-3 tracking-tight">
                 Select a conversation to view details
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground/80 font-medium">
                 Choose a conversation from the list to see messages, customer details, and more
               </p>
             </div>

@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Bot } from "lucide-react";
-
-// ✅ ADD THIS IMPORT
 import { useAuth } from "@/contexts/AuthContext";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 /**
  * OAuth Callback Component
@@ -15,9 +13,21 @@ import { useAuth } from "@/contexts/AuthContext";
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [showLoader, setShowLoader] = useState(true);
+  const startTimeRef = useRef(Date.now());
 
   // ✅ GET CONTEXT METHOD
   const { setAuthFromOAuth } = useAuth();
+
+  useEffect(() => {
+    // Ensure loader stays for at least 2.5 seconds
+    const minDisplayTime = 2500; // 2.5 seconds
+    const timer = setTimeout(() => {
+      setShowLoader(false);
+    }, minDisplayTime);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleCallback = () => {
@@ -88,19 +98,15 @@ function AuthCallbackContent() {
     handleCallback();
   }, [router, searchParams, setAuthFromOAuth]);
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="flex flex-col items-center gap-4">
-        <div className="rounded-full bg-primary/10 p-3">
-          <Bot className="h-8 w-8 text-primary animate-pulse" />
-        </div>
-        <div className="w-12 h-12 border-4 border-gray-300 dark:border-gray-700 border-t-primary rounded-full animate-spin" />
-        <p className="text-muted-foreground">
-          Completing authentication...
-        </p>
+  if (showLoader) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <LoadingLogo size="lg" text="Completing authentication..." />
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
 
 /**
@@ -111,13 +117,7 @@ export default function AuthCallbackPage() {
     <Suspense
       fallback={
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
-          <div className="flex flex-col items-center gap-4">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Bot className="h-8 w-8 text-primary animate-pulse" />
-            </div>
-            <div className="w-12 h-12 border-4 border-gray-300 dark:border-gray-700 border-t-primary rounded-full animate-spin" />
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
+          <LoadingLogo size="lg" text="Loading..." />
         </div>
       }
     >

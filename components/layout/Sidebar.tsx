@@ -69,7 +69,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
     setIsCollapsed(!isCollapsed);
   };
 
-  // Get user initials for avatar
+  // Get user initials for avatar fallback
   const getInitials = (name?: string) => {
     if (!name) return "U";
     const names = name.split(" ");
@@ -77,6 +77,15 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       return (names[0][0] + names[names.length - 1][0]).toUpperCase();
     }
     return name[0].toUpperCase();
+  };
+
+  // Get avatar URL - check user.avatar first, then localStorage
+  const getAvatarUrl = () => {
+    if (user?.avatar) {
+      return user.avatar;
+    }
+    const savedAvatar = localStorage.getItem("userAvatar");
+    return savedAvatar || null;
   };
 
   return (
@@ -176,14 +185,38 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               title={isCollapsed ? item.label : undefined}
             >
               {item.icon === User ? (
-                <div 
-                  className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0 flex-shrink-0 overflow-hidden"
-                  data-no-translate
-                >
-                  <span className="text-[10px] leading-none select-none truncate max-w-full">
-                    {getInitials(user?.name)}
-                  </span>
-                </div>
+                (() => {
+                  const avatarUrl = getAvatarUrl();
+                  return (
+                    <div 
+                      className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0 flex-shrink-0 overflow-hidden"
+                      data-no-translate
+                    >
+                      {avatarUrl ? (
+                        <img 
+                          src={avatarUrl} 
+                          alt={user?.name || "User"} 
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e) => {
+                            // Fallback to initials if image fails to load
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            if (target.parentElement) {
+                              const initialsSpan = document.createElement('span');
+                              initialsSpan.textContent = getInitials(user?.name);
+                              initialsSpan.className = 'text-[10px] leading-none select-none';
+                              target.parentElement.appendChild(initialsSpan);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <span className="text-[10px] leading-none select-none truncate max-w-full">
+                          {getInitials(user?.name)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
                 <Icon className="w-5 h-5 shrink-0 flex-shrink-0" />
               )}
