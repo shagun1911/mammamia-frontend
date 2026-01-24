@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Phone, Key, MessageSquare } from "lucide-react";
+import { Phone, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
   { href: "/configuration/phone", label: "Phone Settings", icon: Phone },
-  { href: "/configuration/api-keys", label: "API Keys", icon: Key },
   { href: "/configuration/chatbot", label: "Chatbot", icon: MessageSquare },
 ];
 

@@ -152,9 +152,11 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         message={alertModal.message}
         type={alertModal.type}
       />
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="h-full flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-6 pb-0">
       {/* Step indicator */}
-      <div className="flex items-center justify-center mb-8">
+      <div className="flex items-center justify-center mb-8 flex-shrink-0">
         {steps.map((s, index) => (
           <div key={s.number} className="flex items-center">
             <div className="flex flex-col items-center">
@@ -239,7 +241,7 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
         )}
 
         {step === 2 && (
-          <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+          <div className="space-y-6">
             <h3 className="text-base font-semibold text-foreground mb-4">
               Select Communication Channels
             </h3>
@@ -411,36 +413,42 @@ export function CampaignBuilder({ onClose, onSave }: CampaignBuilderProps) {
           </div>
         )}
       </div>
-
-      {/* Bottom actions */}
-      <div className="flex justify-between mt-6">
-        <button
-          onClick={step === 1 ? onClose : handleBack}
-          className="px-6 py-3 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
-        >
-          {step === 1 ? "Cancel" : "Back"}
-        </button>
-        {step < 3 ? (
-          <button
-            onClick={handleNext}
-            disabled={
-              (step === 1 && (!campaignName || !contactList)) ||
-              (step === 2 && !enableEmail && !enableCall)
-            }
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        ) : (
-          <button
-            onClick={handleSave}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
-          >
-            Start Campaign 🚀
-          </button>
-        )}
+          </div>
+        </div>
+        
+        {/* Bottom actions - Always visible at bottom */}
+        <div className="flex-shrink-0 border-t border-border bg-background">
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="flex justify-between">
+              <button
+                onClick={step === 1 ? onClose : handleBack}
+                className="px-6 py-3 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors"
+              >
+                {step === 1 ? "Cancel" : "Back"}
+              </button>
+              {step < 3 ? (
+                <button
+                  onClick={handleNext}
+                  disabled={
+                    (step === 1 && (!campaignName || !contactList)) ||
+                    (step === 2 && !enableEmail && !enableCall)
+                  }
+                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  onClick={handleSave}
+                  className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+                >
+                  Start Campaign 🚀
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
     </>
   );
 }

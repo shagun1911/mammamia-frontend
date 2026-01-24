@@ -91,7 +91,8 @@ export default function ProfilePage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        await Promise.all([
+        // Use Promise.allSettled to ensure both complete even if one fails
+        await Promise.allSettled([
           fetchPlans(),
           fetchBillingInfo()
         ]);
@@ -119,6 +120,11 @@ export default function ProfilePage() {
   const fetchBillingInfo = async () => {
     try {
       const token = localStorage.getItem("accessToken");
+      if (!token) {
+        console.warn("No access token found");
+        return;
+      }
+      
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/usage`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -127,15 +133,16 @@ export default function ProfilePage() {
 
       if (response.ok) {
         const data = await response.json();
-        setUsage(data.data.usage);
-        if (data.data.usage.selectedProfile) {
-          setCurrentPlanId(data.data.usage.selectedProfile);
+        setUsage(data.data?.usage || data.data);
+        if (data.data?.usage?.selectedProfile || data.data?.selectedProfile) {
+          setCurrentPlanId(data.data.usage?.selectedProfile || data.data.selectedProfile);
         }
+      } else {
+        console.warn("Failed to fetch usage:", response.status, response.statusText);
       }
     } catch (error) {
       console.error("Failed to fetch usage:", error);
-    } finally {
-      setLoading(false);
+      // Don't block rendering if usage fetch fails
     }
   };
 
@@ -203,17 +210,14 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        )}
         {/* Small Header */}
         <div className="mb-6 pb-4 border-b border-border">
           <h2 className="text-xl font-semibold text-foreground">Profile & Subscription</h2>
@@ -320,8 +324,13 @@ export default function ProfilePage() {
           <h2 className="text-2xl font-bold text-foreground mb-6">
             Available Packages
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
-            {plans.map((plan) => {
+          {loading && plans.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+              {plans.map((plan) => {
               const isCurrentPlan = currentPlanId === plan._id || currentPlanId === plan.slug;
 
               return (
@@ -421,7 +430,8 @@ export default function ProfilePage() {
                 </Card>
               );
             })}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Info Box */}

@@ -100,8 +100,20 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
             isCollapsed ? "justify-center" : "justify-start"
           )}
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-primary/30 ring-2 ring-primary/20 flex-shrink-0">
-            <span className="text-lg">I</span>
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img 
+              src="/Logo.webp" 
+              alt="Aistein.it Logo" 
+              className="w-full h-full object-cover rounded-lg"
+              onError={(e) => {
+                // Fallback to initial if logo fails to load
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                if (target.parentElement) {
+                  target.parentElement.innerHTML = '<span class="text-lg">I</span>';
+                }
+              }}
+            />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">

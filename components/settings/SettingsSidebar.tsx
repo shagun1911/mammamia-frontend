@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, MessagesSquare, Users, UsersRound, BarChart3, Globe, Radio, Key, Plug, Share2, UserCircle } from "lucide-react";
+import { MessageSquare, MessagesSquare, Users, BarChart3, Globe, Radio, Key, Plug, Share2, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
   { href: "/settings/profile", label: "Profile & Subscription", icon: UserCircle },
   { href: "/settings/contacts", label: "Contacts", icon: Users },
-  { href: "/settings/team", label: "Team", icon: UsersRound },
   { href: "/settings/language-privacy", label: "Language & Privacy", icon: Globe },
   { href: "/settings/socials", label: "Socials", icon: Share2 },
   { href: "/settings/integrations", label: "Integrations", icon: Plug },

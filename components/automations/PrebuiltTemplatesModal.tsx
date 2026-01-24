@@ -38,51 +38,99 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
   }, [isOpen]);
 
   const checkIntegrations = async () => {
+    console.log('[PrebuiltTemplates] checkIntegrations called');
     try {
       setLoading(true);
+      console.log('[PrebuiltTemplates] Starting integration checks...');
       
+      // Check WhatsApp integration
       try {
         const whatsappRes = await apiClient.get('/social-integrations/whatsapp');
         const whatsappData = whatsappRes.data?.data || whatsappRes.data;
-        setIntegrationStatus(prev => ({
-          ...prev,
-          whatsapp: whatsappData?.status === 'connected' || false,
-        }));
-      } catch (error: any) {
-        setIntegrationStatus(prev => ({ ...prev, whatsapp: false }));
-      }
-
-      try {
-        const facebookRes = await apiClient.get('/social-integrations/facebook');
-        const facebookData = facebookRes.data?.data || facebookRes.data;
-        setIntegrationStatus(prev => ({
-          ...prev,
-          facebook: facebookData?.status === 'connected' || false,
-        }));
-      } catch (error: any) {
-        setIntegrationStatus(prev => ({ ...prev, facebook: false }));
-      }
-
-      try {
-        const googleRes = await apiClient.get('/integrations/google/status');
-        const googleData = googleRes.data?.data || googleRes.data;
-        // Check if Google Workspace is connected (sheets, calendar, or gmail)
-        const googleConnected = googleData?.connected === true && (
-          googleData?.services?.sheets === true ||
-          googleData?.services?.calendar === true ||
-          googleData?.services?.gmail === true
+        // Integration is connected if it exists and status is 'connected'
+        const isConnected = whatsappData && (
+          whatsappData.status === 'connected' || 
+          whatsappData.status === 'active' ||
+          (whatsappData.platform === 'whatsapp' && whatsappData.credentials?.apiKey)
         );
         setIntegrationStatus(prev => ({
           ...prev,
-          google: googleConnected || false,
+          whatsapp: !!isConnected,
+        }));
+        console.log('[PrebuiltTemplates] WhatsApp status:', { isConnected, data: whatsappData });
+      } catch (error: any) {
+        console.log('[PrebuiltTemplates] WhatsApp check failed:', error.response?.status, error.message);
+        setIntegrationStatus(prev => ({ ...prev, whatsapp: false }));
+      }
+
+      // Check Facebook integration
+      try {
+        const facebookRes = await apiClient.get('/social-integrations/facebook');
+        const facebookData = facebookRes.data?.data || facebookRes.data;
+        // Integration is connected if it exists and status is 'connected'
+        const isConnected = facebookData && (
+          facebookData.status === 'connected' || 
+          facebookData.status === 'active' ||
+          (facebookData.platform === 'facebook' && facebookData.credentials?.apiKey)
+        );
+        setIntegrationStatus(prev => ({
+          ...prev,
+          facebook: !!isConnected,
+        }));
+        console.log('[PrebuiltTemplates] Facebook status:', { isConnected, data: facebookData });
+      } catch (error: any) {
+        console.log('[PrebuiltTemplates] Facebook check failed:', error.response?.status, error.message);
+        setIntegrationStatus(prev => ({ ...prev, facebook: false }));
+      }
+
+      // Check Google integration
+      try {
+        console.log('[PrebuiltTemplates] Checking Google integration...');
+        // apiClient.get() returns response.data directly, which is { success: true, data: {...} }
+        const googleRes = await apiClient.get('/integrations/google/status');
+        console.log('[PrebuiltTemplates] Google API response:', googleRes);
+        
+        // Extract the actual data - backend returns { success: true, data: {...} }
+        // apiClient.get() already returns response.data, so googleRes is { success: true, data: {...} }
+        const googleData = googleRes?.data || googleRes;
+        console.log('[PrebuiltTemplates] Google extracted data:', googleData);
+        
+        // Google is connected if:
+        // 1. connected flag is explicitly true, OR
+        // 2. Any service is enabled (gmail, sheets, calendar, drive)
+        const hasServices = googleData?.services && (
+          googleData.services.sheets === true ||
+          googleData.services.calendar === true ||
+          googleData.services.gmail === true ||
+          googleData.services.drive === true
+        );
+        
+        const googleConnected = googleData?.connected === true || hasServices;
+        
+        console.log('[PrebuiltTemplates] Google connection check:', {
+          connected: googleData?.connected,
+          hasServices,
+          services: googleData?.services,
+          finalResult: googleConnected
+        });
+        
+        setIntegrationStatus(prev => ({
+          ...prev,
+          google: !!googleConnected,
         }));
       } catch (error: any) {
+        console.error('[PrebuiltTemplates] Google check failed:', {
+          status: error.status || error.response?.status,
+          message: error.message,
+          data: error.data || error.response?.data
+        });
         setIntegrationStatus(prev => ({ ...prev, google: false }));
       }
 
+      // Email is always available
       setIntegrationStatus(prev => ({ ...prev, email: true }));
     } catch (error) {
-      console.error('Error checking integrations:', error);
+      console.error('[PrebuiltTemplates] Error checking integrations:', error);
       setIntegrationStatus({
         whatsapp: false,
         facebook: false,
