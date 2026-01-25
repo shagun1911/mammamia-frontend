@@ -1,5 +1,7 @@
 "use client";
 
+// minor change: layout maintenance comment
+
 import { useState } from "react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
@@ -43,7 +45,9 @@ export default function AdminLayout({
                     Admin Panel
                     <Activity className="w-5 h-5 text-primary" />
                   </h1>
-                  <p className="text-sm text-muted-foreground mt-0.5">Platform administration and analytics</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Platform administration and analytics
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
