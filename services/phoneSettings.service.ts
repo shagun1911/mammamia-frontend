@@ -290,4 +290,3 @@ export const getVoiceIdFromValue = (voiceValue: string): string => {
   const voice = VOICE_OPTIONS.find(v => v.value === voiceValue);
   return voice?.voiceId || 'pNInz6obpgDQGcFmaJgB'; // Default to Adam
 };
-

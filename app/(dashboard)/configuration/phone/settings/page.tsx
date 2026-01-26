@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react";
+import axios from "axios"; // Import axios directly
+import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePhoneSettings } from "@/hooks/usePhoneSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { useInboundAgentConfig } from "@/hooks/useInboundAgentConfig";
 import { VOICE_OPTIONS, phoneSettingsService } from "@/services/phoneSettings.service";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api";
+
 export default function PhoneSettingsDetailPage() {
   const router = useRouter();
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
@@ -16,6 +19,7 @@ export default function PhoneSettingsDetailPage() {
 
   const [activeTab, setActiveTab] = useState<"voiceAgentBehaviour" | "endOfCall" | "inbound">("voiceAgentBehaviour");
   const [copied, setCopied] = useState(false);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null); // State to track which voice is currently playing
 
   // Form state
   const [voiceType, setVoiceType] = useState<"predefined" | "custom">(
@@ -488,25 +492,75 @@ const handleGenericSetup = async () => {
   }
 };
 
-const handleSaveEscalationRules = async () => {
-  try {
-    await updateVoiceAgentHumanOperator.mutateAsync({ escalationRules });
-    toast.success("Escalation rules saved successfully");
-  } catch (error: any) {
-    toast.error(error.message || "Failed to save escalation rules");
-  }
-};
+  const handleSaveEscalationRules = async () => {
+    try {
+      await updateVoiceAgentHumanOperator.mutateAsync({ escalationRules });
+      toast.success("Escalation rules saved successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save escalation rules");
+    }
+  };
 
-if (isLoading) {
-  return (
-    <div className="p-8">
-      <div className="animate-pulse">
-        <div className="h-8 w-48 bg-secondary rounded mb-6"></div>
-        <div className="h-64 bg-card rounded-xl"></div>
+  const playVoiceSample = async (voiceId: string, voiceName: string) => {
+    setPlayingVoiceId(voiceId); // Set the voice currently playing
+    try {
+      const sampleText = `Hey, I am your ${voiceName} voice from Aistein.`;
+      const token = localStorage.getItem('accessToken'); // Get token for Authorization header
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+
+      const response = await axios.post(
+        `${API_BASE_URL}/tts/generate-audio`,
+        { voiceId, text: sampleText },
+        {
+          responseType: 'arraybuffer',
+          headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const responseData = response.data; // Extract data from the raw axios response
+
+      // ❗ SAFETY CHECK
+      if (!responseData || !(responseData instanceof ArrayBuffer) || responseData.byteLength < 1000) {
+        throw new Error("Invalid audio received from backend: data is not ArrayBuffer or too small");
+      }
+
+      const audioBlob = new Blob([responseData], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        setPlayingVoiceId(null); // Reset when audio finishes
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
+        toast.error('Failed to play voice sample.');
+        setPlayingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.play();
+      toast.success(`Playing sample for ${voiceName}...`);
+    } catch (error: any) {
+      console.error("Error playing voice sample:", error.response?.data ? new TextDecoder().decode(error.response.data) : error.message);
+      toast.error(error.message || "Failed to play voice sample");
+      setPlayingVoiceId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <div className="animate-pulse">
+          <div className="h-8 w-48 bg-secondary rounded mb-6"></div>
+          <div className="h-64 bg-card rounded-xl"></div>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 return (
   <div className="h-full overflow-auto">
@@ -920,23 +974,52 @@ return (
               </select>
             </div>
 
-            {/* Predefined Voice Selection */}
+            {/* Predefined Voice Selection (Custom UI) */}
             {voiceType === "predefined" && (
               <div>
                 <label className="block text-sm font-medium text-foreground mb-3">
                   Select Voice <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
-                >
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   {VOICE_OPTIONS.map((voice) => (
-                    <option key={voice.value} value={voice.value}>
-                      {voice.flag} {voice.label} ({voice.language} • {voice.gender})
-                    </option>
+                    <div
+                      key={voice.value}
+                      className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all
+                        ${selectedVoice === voice.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}
+                      `}
+                      onClick={() => setSelectedVoice(voice.value)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{voice.flag}</span>
+                        <div>
+                          <div className="font-medium text-foreground">
+                            {voice.label}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {voice.language} • {voice.gender}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent selecting the voice when clicking play
+                          playVoiceSample(voice.voiceId, voice.label);
+                        }}
+                        disabled={playingVoiceId === voice.voiceId}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors
+                          ${playingVoiceId === voice.voiceId ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-secondary hover:bg-primary/10 text-primary"}
+                        `}
+                        title={`Play sample for ${voice.label}`}
+                      >
+                        {playingVoiceId === voice.voiceId ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
                   ))}
-                </select>
+                </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   Select the voice for your AI agent.
                 </p>
