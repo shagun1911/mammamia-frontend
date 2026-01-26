@@ -61,16 +61,16 @@ export default function AdminUsersPage() {
       console.error('Plan assignment error:', error);
       console.error('Error response:', error.response?.data);
       console.error('Error details:', error.response?.data?.error?.details);
-      
+
       const errorData = error.response?.data?.error;
       let errorMessage = error.response?.data?.message || error.message || 'Failed to assign plan';
-      
+
       // If there are validation details, show them
       if (errorData?.details && Array.isArray(errorData.details) && errorData.details.length > 0) {
         const detailMessages = errorData.details.map((d: any) => `${d.field}: ${d.message}`).join(', ');
         errorMessage = `Validation failed: ${detailMessages}`;
       }
-      
+
       toast.error(errorMessage);
     }
   });
@@ -80,19 +80,19 @@ export default function AdminUsersPage() {
       toast.error('No user selected');
       return;
     }
-    
+
     if (!selectedPlanId) {
       toast.error('Please select a plan first');
       return;
     }
-    
+
     // Use user ID directly (user-based system)
     console.log('✅ Assigning plan:', {
       userId: selectedUser._id,
       userEmail: selectedUser.email,
       planId: selectedPlanId
     });
-    
+
     assignPlanMutation.mutate({
       organizationId: selectedUser._id, // Backend expects this param name
       planId: selectedPlanId
@@ -298,10 +298,11 @@ export default function AdminUsersPage() {
                   </div>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                   {plans?.map((plan) => {
                     const isSelected = selectedPlanId === plan._id;
                     const isCurrentPlan = selectedUser.selectedProfile === plan.slug;
-                    
+
                     return (
                       <button
                         key={plan._id}
@@ -323,7 +324,7 @@ export default function AdminUsersPage() {
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="mb-3">
                           <h4 className="text-xl font-bold text-foreground">{plan.name}</h4>
                           <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
