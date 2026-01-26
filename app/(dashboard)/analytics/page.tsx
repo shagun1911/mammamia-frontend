@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Calendar, RefreshCw, TrendingUp, BarChart3, Activity } from "lucide-react";
+import { Calendar, RefreshCw, TrendingUp, BarChart3, Activity, Globe, MessageSquare, Users } from "lucide-react";
 import { MetricsGrid } from "@/components/analytics/MetricsGrid";
 import { ChannelChart } from "@/components/analytics/ChannelChart";
 import { TopicsChart } from "@/components/analytics/TopicsChart";
@@ -14,11 +14,12 @@ import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { analyticsService } from "@/services/analytics.service";
 import { LoadingLogo } from "@/components/LoadingLogo";
+import { cn } from "@/lib/utils";
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState<7 | 30 | 90>(7);
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all'); // 'all', 'website', 'whatsapp', 'instagram', 'facebook', 'phone', 'email'
-  const { dashboardMetrics, trends, performance, isLoading, error, refresh } = useAnalytics(dateRange);
+  const { dashboardMetrics, trends, performance, topTopics, isLoading, error, refresh } = useAnalytics(dateRange, selectedPlatform);
   const [showLoader, setShowLoader] = useState(true);
   const startTimeRef = useRef(Date.now());
 
@@ -28,7 +29,7 @@ export default function AnalyticsPage() {
       const elapsed = Date.now() - startTimeRef.current;
       const minDisplayTime = 2500; // 2.5 seconds
       const remainingTime = Math.max(0, minDisplayTime - elapsed);
-      
+
       setTimeout(() => {
         setShowLoader(false);
       }, remainingTime);
@@ -41,16 +42,8 @@ export default function AnalyticsPage() {
   // Transform backend data to match UI expectations
   const metrics = useMemo(() => {
     if (!dashboardMetrics || !trends) {
-      console.log('[Analytics] Missing data:', { dashboardMetrics, trends });
       return null;
     }
-    
-    console.log('[Analytics] Processing metrics:', {
-      totalConversations: dashboardMetrics.totalConversations,
-      totalCallMinutes: dashboardMetrics.totalCallMinutes,
-      totalChatConversations: dashboardMetrics.totalChatConversations,
-      conversationsByChannel: dashboardMetrics.conversationsByChannel
-    });
 
     // Calculate percentage change (compare current period with previous period)
     const calculateChange = (current: number, previous: number) => {
@@ -58,14 +51,8 @@ export default function AnalyticsPage() {
       return Math.round(((current - previous) / previous) * 100);
     };
 
-    // Get previous period data for comparison
-    const previousPeriodStart = new Date();
-    previousPeriodStart.setDate(previousPeriodStart.getDate() - (dateRange * 2));
-    const previousPeriodEnd = new Date();
-    previousPeriodEnd.setDate(previousPeriodEnd.getDate() - dateRange);
-
-    // For now, use simplified calculation (in production, fetch previous period data)
-    const previousTotal = Math.floor(dashboardMetrics.totalConversations * 0.7); // Approximate
+    // simplified calculation
+    const previousTotal = Math.floor(dashboardMetrics.totalConversations * 0.7);
 
     return {
       newConversations: {
@@ -74,25 +61,31 @@ export default function AnalyticsPage() {
       },
       callMinutes: {
         value: dashboardMetrics.totalCallMinutes || 0,
-        change: 0, // Will be calculated from trends
+        change: 0,
       },
       chatConversations: {
         value: dashboardMetrics.totalChatConversations || 0,
         change: 0,
       },
     };
-  }, [dashboardMetrics, trends, dateRange]);
+  }, [dashboardMetrics, trends]);
 
   // Transform trends data for charts
   const chartData = useMemo(() => {
-    if (!trends) return [];
+    if (!trends || !trends.newConversations) return [];
 
-    return trends.newConversations.map((item, index) => ({
-      date: item.period,
-      newConversations: item.count,
-      callMinutes: trends.callMinutes?.[index]?.minutes || 0,
-      chatConversations: trends.chatConversations?.[index]?.count || 0,
-    }));
+    return trends.newConversations.map((item) => {
+      // Period-based matching is safer than index-based
+      const callMinItem = trends.callMinutes?.find(m => m.period === item.period);
+      const chatConvItem = trends.chatConversations?.find(c => c.period === item.period);
+
+      return {
+        date: item.period,
+        newConversations: item.count || 0,
+        callMinutes: callMinItem ? callMinItem.minutes : 0,
+        chatConversations: chatConvItem ? chatConvItem.count : 0,
+      };
+    });
   }, [trends]);
 
   // Transform channel data
@@ -126,7 +119,6 @@ export default function AnalyticsPage() {
     };
 
     const channelBreakdown = dashboardMetrics.conversationsByChannel || {};
-    console.log('[Analytics] Channel breakdown:', channelBreakdown);
 
     let result = Object.entries(channelBreakdown)
       .filter(([_, count]) => (count as number) > 0)
@@ -134,48 +126,17 @@ export default function AnalyticsPage() {
         channel: channelLabels[channel] || channel.charAt(0).toUpperCase() + channel.slice(1),
         count: count as number,
         color: channelColors[channel] || "#6b7280",
-        key: channel, // Add key for filtering
+        key: channel,
       }))
       .sort((a, b) => b.count - a.count);
 
-    // Filter by selected platform
     if (selectedPlatform !== 'all') {
       result = result.filter(item => item.key === selectedPlatform);
     }
-    
-    console.log('[Analytics] Processed channel data:', result);
+
     return result;
   }, [dashboardMetrics, selectedPlatform]);
 
-  // Fetch topics data
-  const [topicData, setTopicData] = useState<{ topic: string; count: number }[]>([]);
-  
-  useEffect(() => {
-    const fetchTopics = async () => {
-      try {
-        const dateTo = new Date();
-        const dateFrom = new Date();
-        dateFrom.setDate(dateFrom.getDate() - dateRange);
-        
-        const topics = await analyticsService.getTopTopics({
-          dateFrom: dateFrom.toISOString(),
-          dateTo: dateTo.toISOString(),
-          limit: 10
-        });
-        
-        if (topics?.data) {
-          setTopicData(topics.data);
-        }
-      } catch (error) {
-        console.error('Error fetching topics:', error);
-        setTopicData([]);
-      }
-    };
-    
-    if (!isLoading) {
-      fetchTopics();
-    }
-  }, [dateRange, isLoading]);
 
   const dateRangeLabels = {
     7: "Last 7 days",
@@ -261,66 +222,84 @@ export default function AnalyticsPage() {
 
   return (
     <div className="fixed inset-0 flex flex-col transition-all duration-300" style={{ left: `${getSidebarWidth()}px` }}>
-      {/* Enhanced Professional Navbar */}
-      <div className="h-20 px-8 flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/5 via-primary/3 to-transparent backdrop-blur-sm shadow-sm flex-shrink-0 z-10">
+      {/* Streamlined Premium Navbar */}
+      <div className="sticky top-0 h-16 px-8 flex items-center justify-between border-b border-border/60 bg-background/80 backdrop-blur-xl shadow-sm z-30 transition-all duration-300">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
-            <BarChart3 className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 flex items-center justify-center shadow-lg shadow-primary/20 ring-1 ring-white/10">
+            <BarChart3 className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-              Analytics
-              <Activity className="w-5 h-5 text-primary" />
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Track your performance metrics and insights</p>
+          <div className="hidden md:block">
+            <h1 className="text-xl font-bold text-foreground tracking-tight">Analytics</h1>
+            <p className="text-[11px] text-muted-foreground font-medium -mt-0.5">Real-time performance metrics</p>
           </div>
         </div>
-        
-        {/* Enhanced Controls */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={refresh}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent hover:border-primary/20 transition-all disabled:opacity-50 shadow-sm cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          
-          {/* Platform Filter Toggle */}
-          <div className="relative">
-            <select
-              value={selectedPlatform}
-              onChange={(e) => setSelectedPlatform(e.target.value)}
-              className="appearance-none flex items-center gap-2 px-4 py-2.5 pr-10 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent hover:border-primary/20 transition-all cursor-pointer shadow-sm"
-            >
-              <option value="all">All Platforms</option>
-              <option value="website">Website</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="instagram">Instagram</option>
-              <option value="facebook">Facebook</option>
-              <option value="phone">Phone</option>
-              <option value="email">Email</option>
-            </select>
+
+        {/* Central Controls - Modern Segmented Toggle */}
+        <div className="flex items-center gap-3 flex-1 justify-center max-w-2xl">
+          <div className="flex bg-secondary/50 border border-border/80 p-1 rounded-xl shadow-inner overflow-x-auto scrollbar-hide no-scrollbar ring-1 ring-white/5">
+            {[
+              { id: 'all', label: 'All', icon: Activity },
+              { id: 'website', label: 'Web', icon: Globe },
+              { id: 'whatsapp', label: 'WA', icon: MessageSquare },
+              { id: 'instagram', label: 'IG', icon: TrendingUp },
+              { id: 'facebook', label: 'FB', icon: Users },
+              { id: 'phone', label: 'Call', icon: Activity },
+              { id: 'email', label: 'Email', icon: MessageSquare }
+            ].map((platform) => {
+              const PlatformIcon = platform.icon;
+              const isSelected = selectedPlatform === platform.id;
+              return (
+                <button
+                  key={platform.id}
+                  onClick={() => setSelectedPlatform(platform.id)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap cursor-pointer",
+                    isSelected
+                      ? "bg-primary text-white shadow-md scale-[1.02] transform"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  )}
+                >
+                  <PlatformIcon className="w-3.5 h-3.5" />
+                  <span className="hidden lg:inline">{platform.label}</span>
+                </button>
+              );
+            })}
           </div>
-          
-          {/* Enhanced Date range selector */}
+
           <div className="relative">
             <select
               value={dateRange}
               onChange={(e) => setDateRange(Number(e.target.value) as 7 | 30 | 90)}
-              className="appearance-none flex items-center gap-2 px-4 py-2.5 pr-10 bg-card border border-border text-foreground rounded-lg text-sm font-medium hover:bg-accent hover:border-primary/20 transition-all cursor-pointer shadow-sm"
+              className="appearance-none flex items-center gap-2 px-4 py-2 pr-10 bg-card/50 border border-border/80 text-foreground rounded-xl text-xs font-bold hover:bg-accent transition-all cursor-pointer shadow-sm min-w-[110px]"
             >
-              <option value={7}>Last 7 days</option>
-              <option value={30}>Last 30 days</option>
-              <option value={90}>Last 90 days</option>
+              <option value={7}>7 Days</option>
+              <option value={30}>30 Days</option>
+              <option value={90}>90 Days</option>
             </select>
-            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           </div>
+        </div>
 
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <UserMenu />
+        {/* Right Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={refresh}
+            disabled={isLoading}
+            className="w-10 h-10 flex items-center justify-center bg-card border border-border/80 text-foreground rounded-xl hover:bg-accent transition-all disabled:opacity-50 cursor-pointer shadow-sm hover:scale-105 active:scale-95 group"
+            title="Refresh analytics"
+          >
+            <RefreshCw className={cn("w-4.5 h-4.5 group-hover:text-primary transition-colors", isLoading && "animate-spin")} />
+          </button>
+
+          <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
+
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <ThemeToggle />
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-border/80 shadow-sm">
+              <UserMenu />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -354,8 +333,8 @@ export default function AnalyticsPage() {
             {/* Usage Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
               <ChannelChart data={channelData} />
-              {topicData.length > 0 ? (
-                <TopicsChart data={topicData} />
+              {topTopics.length > 0 ? (
+                <TopicsChart data={topTopics} />
               ) : (
                 <div className="bg-card border border-border rounded-xl p-8 shadow-lg hover:shadow-xl transition-shadow">
                   <div className="flex items-center gap-3 mb-6">

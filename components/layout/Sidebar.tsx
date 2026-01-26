@@ -20,6 +20,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/contexts/SidebarContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage, languageNames, Language } from "@/contexts/LanguageContext";
 
@@ -51,7 +52,7 @@ const bottomNavItems: NavItem[] = [
 ];
 
 export function Sidebar({ onCollapseChange }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, setIsCollapsed } = useSidebar();
   const pathname = usePathname();
   const { language, setLanguage } = useLanguage();
   const { user } = useAuth();
@@ -110,9 +111,9 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
           )}
         >
           <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <img 
-              src="/Logo.webp" 
-              alt="Aistein.it Logo" 
+            <img
+              src="/Logo.webp"
+              alt="Aistein.it Logo"
               className="w-full h-full object-cover rounded-lg"
               onError={(e) => {
                 // Fallback to initial if logo fails to load
@@ -188,14 +189,14 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                 (() => {
                   const avatarUrl = getAvatarUrl();
                   return (
-                    <div 
+                    <div
                       className="w-5 h-5 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-medium shrink-0 flex-shrink-0 overflow-hidden"
                       data-no-translate
                     >
                       {avatarUrl ? (
-                        <img 
-                          src={avatarUrl} 
-                          alt={user?.name || "User"} 
+                        <img
+                          src={avatarUrl}
+                          alt={user?.name || "User"}
                           className="w-full h-full object-cover rounded-full"
                           onError={(e) => {
                             // Fallback to initials if image fails to load
@@ -259,8 +260,8 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
             />
             <div className={cn(
               "absolute z-50 bg-card border border-border/60 rounded-xl shadow-xl overflow-hidden backdrop-blur-sm min-w-[160px]",
-              isCollapsed 
-                ? "bottom-0 left-full ml-2" 
+              isCollapsed
+                ? "bottom-0 left-full ml-2"
                 : "bottom-full left-3 right-3 mb-2"
             )}>
               {(Object.keys(languageNames) as Language[]).map((lang) => (
@@ -272,8 +273,8 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                   }}
                   className={cn(
                     "w-full px-4 py-2.5 text-left text-sm hover:bg-accent transition-all duration-200 cursor-pointer whitespace-nowrap",
-                    language === lang 
-                      ? "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-semibold border-l-2 border-primary" 
+                    language === lang
+                      ? "bg-gradient-to-r from-primary/15 to-primary/5 text-primary font-semibold border-l-2 border-primary"
                       : "text-foreground hover:translate-x-1"
                   )}
                 >
