@@ -17,7 +17,7 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen p-8">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -26,7 +26,7 @@ export default function AdminDashboardPage() {
   if (error) {
     toast.error('Failed to load dashboard metrics');
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen p-8">
         <div className="text-destructive">Failed to load dashboard</div>
       </div>
     );
@@ -127,7 +127,7 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Admin Dashboard</h1>
@@ -135,7 +135,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           const isClickable = ['Facebook Integrations', 'Instagram Integrations', 'WhatsApp Integrations', 'Google Integrations', 'E-commerce Integrations'].includes(stat.title);
@@ -143,18 +143,18 @@ export default function AdminDashboardPage() {
           const card = (
             <div
               className={cn(
-                "bg-card border border-border rounded-xl p-6 shadow-sm transition-all",
-                isClickable && stat.value > 0 ? "hover:shadow-lg hover:border-primary cursor-pointer" : "hover:shadow-md"
+                "bg-card border border-border rounded-lg p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/60",
+                isClickable && stat.value > 0 ? "cursor-pointer" : ""
               )}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className={cn("p-3 rounded-lg", stat.bgColor)}>
-                  <Icon className={cn("w-6 h-6", stat.color)} />
+              <div className="flex items-center justify-between mb-3">
+                <div className={cn("p-2 rounded-md", stat.bgColor)}>
+                  <Icon className={cn("w-5 h-5", stat.color)} />
                 </div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                <p className="text-3xl font-bold text-foreground">{stat.value.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-foreground">{stat.value.toLocaleString()}</p>
               </div>
             </div>
           );
