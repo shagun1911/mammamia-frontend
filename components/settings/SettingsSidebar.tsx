@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 
 const menuItems = [
   { href: "/settings/profile", label: "Profile & Subscription", icon: UserCircle },
-  { href: "/settings/contacts", label: "Contacts", icon: Users },
-  { href: "/settings/language-privacy", label: "Language & Privacy", icon: Globe },
+
   { href: "/settings/socials", label: "Socials", icon: Share2 },
   { href: "/settings/integrations", label: "Integrations", icon: Plug },
+
 ];
 
 export function SettingsSidebar() {
