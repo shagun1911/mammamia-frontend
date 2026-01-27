@@ -77,13 +77,11 @@ export function NodeConfigPanel({
       const response = await apiClient.get('/integrations/google/sheets/list');
       const data = response?.data || response;
       if (data?.spreadsheets) {
-        // Filter out deleted files and ensure only spreadsheets
+        // Backend already filters by mimeType and trashed=false, so we only need to validate id and name
         const validSpreadsheets = data.spreadsheets.filter((sheet: any) =>
           sheet &&
           sheet.id &&
-          sheet.name &&
-          !sheet.trashed &&
-          sheet.mimeType === 'application/vnd.google-apps.spreadsheet'
+          sheet.name
         );
         setSpreadsheets(validSpreadsheets);
 
@@ -92,10 +90,17 @@ export function NodeConfigPanel({
           // Spreadsheet was deleted - show warning but don't auto-clear
           console.warn('Selected spreadsheet no longer exists:', selectedSpreadsheetId);
         }
+
+        if (validSpreadsheets.length > 0) {
+          toast.success(`Loaded ${validSpreadsheets.length} spreadsheet${validSpreadsheets.length > 1 ? 's' : ''}`);
+        }
+      } else {
+        toast.info('No spreadsheets found. Create a Google Sheet to get started.');
       }
     } catch (error: any) {
       console.error('Error loading spreadsheets:', error);
-      // Don't show error if Google not connected - user will see warning banner
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to load spreadsheets';
+      toast.error(`Failed to load spreadsheets: ${errorMessage}`);
     } finally {
       setLoadingSpreadsheets(false);
     }
@@ -1118,15 +1123,23 @@ export function NodeConfigPanel({
                     <label className="block text-xs text-muted-foreground">
                       Option 2: Select from My Spreadsheets
                     </label>
-                    {!loadingSpreadsheets && spreadsheets.length === 0 && (
-                      <button
-                        onClick={loadSpreadsheets}
-                        className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
-                      >
-                        <FileSpreadsheet className="w-3 h-3" />
-                        <span>Load my spreadsheets</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={loadSpreadsheets}
+                      disabled={loadingSpreadsheets}
+                      className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                    >
+                      {loadingSpreadsheets ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FileSpreadsheet className="w-3 h-3" />
+                          <span>{spreadsheets.length > 0 ? 'Refresh list' : 'Load my spreadsheets'}</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                   {loadingSpreadsheets ? (
                     <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
@@ -1148,8 +1161,10 @@ export function NodeConfigPanel({
                     </select>
                   ) : (
                     <div className="p-3 bg-secondary/50 rounded-lg border border-border">
-                      <p className="text-xs text-muted-foreground">
-                        Click "Load my spreadsheets" to see your Google Sheets
+                      <p className="text-xs text-muted-foreground text-center">
+                        {googleIntegrationStatus?.connected 
+                          ? 'Click "Load my spreadsheets" to see your Google Sheets'
+                          : 'Connect Google Workspace to load your spreadsheets'}
                       </p>
                     </div>
                   )}
