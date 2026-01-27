@@ -27,6 +27,7 @@ export function NodeConfigPanel({
   const [spreadsheets, setSpreadsheets] = useState<any[]>([]);
   const [loadingSpreadsheets, setLoadingSpreadsheets] = useState(false);
   const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>(node.config.spreadsheetId || "");
+  const [spreadsheetLink, setSpreadsheetLink] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
@@ -39,22 +40,30 @@ export function NodeConfigPanel({
   useEffect(() => {
     const spreadsheetId = node.config.spreadsheetId || "";
     setSelectedSpreadsheetId(spreadsheetId);
+    // Clear link input when node changes (will be populated if user pastes link)
+    setSpreadsheetLink("");
   }, [node.id, node.config.spreadsheetId]);
 
   useEffect(() => {
-    // Fetch lists for contact moved trigger
-    if (node.service === "keplero_contact_moved" || node.service === "keplero_create_contact") {
-      setLoading(true);
-      fetch('/api/contacts/lists')
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.data) {
-            setLists(data.data);
+    // Fetch lists for contact moved trigger or batch call
+    const fetchLists = async () => {
+      if (node.service === "keplero_contact_moved" || node.service === "keplero_create_contact" || node.service === "batch_call" || node.service === "keplero_mass_sending") {
+        setLoading(true);
+        try {
+          const response = await apiClient.get('/contacts/lists/all');
+          const data = response?.data || response;
+          if (data) {
+            setLists(data);
           }
-        })
-        .catch(err => console.error('Error fetching lists:', err))
-        .finally(() => setLoading(false));
-    }
+        } catch (err) {
+          console.error('Error fetching lists:', err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchLists();
 
     // Fetch Google Sheets spreadsheets when configuring Google Sheets action
     if (node.service === "keplero_google_sheet_append_row") {
@@ -94,6 +103,8 @@ export function NodeConfigPanel({
 
   const handleSpreadsheetSelect = (spreadsheetId: string) => {
     setSelectedSpreadsheetId(spreadsheetId);
+    // Clear link input when selecting from dropdown
+    setSpreadsheetLink("");
     // Ensure sheetName is set if not already present
     const sheetName = node.config.sheetName || "Sheet1";
     onUpdate({
@@ -101,6 +112,41 @@ export function NodeConfigPanel({
       spreadsheetId,
       sheetName
     });
+  };
+
+  // Extract spreadsheetId from Google Sheets URL
+  const extractSpreadsheetIdFromUrl = (url: string): string | null => {
+    if (!url || typeof url !== 'string') return null;
+    
+    // Match pattern: /spreadsheets/d/[SPREADSHEET_ID]/
+    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : null;
+  };
+
+  const handleSpreadsheetLinkChange = (link: string) => {
+    setSpreadsheetLink(link);
+    
+    // Extract spreadsheetId from URL
+    const extractedId = extractSpreadsheetIdFromUrl(link);
+    
+    if (extractedId) {
+      setSelectedSpreadsheetId(extractedId);
+      // Clear dropdown selection when using link
+      const sheetName = node.config.sheetName || "Sheet1";
+      onUpdate({
+        ...node.config,
+        spreadsheetId: extractedId,
+        sheetName
+      });
+    } else if (link.trim() === "") {
+      // Clear selection if link is empty
+      setSelectedSpreadsheetId("");
+      onUpdate({
+        ...node.config,
+        spreadsheetId: "",
+        sheetName: node.config.sheetName || "Sheet1"
+      });
+    }
   };
 
   const addColumnMapping = () => {
@@ -128,7 +174,7 @@ export function NodeConfigPanel({
   };
 
   // Ensure Google Sheets config is properly formatted before save
-  // CRITICAL: This function MUST use the current form state (selectedSpreadsheetId, node.config.values)
+  // CRITICAL: This function MUST use the current form state (selectedSpreadsheetId, spreadsheetLink, node.config.values)
   // to ensure all user inputs are captured, not just what's in node.config
   const ensureGoogleSheetsConfig = (): AutomationNode["config"] => {
     if (node.service === "keplero_google_sheet_append_row") {
@@ -136,10 +182,27 @@ export function NodeConfigPanel({
       const config = { ...node.config };
 
       // CRITICAL FIX: Use selectedSpreadsheetId from form state (source of truth)
-      // This ensures the dropdown selection is captured even if node.config wasn't updated yet
-      const formSpreadsheetId = selectedSpreadsheetId && selectedSpreadsheetId.trim() !== ""
-        ? selectedSpreadsheetId
-        : (config.spreadsheetId || "");
+      // This ensures the dropdown selection or link extraction is captured even if node.config wasn't updated yet
+      // Priority: extracted from link > selectedSpreadsheetId > existing config
+      let formSpreadsheetId = "";
+      
+      // First, try to extract from link if present
+      if (spreadsheetLink && spreadsheetLink.trim() !== "") {
+        const extractedId = extractSpreadsheetIdFromUrl(spreadsheetLink);
+        if (extractedId) {
+          formSpreadsheetId = extractedId;
+        }
+      }
+      
+      // Fallback to selectedSpreadsheetId if no link or extraction failed
+      if (!formSpreadsheetId && selectedSpreadsheetId && selectedSpreadsheetId.trim() !== "") {
+        formSpreadsheetId = selectedSpreadsheetId;
+      }
+      
+      // Final fallback to existing config
+      if (!formSpreadsheetId) {
+        formSpreadsheetId = config.spreadsheetId || "";
+      }
 
       // Ensure spreadsheetId is set from form state
       if (formSpreadsheetId && formSpreadsheetId.trim() !== "") {
@@ -161,19 +224,15 @@ export function NodeConfigPanel({
       }
       config.values = valuesArray;
 
-      // Build range from sheetName if not provided
-      const rangeStr = typeof config.range === 'string' ? config.range : String(config.range || '');
-      if (!rangeStr || rangeStr.trim() === "") {
-        const sheetName = config.sheetName || "Sheet1";
-        config.range = `${sheetName}!A1`;
-      }
+      // DO NOT modify range - keep it exactly as it was in the original config
+      // Range logic is handled elsewhere and should not be changed here
 
       // Return properly typed config with ALL required fields
       return {
         ...config,
         spreadsheetId: config.spreadsheetId as string,
         sheetName: config.sheetName as string,
-        range: config.range as string,
+        // DO NOT set range here - keep original range from config
         values: config.values as string[]
       };
     }
@@ -183,8 +242,15 @@ export function NodeConfigPanel({
   // Validate Google Sheets config before save
   const validateGoogleSheetsConfig = (config: AutomationNode["config"]): { valid: boolean; error?: string } => {
     if (node.service === "keplero_google_sheet_append_row") {
-      if (!config.spreadsheetId || (typeof config.spreadsheetId === 'string' && config.spreadsheetId.trim() === "")) {
-        return { valid: false, error: "Spreadsheet selection is required" };
+      // Check if spreadsheetId is set (either from link or dropdown)
+      const hasSpreadsheetId = config.spreadsheetId && 
+        (typeof config.spreadsheetId === 'string' && config.spreadsheetId.trim() !== "");
+      
+      // Also check if link is being used (even if extraction hasn't happened yet)
+      const hasValidLink = spreadsheetLink && extractSpreadsheetIdFromUrl(spreadsheetLink);
+      
+      if (!hasSpreadsheetId && !hasValidLink) {
+        return { valid: false, error: "Please paste a Google Sheet link or select a spreadsheet from the list" };
       }
       if (!config.values || !Array.isArray(config.values) || config.values.length === 0) {
         return { valid: false, error: "At least one column mapping is required" };
@@ -360,8 +426,8 @@ export function NodeConfigPanel({
             </div>
           )}
 
-          {/* AISTEIN-IT - MASS SENDING TRIGGER */}
-          {node.service === "keplero_mass_sending" && (
+          {/* AISTEIN-IT - BATCH CALL TRIGGER */}
+          {(node.service === "batch_call" || node.service === "keplero_mass_sending") && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -379,8 +445,60 @@ export function NodeConfigPanel({
                   <option value="list">List Selection</option>
                 </select>
               </div>
-              <p className="text-xs text-muted-foreground">
-                This automation will trigger when a mass sending campaign is initiated.
+
+              {node.config.source === "list" && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Target List
+                    </label>
+                    <select
+                      value={node.config.listId || ""}
+                      onChange={(e) =>
+                        onUpdate({ ...node.config, listId: e.target.value })
+                      }
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                      disabled={loading}
+                    >
+                      <option value="">Select a list...</option>
+                      {lists.map((list) => (
+                        <option key={list._id} value={list._id}>
+                          {list.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {node.config.listId && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setSaving(true);
+                          const response = await apiClient.post('/automations/run-batch', {
+                            listId: node.config.listId
+                          });
+                          if (response.success || response.data?.success) {
+                            toast.success(`Batch automation started for ${response.contactCount || 'all'} contacts!`);
+                          } else {
+                            throw new Error(response.message || 'Failed to start batch');
+                          }
+                        } catch (err: any) {
+                          toast.error(err.message || "Failed to start batch automation");
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      disabled={saving}
+                      className="w-full h-10 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "🚀 Run Batch Automation Now"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-2">
+                This automation will trigger when bulk contacts are ready (CSV import) or specifically triggered for a list.
               </p>
             </div>
           )}
@@ -417,6 +535,7 @@ export function NodeConfigPanel({
                   <option value="es">Spanish</option>
                   <option value="fr">French</option>
                   <option value="de">German</option>
+                  <option value="it">Italian</option>
                 </select>
               </div>
 
@@ -962,66 +1081,92 @@ export function NodeConfigPanel({
               )}
 
               {/* Spreadsheet Selection */}
-              <div>
+              <div className="space-y-3">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Select Spreadsheet *
                 </label>
-                {loadingSpreadsheets ? (
-                  <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Loading spreadsheets...</span>
+                
+                {/* Option 1: Paste Google Sheet Link */}
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1.5">
+                    Option 1: Paste Google Sheet Link
+                  </label>
+                  <input
+                    type="text"
+                    value={spreadsheetLink}
+                    onChange={(e) => handleSpreadsheetLinkChange(e.target.value)}
+                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                    placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
+                  />
+                  {spreadsheetLink && !extractSpreadsheetIdFromUrl(spreadsheetLink) && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Invalid Google Sheets URL format
+                    </p>
+                  )}
+                  {spreadsheetLink && extractSpreadsheetIdFromUrl(spreadsheetLink) && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Spreadsheet ID extracted successfully
+                    </p>
+                  )}
+                </div>
+
+                {/* Option 2: Select from List */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs text-muted-foreground">
+                      Option 2: Select from My Spreadsheets
+                    </label>
+                    {!loadingSpreadsheets && spreadsheets.length === 0 && (
+                      <button
+                        onClick={loadSpreadsheets}
+                        className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                      >
+                        <FileSpreadsheet className="w-3 h-3" />
+                        <span>Load my spreadsheets</span>
+                      </button>
+                    )}
                   </div>
-                ) : spreadsheets.length > 0 ? (
-                  <select
-                    value={selectedSpreadsheetId}
-                    onChange={(e) => handleSpreadsheetSelect(e.target.value)}
-                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value="">Select a spreadsheet...</option>
-                    {spreadsheets.map((sheet: any) => (
-                      <option key={sheet.id} value={sheet.id}>
-                        {sheet.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={node.config.spreadsheetId || ""}
-                      onChange={(e) => {
-                        const newSpreadsheetId = e.target.value;
-                        setSelectedSpreadsheetId(newSpreadsheetId);
-                        const sheetName = node.config.sheetName || "Sheet1";
-                        onUpdate({
-                          ...node.config,
-                          spreadsheetId: newSpreadsheetId,
-                          sheetName
-                        });
-                      }}
-                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      placeholder="Enter Spreadsheet ID (e.g., 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms)"
-                    />
-                    <button
-                      onClick={loadSpreadsheets}
-                      className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                  {loadingSpreadsheets ? (
+                    <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Loading spreadsheets...</span>
+                    </div>
+                  ) : spreadsheets.length > 0 ? (
+                    <select
+                      value={selectedSpreadsheetId && !spreadsheetLink ? selectedSpreadsheetId : ""}
+                      onChange={(e) => handleSpreadsheetSelect(e.target.value)}
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                     >
-                      <FileSpreadsheet className="w-3 h-3" />
-                      <span>Load my spreadsheets</span>
-                    </button>
-                  </div>
-                )}
-                {!node.config.spreadsheetId && (
+                      <option value="">Select a spreadsheet...</option>
+                      {spreadsheets.map((sheet: any) => (
+                        <option key={sheet.id} value={sheet.id}>
+                          {sheet.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="p-3 bg-secondary/50 rounded-lg border border-border">
+                      <p className="text-xs text-muted-foreground">
+                        Click "Load my spreadsheets" to see your Google Sheets
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Validation Messages */}
+                {!selectedSpreadsheetId && (
                   <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    Spreadsheet selection is required
+                    Please paste a Google Sheet link or select a spreadsheet from the list
                   </p>
                 )}
-                {node.config.spreadsheetId && spreadsheets.length > 0 && !spreadsheets.find((s: any) => s.id === node.config.spreadsheetId) && (
+                {selectedSpreadsheetId && spreadsheets.length > 0 && !spreadsheets.find((s: any) => s.id === selectedSpreadsheetId) && !spreadsheetLink && (
                   <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                     <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
                       <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>Spreadsheet no longer exists. Please reselect a valid spreadsheet.</span>
+                      <span>Spreadsheet may not be accessible. Please verify the link or select from the list.</span>
                     </p>
                   </div>
                 )}
@@ -1253,7 +1398,8 @@ export function NodeConfigPanel({
                   ...finalConfig,
                   spreadsheetId: finalConfig.spreadsheetId as string,
                   sheetName: finalConfig.sheetName as string || "Sheet1",
-                  range: finalConfig.range as string || `${finalConfig.sheetName || "Sheet1"}!A1`,
+                  // DO NOT modify range - keep original range from finalConfig
+                  // Range is handled by backend/defaults and should not be overridden here
                   values: Array.isArray(finalConfig.values) ? finalConfig.values : []
                 };
 

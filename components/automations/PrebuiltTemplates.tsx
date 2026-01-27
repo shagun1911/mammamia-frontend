@@ -36,14 +36,14 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
   const checkIntegrations = async () => {
     try {
       setLoading(true);
-      
+
       // Check WhatsApp integration
       try {
         const whatsappRes = await apiClient.get('/social-integrations/whatsapp');
         const whatsappData = whatsappRes.data?.data || whatsappRes.data;
         // Integration is connected if it exists and status is 'connected'
         const isConnected = whatsappData && (
-          whatsappData.status === 'connected' || 
+          whatsappData.status === 'connected' ||
           whatsappData.status === 'active' ||
           (whatsappData.platform === 'whatsapp' && whatsappData.credentials?.apiKey)
         );
@@ -63,7 +63,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
         const facebookData = facebookRes.data?.data || facebookRes.data;
         // Integration is connected if it exists and status is 'connected'
         const isConnected = facebookData && (
-          facebookData.status === 'connected' || 
+          facebookData.status === 'connected' ||
           facebookData.status === 'active' ||
           (facebookData.platform === 'facebook' && facebookData.credentials?.apiKey)
         );
@@ -83,12 +83,12 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
         // apiClient.get() returns response.data directly, which is { success: true, data: {...} }
         const googleRes = await apiClient.get('/integrations/google/status');
         console.log('[PrebuiltTemplates] Google API response:', googleRes);
-        
+
         // Extract the actual data - backend returns { success: true, data: {...} }
         // apiClient.get() already returns response.data, so googleRes is { success: true, data: {...} }
         const googleData = googleRes?.data || googleRes;
         console.log('[PrebuiltTemplates] Google extracted data:', googleData);
-        
+
         // Google is connected if:
         // 1. connected flag is explicitly true, OR
         // 2. Any service is enabled (gmail, sheets, calendar, drive)
@@ -98,16 +98,16 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
           googleData.services.gmail === true ||
           googleData.services.drive === true
         );
-        
+
         const googleConnected = googleData?.connected === true || hasServices;
-        
+
         console.log('[PrebuiltTemplates] Google connection check:', {
           connected: googleData?.connected,
           hasServices,
           services: googleData?.services,
           finalResult: googleConnected
         });
-        
+
         setIntegrationStatus(prev => ({
           ...prev,
           google: !!googleConnected,
@@ -160,6 +160,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
       keplero_send_email: "📧",
       keplero_outbound_call: "📞",
       keplero_mass_sending: "📤",
+      batch_call: "📤",
       webhook: "🔗",
       delay: "⏱️",
     };
@@ -172,11 +173,13 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
       keplero_contact_created: "Contact Created",
       keplero_create_contact: "Create Contact",
       whatsapp_template: "WhatsApp Message",
-      keplero_send_email: "Send Email",
+      keplero_send_email: "Aistein – Send Email",
       keplero_outbound_call: "Outbound Call",
       keplero_mass_sending: "Mass Sending",
+      batch_call: "Batch Call (CSV/List)",
       webhook: "Webhook",
       delay: "Delay",
+      keplero_google_gmail_send: "Gmail – Send Email",
     };
     return nameMap[service] || service;
   };
@@ -235,9 +238,9 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
         onUseTemplate(newAutomation);
       } catch (error: any) {
         console.error('Error creating automation:', error);
-        const errorMessage = error.response?.data?.error?.message || 
-                             error.response?.data?.message || 
-                             'Failed to create automation';
+        const errorMessage = error.response?.data?.error?.message ||
+          error.response?.data?.message ||
+          'Failed to create automation';
         toast.error(errorMessage);
       }
     } catch (error: any) {
@@ -285,9 +288,9 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
             <div
               key={template.id}
               className={cn(
-               "group relative bg-card border rounded-2xl p-6 transition-all duration-200 h-full flex flex-col w-full max-w-[360px]",
-                canUse 
-                  ? "border-border hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5" 
+                "group relative bg-card border rounded-2xl p-6 transition-all duration-200 h-full flex flex-col w-full max-w-[360px]",
+                canUse
+                  ? "border-border hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5"
                   : "border-yellow-500/30 bg-yellow-500/5 opacity-75"
               )}
             >
@@ -295,8 +298,8 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
               <div className="flex items-start gap-4 mb-4">
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 shadow-sm"
-                  style={{ 
-                    backgroundColor: `${template.color}15`, 
+                  style={{
+                    backgroundColor: `${template.color}15`,
                     color: template.color,
                     border: `1px solid ${template.color}30`
                   }}
@@ -361,17 +364,17 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
                   className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3 group"
                 >
                   <span>View Steps</span>
-                  <ChevronRight 
+                  <ChevronRight
                     className={cn(
                       "w-4 h-4 transition-transform",
                       expandedTemplate === template.id && "rotate-90"
-                    )} 
+                    )}
                   />
                   <span className="text-xs bg-secondary px-2 py-0.5 rounded-full">
                     {template.nodes.length}
                   </span>
                 </button>
-                
+
                 {expandedTemplate === template.id && (
                   <div className="space-y-2 pl-4 border-l-2 border-border max-w-[300px]">
                     {template.nodes.map((node, index) => {

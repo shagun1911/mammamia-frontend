@@ -29,10 +29,11 @@ class InboundAgentConfigService {
   async getAll(): Promise<InboundAgentConfig[]> {
     try {
       const response = await apiClient.get('/inbound-agent-config');
-      if (!response || !response.data) {
+      // apiClient.get() already returns response.data, so response is the data itself
+      if (!response) {
         return [];
       }
-      return response.data.configs || [];
+      return response.configs || response.data?.configs || [];
     } catch (error: any) {
       console.error('[InboundAgentConfig Service] Get error:', error);
       return [];
@@ -45,10 +46,11 @@ class InboundAgentConfigService {
   async getByPhoneNumber(phoneNumber: string): Promise<InboundAgentConfig | null> {
     try {
       const response = await apiClient.get(`/inbound-agent-config/${encodeURIComponent(phoneNumber)}`);
-      if (!response || !response.data) {
+      // apiClient.get() already returns response.data, so response is the data itself
+      if (!response) {
         return null;
       }
-      return response.data.config;
+      return response.config || response.data?.config || null;
     } catch (error: any) {
       console.error('[InboundAgentConfig Service] Get by phone error:', error);
       return null;
@@ -63,13 +65,14 @@ class InboundAgentConfigService {
       const response = await apiClient.post('/inbound-agent-config/sync');
       console.log('[InboundAgentConfig Service] Sync response:', response);
       
-      if (!response || !response.data) {
+      // apiClient.post() already returns response.data, so response is the data itself
+      if (!response) {
         console.error('[InboundAgentConfig Service] No response data');
         return [];
       }
       
       // Return configs array or empty array if not present
-      return response.data.configs || [];
+      return response.configs || response.data?.configs || [];
     } catch (error: any) {
       console.error('[InboundAgentConfig Service] Sync error:', error);
       console.error('[InboundAgentConfig Service] Error response:', error.response?.data);
@@ -90,12 +93,13 @@ class InboundAgentConfigService {
       
       const response = await apiClient.put('/inbound-agent-config', data);
       
-      console.log('[InboundAgentConfig Service] Update response:', JSON.stringify(response.data, null, 2));
+      console.log('[InboundAgentConfig Service] Update response:', JSON.stringify(response, null, 2));
       
-      if (!response || !response.data || !response.data.config) {
+      // apiClient.put() already returns response.data, so response is the data itself
+      if (!response) {
         throw new Error('Invalid response from server');
       }
-      return response.data.config;
+      return response.config || response.data?.config;
     } catch (error: any) {
       console.error('[InboundAgentConfig Service] Update error:', error);
       throw error;

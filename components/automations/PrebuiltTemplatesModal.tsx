@@ -42,14 +42,14 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
     try {
       setLoading(true);
       console.log('[PrebuiltTemplates] Starting integration checks...');
-      
+
       // Check WhatsApp integration
       try {
         const whatsappRes = await apiClient.get('/social-integrations/whatsapp');
         const whatsappData = whatsappRes.data?.data || whatsappRes.data;
         // Integration is connected if it exists and status is 'connected'
         const isConnected = whatsappData && (
-          whatsappData.status === 'connected' || 
+          whatsappData.status === 'connected' ||
           whatsappData.status === 'active' ||
           (whatsappData.platform === 'whatsapp' && whatsappData.credentials?.apiKey)
         );
@@ -69,7 +69,7 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
         const facebookData = facebookRes.data?.data || facebookRes.data;
         // Integration is connected if it exists and status is 'connected'
         const isConnected = facebookData && (
-          facebookData.status === 'connected' || 
+          facebookData.status === 'connected' ||
           facebookData.status === 'active' ||
           (facebookData.platform === 'facebook' && facebookData.credentials?.apiKey)
         );
@@ -89,12 +89,12 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
         // apiClient.get() returns response.data directly, which is { success: true, data: {...} }
         const googleRes = await apiClient.get('/integrations/google/status');
         console.log('[PrebuiltTemplates] Google API response:', googleRes);
-        
+
         // Extract the actual data - backend returns { success: true, data: {...} }
         // apiClient.get() already returns response.data, so googleRes is { success: true, data: {...} }
         const googleData = googleRes?.data || googleRes;
         console.log('[PrebuiltTemplates] Google extracted data:', googleData);
-        
+
         // Google is connected if:
         // 1. connected flag is explicitly true, OR
         // 2. Any service is enabled (gmail, sheets, calendar, drive)
@@ -104,16 +104,16 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
           googleData.services.gmail === true ||
           googleData.services.drive === true
         );
-        
+
         const googleConnected = googleData?.connected === true || hasServices;
-        
+
         console.log('[PrebuiltTemplates] Google connection check:', {
           connected: googleData?.connected,
           hasServices,
           services: googleData?.services,
           finalResult: googleConnected
         });
-        
+
         setIntegrationStatus(prev => ({
           ...prev,
           google: !!googleConnected,
@@ -166,6 +166,7 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       keplero_send_email: "📧",
       keplero_outbound_call: "📞",
       keplero_mass_sending: "📤",
+      batch_call: "📤",
       webhook: "🔗",
       delay: "⏱️",
       keplero_google_calendar_check_availability: "📅",
@@ -182,15 +183,16 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       keplero_contact_created: "Contact Created",
       keplero_create_contact: "Create Contact",
       whatsapp_template: "WhatsApp Message",
-      keplero_send_email: "Send Email",
+      keplero_send_email: "Aistein – Send Email",
       keplero_outbound_call: "Outbound Call",
       keplero_mass_sending: "Mass Sending",
+      batch_call: "Batch Call (CSV/List)",
       webhook: "Webhook",
       delay: "Delay",
       keplero_google_calendar_check_availability: "Check Calendar Availability",
       keplero_google_calendar_create_event: "Create Calendar Event",
       keplero_google_sheet_append_row: "Add to Google Sheets",
-      keplero_google_gmail_send: "Send Gmail",
+      keplero_google_gmail_send: "Gmail – Send Email",
     };
     return nameMap[service] || service.replace(/aistein_/g, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
@@ -250,9 +252,9 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
         onClose(); // Close modal after selecting template
       } catch (error: any) {
         console.error('Error creating automation:', error);
-        const errorMessage = error.response?.data?.error?.message || 
-                             error.response?.data?.message || 
-                             'Failed to create automation';
+        const errorMessage = error.response?.data?.error?.message ||
+          error.response?.data?.message ||
+          'Failed to create automation';
         toast.error(errorMessage);
       }
     } catch (error: any) {
@@ -264,20 +266,20 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
       onClick={onClose}
-      style={{ 
+      style={{
         left: 'var(--sidebar-width, 0px)',
         right: 0,
         top: 0,
         bottom: 0
       }}
     >
-      <div 
+      <div
         className="bg-card border border-border rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl mx-auto my-4"
         onClick={(e) => e.stopPropagation()}
-        style={{ 
+        style={{
           marginLeft: 'max(1rem, calc((100vw - var(--sidebar-width, 0px) - 40rem) / 2))',
           marginRight: 'max(1rem, calc((100vw - var(--sidebar-width, 0px) - 40rem) / 2))'
         }}
@@ -323,8 +325,8 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                     key={template.id}
                     className={cn(
                       "group relative bg-card border rounded-xl p-5 transition-all duration-200 h-full flex flex-col",
-                      canUse 
-                        ? "border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5" 
+                      canUse
+                        ? "border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5"
                         : "border-yellow-500/30 bg-yellow-500/5 opacity-75"
                     )}
                   >
@@ -332,8 +334,8 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                     <div className="flex items-start gap-3 mb-3">
                       <div
                         className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0 shadow-sm"
-                        style={{ 
-                          backgroundColor: `${template.color}15`, 
+                        style={{
+                          backgroundColor: `${template.color}15`,
                           color: template.color,
                           border: `1px solid ${template.color}30`
                         }}
@@ -398,17 +400,17 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                         className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-2 group w-full"
                       >
                         <span>View Steps</span>
-                        <ChevronRight 
+                        <ChevronRight
                           className={cn(
                             "w-3.5 h-3.5 transition-transform flex-shrink-0",
                             expandedTemplate === template.id && "rotate-90"
-                          )} 
+                          )}
                         />
                         <span className="text-xs bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
                           {template.nodes.length}
                         </span>
                       </button>
-                      
+
                       {expandedTemplate === template.id && (
                         <div className="space-y-1.5 pl-4 border-l-2 border-border max-h-64 overflow-y-auto">
                           {template.nodes.map((node, index) => {

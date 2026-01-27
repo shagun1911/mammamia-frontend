@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { usePhoneSettings } from "@/hooks/usePhoneSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { useInboundAgentConfig } from "@/hooks/useInboundAgentConfig";
+import { useOutboundAgentConfig } from "@/hooks/useOutboundAgentConfig";
+import { useInboundNumbers } from "@/hooks/useInboundNumbers";
 import { VOICE_OPTIONS, phoneSettingsService } from "@/services/phoneSettings.service";
 import { toast } from "sonner";
 import { VoicePlayground } from "@/components/settings/VoicePlayground";
@@ -15,6 +17,8 @@ export default function PhoneSettingsDetailPage() {
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
   const { aiBehavior, updateVoiceAgentHumanOperator } = useAIBehavior();
   const { configs: inboundConfigs, syncConfig, updateConfig } = useInboundAgentConfig();
+  const { configs: outboundConfigs, getConfigByNumber, createOrUpdateConfig } = useOutboundAgentConfig();
+  const { inboundNumbers: persistedInboundNumbers, isLoading: isLoadingInboundNumbers, addNumbers: addInboundNumbersMutation } = useInboundNumbers();
 
   const [activeTab, setActiveTab] = useState<"settings" | "voice" | "endOfCall" | "inbound" | "greeting">("settings");
   const [copied, setCopied] = useState(false);
@@ -71,6 +75,9 @@ export default function PhoneSettingsDetailPage() {
   const [editLanguage, setEditLanguage] = useState("en");
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
+  // Outbound number selector state
+  const [selectedOutboundNumber, setSelectedOutboundNumber] = useState<string | null>(null);
+
 
   // Update form state when settings load
   useEffect(() => {
@@ -105,27 +112,236 @@ export default function PhoneSettingsDetailPage() {
     }
   }, [inboundConfigs]);
 
+  // Hydrate inbound form fields from GET /inbound-numbers API (SOURCE OF TRUTH)
+  useEffect(() => {
+    console.log('🔄 [Phone Settings] Hydration effect triggered:', {
+      isLoadingInboundNumbers,
+      persistedInboundNumbersLength: persistedInboundNumbers?.length || 0,
+      persistedInboundNumbers,
+      settingsInboundPhoneNumbersLength: settings?.inboundPhoneNumbers?.length || 0
+    });
+
+    // ALWAYS fetch from GET /inbound-numbers API (SOURCE OF TRUTH)
+    // Never rely on local state or settings alone
+    if (isLoadingInboundNumbers) {
+      console.log('⏳ [Phone Settings] Still loading inbound numbers from API (SOURCE OF TRUTH), waiting...');
+      return; // Still loading, wait
+    }
+
+    // Load from persisted inbound numbers API (SOURCE OF TRUTH)
+    if (persistedInboundNumbers && persistedInboundNumbers.length > 0) {
+      console.log('✅ [Phone Settings] Loaded inbound numbers from API (SOURCE OF TRUTH):', persistedInboundNumbers);
+      setInboundConnectedNumbers(persistedInboundNumbers);
+      setInboundPhoneNumbers(persistedInboundNumbers.join(', '));
+    } else {
+      console.log('ℹ️ [Phone Settings] No inbound numbers found in API (empty array)');
+      // Clear state if API returns empty
+      setInboundConnectedNumbers([]);
+      setInboundPhoneNumbers('');
+    }
+    
+    // Then, hydrate from settings (for trunk/dispatch rule info)
+    if (settings) {
+      // If inbound trunk data exists, populate the form fields
+      if (settings.inboundTrunkId && settings.inboundTrunkName) {
+        setInboundTrunkId(settings.inboundTrunkId);
+        setInboundTrunkName(settings.inboundTrunkName);
+        setInboundName(settings.inboundTrunkName);
+
+        // If dispatch rule exists, setup is complete (step 3)
+        if (settings.inboundDispatchRuleId) {
+          setInboundStep(3);
+        } else if (settings.inboundTrunkId) {
+          // Trunk exists but no dispatch rule (step 2)
+          setInboundStep(2);
+        }
+
+        console.log('📝 [Phone Settings] Hydrated inbound trunk info from saved settings:', {
+          trunkId: settings.inboundTrunkId,
+          trunkName: settings.inboundTrunkName,
+          step: settings.inboundDispatchRuleId ? 3 : 2
+        });
+      }
+    }
+  }, [settings, persistedInboundNumbers, isLoadingInboundNumbers]);
+
+  // Get list of available outbound numbers
+  // Include both saved settings AND current input value (for immediate UI feedback)
+  const getAvailableOutboundNumbers = (): string[] => {
+    const numbers = new Set<string>();
+    
+    // Add number from current input if valid (for immediate feedback)
+    if (twilioPhoneNumber && twilioPhoneNumber.trim()) {
+      const phoneNumberRegex = /^\+[1-9]\d{1,14}$/;
+      if (phoneNumberRegex.test(twilioPhoneNumber.trim())) {
+        console.log('📞 [Outbound] Adding number from current input:', twilioPhoneNumber);
+        numbers.add(twilioPhoneNumber.trim());
+      }
+    }
+    
+    // Add number from settings if exists
+    if (settings?.twilioPhoneNumber) {
+      console.log('📞 [Outbound] Adding number from settings:', settings.twilioPhoneNumber);
+      numbers.add(settings.twilioPhoneNumber);
+    }
+    
+    // Add numbers from outbound configs
+    if (outboundConfigs && outboundConfigs.length > 0) {
+      console.log('📞 [Outbound] Found outbound configs:', outboundConfigs.length);
+      outboundConfigs.forEach(config => {
+        if (config.outboundNumber) {
+          console.log('📞 [Outbound] Adding number from config:', config.outboundNumber);
+          numbers.add(config.outboundNumber);
+        }
+      });
+    } else {
+      console.log('📞 [Outbound] No outbound configs found');
+    }
+    
+    const result = Array.from(numbers).sort();
+    console.log('📞 [Outbound] Available outbound numbers:', result);
+    return result;
+  };
+
+  const availableOutboundNumbers = getAvailableOutboundNumbers();
+
+  // Update selected outbound number when twilioPhoneNumber changes and it's available
+  useEffect(() => {
+    console.log('🔄 [Outbound Selector] Effect triggered:', {
+      twilioPhoneNumber: settings?.twilioPhoneNumber,
+      selectedOutboundNumber,
+      availableOutboundNumbersLength: availableOutboundNumbers.length,
+      availableOutboundNumbers
+    });
+    
+    if (settings?.twilioPhoneNumber && !selectedOutboundNumber && availableOutboundNumbers.length > 0) {
+      if (availableOutboundNumbers.includes(settings.twilioPhoneNumber)) {
+        console.log('✅ [Outbound Selector] Auto-selecting from settings:', settings.twilioPhoneNumber);
+        setSelectedOutboundNumber(settings.twilioPhoneNumber);
+      } else if (availableOutboundNumbers.length > 0) {
+        // Select first available number if current twilioPhoneNumber not in list
+        console.log('✅ [Outbound Selector] Auto-selecting first available:', availableOutboundNumbers[0]);
+        setSelectedOutboundNumber(availableOutboundNumbers[0]);
+      }
+    }
+  }, [settings?.twilioPhoneNumber, selectedOutboundNumber, availableOutboundNumbers]);
+
+  // Auto-select first outbound number if none selected
+  useEffect(() => {
+    if (!selectedOutboundNumber && availableOutboundNumbers.length > 0) {
+      console.log('✅ [Outbound Selector] Auto-selecting first available number:', availableOutboundNumbers[0]);
+      setSelectedOutboundNumber(availableOutboundNumbers[0]);
+    }
+  }, [selectedOutboundNumber, availableOutboundNumbers]);
+
+  // Load config when outbound number is selected
+  useEffect(() => {
+    if (selectedOutboundNumber && outboundConfigs) {
+      const config = outboundConfigs.find(c => c.outboundNumber === selectedOutboundNumber);
+      
+      if (config) {
+        // Load config values
+        setSelectedVoice(config.selectedVoice || 'adam');
+        setCustomVoiceId(config.customVoiceId || '');
+        setHumanOperatorPhone(config.humanOperatorPhone || '');
+        setEscalationRules(config.escalationRules || []);
+        setGreetingMessage(config.greetingMessage || 'Hello! How can I help you today?');
+        setLanguage(config.language || 'en');
+      } else {
+        // No config exists, use defaults or settings
+        setSelectedVoice(settings?.selectedVoice || 'adam');
+        setCustomVoiceId(settings?.customVoiceId || '');
+        setHumanOperatorPhone(settings?.humanOperatorPhone || '');
+        setEscalationRules(aiBehavior?.voiceAgent?.humanOperator?.escalationRules || []);
+        setGreetingMessage(settings?.greetingMessage || 'Hello! How can I help you today?');
+        setLanguage(settings?.language || 'en');
+      }
+    } else if (selectedOutboundNumber && !outboundConfigs) {
+      // Configs are still loading, use defaults
+      setSelectedVoice(settings?.selectedVoice || 'adam');
+      setCustomVoiceId(settings?.customVoiceId || '');
+      setHumanOperatorPhone(settings?.humanOperatorPhone || '');
+      setEscalationRules(aiBehavior?.voiceAgent?.humanOperator?.escalationRules || []);
+      setGreetingMessage(settings?.greetingMessage || 'Hello! How can I help you today?');
+      setLanguage(settings?.language || 'en');
+    }
+  }, [selectedOutboundNumber, outboundConfigs, settings, aiBehavior]);
+
   const handleSaveSettings = async () => {
     console.log('💾 [Phone Settings] ==========================================');
     console.log('💾 [Phone Settings] SAVE SETTINGS CALLED');
     console.log('📝 [Phone Settings] Greeting message:', greetingMessage);
     console.log('🌍 [Phone Settings] Language:', language);
     console.log('🎤 [Phone Settings] Selected voice:', selectedVoice);
+    console.log('📞 [Phone Settings] Selected outbound number:', selectedOutboundNumber);
+    console.log('📞 [Phone Settings] Available outbound numbers:', availableOutboundNumbers);
     console.log('💾 [Phone Settings] ==========================================');
     
     try {
-      // Save phone settings (including greeting message for outbound calls)
-      console.log('📞 [Phone Settings] Step 1: Saving phone settings...');
-      await updateSettings({
-        selectedVoice,
-        customVoiceId,
+      // Save infrastructure phone settings (not per-number)
+      console.log('📞 [Phone Settings] Step 1: Saving infrastructure phone settings...');
+      const updatedSettings = await updateSettings({
         twilioPhoneNumber,
         livekitSipTrunkId,
-        humanOperatorPhone,
-        greetingMessage,
-        language,
+        twilioTrunkSid,
+        terminationUri,
+        originationUri,
       });
-      console.log('✅ [Phone Settings] Phone settings saved (outbound-call-config updated)');
+      console.log('✅ [Phone Settings] Infrastructure settings saved');
+      console.log('✅ [Phone Settings] Updated settings:', updatedSettings);
+      
+      // After saving, the availableOutboundNumbers should update automatically
+      // because it reads from settings.twilioPhoneNumber
+
+      // Determine which outbound number to use for per-number config
+      let outboundNumberToSave = selectedOutboundNumber;
+      
+      // If no number selected but twilioPhoneNumber exists, use it
+      if (!outboundNumberToSave && twilioPhoneNumber && twilioPhoneNumber.trim()) {
+        const phoneNumberRegex = /^\+[1-9]\d{1,14}$/;
+        if (phoneNumberRegex.test(twilioPhoneNumber.trim())) {
+          outboundNumberToSave = twilioPhoneNumber.trim();
+          setSelectedOutboundNumber(outboundNumberToSave);
+          console.log('📞 [Phone Settings] Auto-selected outbound number:', outboundNumberToSave);
+        }
+      }
+
+      // Save per-outbound-number configuration
+      if (outboundNumberToSave) {
+        console.log('📞 [Phone Settings] Step 2: Saving outbound agent config for', outboundNumberToSave);
+        try {
+          await createOrUpdateConfig.mutateAsync({
+            outboundNumber: outboundNumberToSave,
+            data: {
+              selectedVoice,
+              customVoiceId,
+              humanOperatorPhone,
+              greetingMessage,
+              language,
+            }
+          });
+          console.log('✅ [Phone Settings] Outbound agent config saved for', outboundNumberToSave);
+          
+          // Refresh available numbers after save
+          console.log('🔄 [Phone Settings] Refreshing available outbound numbers...');
+        } catch (error: any) {
+          console.error('❌ [Phone Settings] Failed to save outbound config:', error);
+          console.error('❌ [Phone Settings] Error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+          });
+          // Don't throw - infrastructure settings were saved successfully
+          toast.error(`Failed to save outbound config: ${error.response?.data?.error?.message || error.message || 'Unknown error'}`);
+        }
+      } else {
+        console.warn('⚠️ [Phone Settings] No outbound number available, skipping per-number config save');
+        if (twilioPhoneNumber) {
+          toast.warning('Please enter a valid phone number in E.164 format (e.g., +1234567890)');
+        } else {
+          toast.warning('Infrastructure settings saved, but no outbound number configured for per-number settings');
+        }
+      }
 
       // Update greeting message and language for all inbound configs
       if (inboundConfigs && inboundConfigs.length > 0) {
@@ -184,20 +400,49 @@ export default function PhoneSettingsDetailPage() {
         
       } else {
         console.warn('⚠️  [Phone Settings] No inbound configs found to update');
-        toast.success('Greeting message saved to outbound-call-config (phone settings)!');
       }
+      
+      toast.success('Settings saved successfully!');
     } catch (error: any) {
       console.error('❌ [Phone Settings] Save failed:', error);
       toast.error(error.message || 'Failed to save settings');
     }
   };
 
-  const handleSaveEscalationRules = () => {
-    if (!aiBehavior) return;
+  const handleSaveEscalationRules = async () => {
+    // Determine which outbound number to use
+    let outboundNumberToSave = selectedOutboundNumber;
+    
+    // If no number selected but twilioPhoneNumber exists, use it
+    if (!outboundNumberToSave && twilioPhoneNumber) {
+      outboundNumberToSave = twilioPhoneNumber;
+      setSelectedOutboundNumber(twilioPhoneNumber);
+    }
+    
+    if (!outboundNumberToSave) {
+      toast.error('Please select an outbound number to configure');
+      return;
+    }
 
-    updateVoiceAgentHumanOperator.mutate({
-      escalationRules,
-    });
+    try {
+      // Save escalation rules to per-outbound config
+      console.log('💾 [Escalation Rules] Saving for outbound number:', outboundNumberToSave);
+      await createOrUpdateConfig.mutateAsync({
+        outboundNumber: outboundNumberToSave,
+        data: {
+          escalationRules,
+        }
+      });
+      toast.success('Escalation rules saved successfully!');
+    } catch (error: any) {
+      console.error('❌ [Phone Settings] Failed to save escalation rules:', error);
+      console.error('❌ [Phone Settings] Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      toast.error(error.response?.data?.error?.message || error.message || 'Failed to save escalation rules');
+    }
   };
 
   const handleCopyNumber = () => {
@@ -325,10 +570,25 @@ export default function PhoneSettingsDetailPage() {
     try {
       const phoneNumbersArray = inboundPhoneNumbers.split(',').map(num => num.trim()).filter(Boolean);
       
+      // Validate phone numbers format (E.164)
+      const phoneNumberRegex = /^\+[1-9]\d{1,14}$/;
+      const invalidNumbers = phoneNumbersArray.filter(num => !phoneNumberRegex.test(num));
+      if (invalidNumbers.length > 0) {
+        toast.error(`Invalid phone number format: ${invalidNumbers.join(', ')}. Please use E.164 format (e.g., +1234567890)`);
+        setIsCreatingInbound(false);
+        return;
+      }
+
+      if (phoneNumbersArray.length === 0) {
+        toast.error("Please enter at least one valid phone number");
+        setIsCreatingInbound(false);
+        return;
+      }
+      
       const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
       const url = `${API_URL}/calls/create-inbound-trunk`;
       const requestBody = {
-        name: inboundName,
+        name: inboundName.trim(),
         phone_numbers: phoneNumbersArray,
         krisp_enabled: inboundKrispEnabled,
       };
@@ -336,6 +596,12 @@ export default function PhoneSettingsDetailPage() {
       console.log('\n🚀 [Inbound Trunk] Creating inbound trunk...');
       console.log('📍 [Inbound Trunk] URL:', url);
       console.log('📦 [Inbound Trunk] Request Body:', JSON.stringify(requestBody, null, 2));
+      console.log('📋 [Inbound Trunk] Validation:', {
+        nameLength: requestBody.name.length,
+        phoneNumbersCount: requestBody.phone_numbers.length,
+        phoneNumbers: requestBody.phone_numbers,
+        krispEnabled: requestBody.krisp_enabled
+      });
 
       const response = await fetch(url, {
         method: 'POST',
@@ -348,9 +614,42 @@ export default function PhoneSettingsDetailPage() {
       console.log('📊 [Inbound Trunk] Response Status:', response.status, response.statusText);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ [Inbound Trunk] Error Response:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.detail || 'Failed to create inbound trunk');
+        let errorMessage = 'Failed to create inbound trunk';
+        try {
+          const errorData = await response.json();
+          console.error('❌ [Inbound Trunk] Error Response:', JSON.stringify(errorData, null, 2));
+          
+          // Handle different error response formats
+          if (errorData.detail) {
+            // FastAPI format: {"detail": "error message"} or {"detail": [{"msg": "...", "loc": [...]}]}
+            if (Array.isArray(errorData.detail)) {
+              errorMessage = errorData.detail.map((err: any) => 
+                `${err.loc?.join('.') || 'Field'}: ${err.msg || err.message || 'Invalid value'}`
+              ).join(', ');
+            } else if (typeof errorData.detail === 'string') {
+              errorMessage = errorData.detail;
+            } else {
+              errorMessage = JSON.stringify(errorData.detail);
+            }
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' ? errorData.error : errorData.error.message || JSON.stringify(errorData.error);
+          } else {
+            errorMessage = `Server error (${response.status}): ${response.statusText}`;
+          }
+        } catch (parseError) {
+          // If response is not JSON, try to get text
+          try {
+            const errorText = await response.text();
+            console.error('❌ [Inbound Trunk] Non-JSON Error Response:', errorText);
+            errorMessage = errorText || `Server error (${response.status}): ${response.statusText}`;
+          } catch (textError) {
+            console.error('❌ [Inbound Trunk] Could not parse error response');
+            errorMessage = `Server error (${response.status}): ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -360,12 +659,63 @@ export default function PhoneSettingsDetailPage() {
       setInboundTrunkId(data.trunk_id);
       setInboundTrunkName(data.trunk_name);
       setInboundConnectedNumbers(data.phone_numbers);
+      
+      // Persist inbound numbers to new InboundNumber model (checks duplicates, reuses trunkId)
+      if (data.phone_numbers && data.phone_numbers.length > 0 && data.trunk_id) {
+        try {
+          console.log('💾 [Inbound Trunk] Saving inbound numbers to database with trunkId:', data.trunk_id);
+          
+          // Use the new API that handles duplicates and trunk reuse
+          const result = await addInboundNumbersMutation.mutateAsync({
+            phoneNumbers: data.phone_numbers,
+            trunkId: data.trunk_id,
+            provider: 'livekit'
+          });
+          
+          console.log('✅ [Inbound Trunk] Persisted inbound numbers:', {
+            created: result.created || 0,
+            reused: result.reused || 0,
+            total: result.total || result.inboundNumbers?.length || 0,
+            numbers: result.inboundNumbers || []
+          });
+          
+          // Also update PhoneSettings for backward compatibility
+          await updateSettings({
+            inboundTrunkId: data.trunk_id,
+            inboundTrunkName: data.trunk_name,
+            inboundPhoneNumbers: result.inboundNumbers || data.phone_numbers,
+          });
+          console.log('✅ [Inbound Trunk] Updated PhoneSettings with inbound numbers');
+        } catch (error: any) {
+          console.error('⚠️ [Inbound Trunk] Failed to persist inbound numbers:', error);
+          console.error('⚠️ [Inbound Trunk] Error details:', error.response?.data);
+          // Don't block the flow, but show warning
+          toast.warning('Trunk created but failed to save numbers. Please refresh and try again.');
+        }
+      }
+      
       setInboundStep(2);
       
       toast.success('Inbound trunk created successfully!');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create inbound trunk');
       console.error('❌ [Inbound Trunk] Error:', error);
+      console.error('❌ [Inbound Trunk] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Failed to create inbound trunk. Please check the console for details.';
+      toast.error(errorMessage);
+      
+      // Log full error for debugging
+      if (error.message?.includes('500') || error.message?.includes('Server error')) {
+        console.error('⚠️ [Inbound Trunk] This appears to be a server-side error. Please check:');
+        console.error('  1. Python API server is running and accessible');
+        console.error('  2. Python API logs for detailed error information');
+        console.error('  3. Network connectivity to:', process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com');
+      }
     } finally {
       setIsCreatingInbound(false);
     }
@@ -408,9 +758,40 @@ export default function PhoneSettingsDetailPage() {
       console.log('📊 [Dispatch Rule] Response Status:', response.status, response.statusText);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ [Dispatch Rule] Error Response:', JSON.stringify(errorData, null, 2));
-        throw new Error(errorData.detail || 'Failed to create dispatch rule');
+        let errorMessage = 'Failed to create dispatch rule';
+        try {
+          const errorData = await response.json();
+          console.error('❌ [Dispatch Rule] Error Response:', JSON.stringify(errorData, null, 2));
+          
+          // Handle different error response formats
+          if (errorData.detail) {
+            if (Array.isArray(errorData.detail)) {
+              errorMessage = errorData.detail.map((err: any) => 
+                `${err.loc?.join('.') || 'Field'}: ${err.msg || err.message || 'Invalid value'}`
+              ).join(', ');
+            } else if (typeof errorData.detail === 'string') {
+              errorMessage = errorData.detail;
+            } else {
+              errorMessage = JSON.stringify(errorData.detail);
+            }
+          } else if (errorData.message) {
+            errorMessage = errorData.message;
+          } else if (errorData.error) {
+            errorMessage = typeof errorData.error === 'string' ? errorData.error : errorData.error.message || JSON.stringify(errorData.error);
+          } else {
+            errorMessage = `Server error (${response.status}): ${response.statusText}`;
+          }
+        } catch (parseError) {
+          try {
+            const errorText = await response.text();
+            console.error('❌ [Dispatch Rule] Non-JSON Error Response:', errorText);
+            errorMessage = errorText || `Server error (${response.status}): ${response.statusText}`;
+          } catch (textError) {
+            console.error('❌ [Dispatch Rule] Could not parse error response');
+            errorMessage = `Server error (${response.status}): ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -428,6 +809,37 @@ export default function PhoneSettingsDetailPage() {
       console.log('📞 [Dispatch Rule] New numbers from trunk:', inboundConnectedNumbers);
       console.log('📞 [Dispatch Rule] Numbers to add:', newNumbers);
       console.log('📞 [Dispatch Rule] Combined numbers:', allPhoneNumbers);
+      
+      // Persist inbound numbers to database using new API (handles duplicates, reuses trunkId)
+      if (allPhoneNumbers.length > 0 && inboundTrunkId) {
+        try {
+          console.log('💾 [Dispatch Rule] Saving inbound numbers with trunkId:', inboundTrunkId);
+          
+          // Use the new API that handles duplicates and trunk reuse
+          const result = await addInboundNumbersMutation.mutateAsync({
+            phoneNumbers: allPhoneNumbers,
+            trunkId: inboundTrunkId,
+            provider: 'livekit'
+          });
+          
+          console.log('✅ [Dispatch Rule] Persisted inbound numbers:', {
+            created: result.created || 0,
+            reused: result.reused || 0,
+            total: result.total || result.inboundNumbers?.length || 0,
+            numbers: result.inboundNumbers || []
+          });
+          
+          // Also update PhoneSettings for backward compatibility
+          await updateSettings({
+            inboundPhoneNumbers: result.inboundNumbers || allPhoneNumbers,
+          });
+          console.log('✅ [Dispatch Rule] Updated PhoneSettings with inbound numbers');
+        } catch (error: any) {
+          console.error('⚠️ [Dispatch Rule] Failed to persist inbound numbers:', error);
+          console.error('⚠️ [Dispatch Rule] Error details:', error.response?.data);
+          // Continue with the flow even if persistence fails
+        }
+      }
       
       const updateData = {
         inboundTrunkId: inboundTrunkId,
@@ -457,8 +869,22 @@ export default function PhoneSettingsDetailPage() {
         toast.error('Dispatch rule created but failed to save settings: ' + (dbError.message || 'Unknown error'));
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create dispatch rule');
       console.error('❌ [Dispatch Rule] Error:', error);
+      console.error('❌ [Dispatch Rule] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      const errorMessage = error.message || 'Failed to create dispatch rule. Please check the console for details.';
+      toast.error(errorMessage);
+      
+      if (error.message?.includes('500') || error.message?.includes('Server error')) {
+        console.error('⚠️ [Dispatch Rule] This appears to be a server-side error. Please check:');
+        console.error('  1. Python API server is running and accessible');
+        console.error('  2. Python API logs for detailed error information');
+        console.error('  3. Network connectivity to:', process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com');
+      }
     } finally {
       setIsCreatingInbound(false);
     }
@@ -693,9 +1119,113 @@ export default function PhoneSettingsDetailPage() {
         </button>
       </div>
 
+      {/* Outbound Number Selector - Show for Settings and End of Call tabs */}
+      {(activeTab === "settings" || activeTab === "endOfCall") && (
+        <div className="mb-6 max-w-2xl">
+          <div className="bg-card border border-border rounded-xl p-5">
+            <label className="block text-sm font-semibold text-foreground mb-4">
+              Select Outbound Number <span className="text-red-500">*</span>
+            </label>
+            {/* Debug info - remove in production */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mb-4 p-2 bg-gray-500/10 border border-gray-500/20 rounded text-xs font-mono">
+                <div>Current Input: {twilioPhoneNumber || '(empty)'}</div>
+                <div>Settings Number: {settings?.twilioPhoneNumber || '(none)'}</div>
+                <div>Outbound Configs: {outboundConfigs?.length || 0}</div>
+                <div>Available Numbers: {availableOutboundNumbers.length}</div>
+                <div>Selected: {selectedOutboundNumber || '(none)'}</div>
+              </div>
+            )}
+            {availableOutboundNumbers.length === 0 ? (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <p className="text-sm text-yellow-400 mb-2">
+                  No outbound numbers configured yet.
+                </p>
+                <p className="text-xs text-yellow-300 mb-3">
+                  Enter a phone number in the "Phone Number" field below (in E.164 format, e.g., +1234567890) and click "Save Configuration" to add it here.
+                </p>
+                {twilioPhoneNumber && (
+                  <div className="mt-3 p-2 bg-yellow-500/20 rounded border border-yellow-500/30">
+                    <p className="text-xs text-yellow-200">
+                      💡 You have entered: <span className="font-mono">{twilioPhoneNumber}</span>
+                    </p>
+                    <p className="text-xs text-yellow-300 mt-1">
+                      {/^\+[1-9]\d{1,14}$/.test(twilioPhoneNumber.trim()) 
+                        ? '✓ Valid format! Click "Save Configuration" to add it.'
+                        : '⚠️ Invalid format. Use E.164 format (e.g., +1234567890)'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Radio Button Style Selector */}
+                <div className="space-y-2 mb-4">
+                  {availableOutboundNumbers.map((number) => (
+                    <label
+                      key={number}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedOutboundNumber === number
+                          ? 'border-primary bg-primary/10 shadow-sm'
+                          : 'border-border bg-background hover:border-primary/50 hover:bg-secondary/50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="outboundNumber"
+                        value={number}
+                        checked={selectedOutboundNumber === number}
+                        onChange={() => setSelectedOutboundNumber(number)}
+                        className="w-4 h-4 text-primary border-border focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${
+                            selectedOutboundNumber === number ? 'text-primary' : 'text-foreground'
+                          }`}>
+                            {number}
+                          </span>
+                          {selectedOutboundNumber === number && (
+                            <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded-full font-medium">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                
+                {/* Active Configuration Indicator */}
+                {selectedOutboundNumber ? (
+                  <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                    <p className="text-sm text-primary font-medium">
+                      ✓ You are configuring settings for <span className="font-semibold">{selectedOutboundNumber}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <p className="text-sm text-yellow-400">
+                      ⚠️ Please select an outbound number to configure its behavior
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Settings Tab */}
       {activeTab === "settings" && (
         <div className="space-y-6 max-w-2xl">
+          {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-sm text-yellow-400">
+                Select an outbound number above to configure its behavior
+              </p>
+            </div>
+          )}
           {/* Auto Setup Methods Section */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
@@ -940,16 +1470,20 @@ export default function PhoneSettingsDetailPage() {
               </p>
             </div>
             
-          <div className="space-y-6">
+          <div className={`space-y-6 ${!selectedOutboundNumber && availableOutboundNumbers.length > 0 ? 'opacity-60 pointer-events-none' : ''}`}>
             {/* Voice Selection */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-3">
                 Voice <span className="text-red-500">*</span>
+                {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
+                  <span className="text-xs text-yellow-400 ml-2">(Select outbound number first)</span>
+                )}
               </label>
               <select
                 value={selectedVoice}
                 onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                disabled={!selectedOutboundNumber}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {VOICE_OPTIONS.map((voice) => (
                   <option key={voice.value} value={voice.value}>
@@ -958,7 +1492,7 @@ export default function PhoneSettingsDetailPage() {
                 ))}
               </select>
               <p className="text-xs text-muted-foreground mt-2">
-                Select the voice for your AI agent. Go to the <button onClick={() => setActiveTab("voice")} className="text-primary hover:underline font-medium">Voice Playground</button> tab to preview all voices.
+                Select the voice for your AI agent for the selected outbound number. Go to the <button onClick={() => setActiveTab("voice")} className="text-primary hover:underline font-medium">Voice Playground</button> tab to preview all voices.
               </p>
             </div>
 
@@ -972,7 +1506,8 @@ export default function PhoneSettingsDetailPage() {
                 value={customVoiceId}
                 onChange={(e) => setCustomVoiceId(e.target.value)}
                 placeholder="Enter custom ElevenLabs voice ID"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                disabled={!selectedOutboundNumber}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-muted-foreground mt-2">
                 Override the selected voice by providing a custom ElevenLabs voice ID. If provided, this will be used instead of the selected voice above.
@@ -987,13 +1522,25 @@ export default function PhoneSettingsDetailPage() {
               <input
                 type="text"
                 value={twilioPhoneNumber}
-                onChange={(e) => setTwilioPhoneNumber(e.target.value)}
+                onChange={(e) => {
+                  setTwilioPhoneNumber(e.target.value);
+                  // Auto-select if valid and no number selected
+                  const value = e.target.value.trim();
+                  if (value && /^\+[1-9]\d{1,14}$/.test(value) && !selectedOutboundNumber) {
+                    setSelectedOutboundNumber(value);
+                  }
+                }}
                 placeholder="+1234567890"
                 className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Enter your phone number in E.164 format (e.g., +1234567890)
+                Enter your phone number in E.164 format (e.g., +1234567890). This number will appear in the selector above after saving.
               </p>
+              {twilioPhoneNumber && !/^\+[1-9]\d{1,14}$/.test(twilioPhoneNumber.trim()) && (
+                <p className="text-xs text-red-400 mt-1">
+                  ⚠️ Invalid format. Use E.164 format (e.g., +1234567890)
+                </p>
+              )}
             </div>
 
             {/* LiveKit SIP Trunk ID */}
@@ -1077,10 +1624,11 @@ export default function PhoneSettingsDetailPage() {
                 value={humanOperatorPhone}
                 onChange={(e) => setHumanOperatorPhone(e.target.value)}
                 placeholder="+1234567890"
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                disabled={!selectedOutboundNumber}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Phone number to transfer calls to when escalation conditions are met (E.164 format)
+                Phone number to transfer calls to when escalation conditions are met for the selected outbound number (E.164 format)
               </p>
             </div>
 
@@ -1092,7 +1640,8 @@ export default function PhoneSettingsDetailPage() {
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                disabled={!selectedOutboundNumber}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="en">English</option>
                 <option value="es">Spanish</option>
@@ -1106,7 +1655,7 @@ export default function PhoneSettingsDetailPage() {
                 <option value="ko">Korean</option>
               </select>
               <p className="text-xs text-muted-foreground mt-2">
-                Default language for voice agent conversations. This will be applied to all inbound numbers.
+                Language for voice agent conversations for the selected outbound number.
               </p>
             </div>
 
@@ -1120,10 +1669,11 @@ export default function PhoneSettingsDetailPage() {
                 onChange={(e) => setGreetingMessage(e.target.value)}
                 placeholder="Hello! How can I help you today?"
                 rows={3}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                disabled={!selectedOutboundNumber}
+                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <p className="text-xs text-muted-foreground mt-2">
-                Default greeting message for outbound calls. This will be applied to all inbound numbers.
+                Greeting message for outbound calls from the selected outbound number.
               </p>
             </div>
 
@@ -1131,10 +1681,10 @@ export default function PhoneSettingsDetailPage() {
             <div className="flex justify-end pt-4">
               <button
                 onClick={handleSaveSettings}
-                disabled={isUpdating || !selectedVoice}
+                disabled={isUpdating || createOrUpdateConfig.isPending || !selectedVoice}
                 className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isUpdating ? "Saving..." : "Save Configuration"}
+                {(isUpdating || createOrUpdateConfig.isPending) ? "Saving..." : "Save Configuration"}
               </button>
               </div>
             </div>
@@ -1145,6 +1695,13 @@ export default function PhoneSettingsDetailPage() {
       {/* Voice Playground Tab */}
       {activeTab === "voice" && (
         <div className="bg-card border border-border rounded-xl p-6 max-w-4xl">
+          {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
+            <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-sm text-yellow-400">
+                Select an outbound number in the Settings tab to configure its voice
+              </p>
+            </div>
+          )}
           <VoicePlayground 
             selectedVoice={selectedVoice}
             onVoiceSelect={setSelectedVoice}
@@ -1154,10 +1711,10 @@ export default function PhoneSettingsDetailPage() {
           <div className="flex justify-end pt-6 mt-6 border-t border-border">
             <button
               onClick={handleSaveSettings}
-              disabled={isUpdating || !selectedVoice}
+              disabled={isUpdating || createOrUpdateConfig.isPending || !selectedVoice}
               className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUpdating ? "Saving..." : "Save Voice Selection"}
+              {(isUpdating || createOrUpdateConfig.isPending) ? "Saving..." : "Save Voice Selection"}
             </button>
           </div>
         </div>
@@ -1166,18 +1723,31 @@ export default function PhoneSettingsDetailPage() {
       {/* End of Call Tab */}
       {activeTab === "endOfCall" && (
         <div className="bg-card border border-border rounded-xl p-6 max-w-2xl">
-          <div className="space-y-6">
+          {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
+            <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-sm text-yellow-400">
+                Select an outbound number above to configure its behavior
+              </p>
+            </div>
+          )}
+          <div className={`space-y-6 ${!selectedOutboundNumber && availableOutboundNumbers.length > 0 ? 'opacity-60 pointer-events-none' : ''}`}>
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">Escalation Conditions</h3>
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Escalation Conditions
+                    {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
+                      <span className="text-xs text-yellow-400 ml-2 font-normal">(Select outbound number first)</span>
+                    )}
+                  </h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Define when calls should be escalated to a human operator
+                    Define when calls from the selected outbound number should be escalated to a human operator
                   </p>
                 </div>
                 <button
                   onClick={addEscalationRule}
-                  className="h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all"
+                  disabled={!selectedOutboundNumber}
+                  className="h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Add Rule
                 </button>
@@ -1196,11 +1766,13 @@ export default function PhoneSettingsDetailPage() {
                         value={rule}
                         onChange={(e) => updateEscalationRule(index, e.target.value)}
                         placeholder="e.g., Customer requests to speak with human"
-                        className="flex-1 h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        disabled={!selectedOutboundNumber}
+                        className="flex-1 h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <button
                         onClick={() => removeEscalationRule(index)}
-                        className="h-11 px-4 bg-red-500/10 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all"
+                        disabled={!selectedOutboundNumber}
+                        className="h-11 px-4 bg-red-500/10 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Remove
                       </button>
@@ -1225,10 +1797,10 @@ export default function PhoneSettingsDetailPage() {
             <div className="flex justify-end pt-4">
               <button
                 onClick={handleSaveEscalationRules}
-                disabled={updateVoiceAgentHumanOperator.isPending}
+                disabled={createOrUpdateConfig.isPending || (!selectedOutboundNumber && !twilioPhoneNumber)}
                 className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {updateVoiceAgentHumanOperator.isPending ? "Saving..." : "Save Escalation Rules"}
+                {createOrUpdateConfig.isPending ? "Saving..." : "Save Escalation Rules"}
               </button>
             </div>
           </div>
@@ -1398,8 +1970,34 @@ export default function PhoneSettingsDetailPage() {
           
           {/* Setup Inbound Trunk */}
           <div className="bg-card border border-border rounded-xl p-6">
-          {/* Step Indicator */}
-          <div className="flex items-center justify-center mb-8">
+            {/* Persisted Inbound Numbers Display */}
+            {persistedInboundNumbers && persistedInboundNumbers.length > 0 && (
+              <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-green-400">Saved Inbound Numbers</h4>
+                  <span className="text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded-full font-medium">
+                    {persistedInboundNumbers.length} number{persistedInboundNumbers.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {persistedInboundNumbers.map((number, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 bg-background rounded-lg"
+                    >
+                      <span className="text-sm font-mono text-foreground">{number}</span>
+                      <span className="text-xs text-green-400">✓ Persisted</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  These numbers are saved in the database and will persist after page refresh.
+                </p>
+              </div>
+            )}
+            
+            {/* Step Indicator */}
+            <div className="flex items-center justify-center mb-8">
             <div className="flex items-center gap-4">
               <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold ${
                 inboundStep >= 1 ? 'bg-primary text-foreground' : 'bg-secondary text-muted-foreground'
@@ -1431,26 +2029,34 @@ export default function PhoneSettingsDetailPage() {
                 </p>
               </div>
 
-              {/* Show existing configured numbers */}
-              {settings?.inboundPhoneNumbers && settings.inboundPhoneNumbers.length > 0 && (
-                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <h4 className="text-sm font-medium text-green-400 mb-3">Previously Configured Numbers:</h4>
-                  <div className="space-y-2">
-                    {settings.inboundPhoneNumbers.map((num, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-background rounded-lg">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="font-mono text-foreground text-sm">{num}</span>
-                        <Check className="w-4 h-4 text-green-500 ml-auto" />
-                      </div>
-                    ))}
+              {/* Show existing configured numbers from persisted API or settings */}
+              {(() => {
+                const numbersToShow = (persistedInboundNumbers && persistedInboundNumbers.length > 0) 
+                  ? persistedInboundNumbers 
+                  : (inboundConnectedNumbers && inboundConnectedNumbers.length > 0) 
+                    ? inboundConnectedNumbers 
+                    : null;
+                
+                return numbersToShow && numbersToShow.length > 0 ? (
+                  <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <h4 className="text-sm font-medium text-green-400 mb-3">Previously Configured Numbers:</h4>
+                    <div className="space-y-2">
+                      {numbersToShow.map((num, idx) => (
+                        <div key={idx} className="flex items-center gap-2 p-2 bg-background rounded-lg">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          <span className="font-mono text-foreground text-sm">{num}</span>
+                          <Check className="w-4 h-4 text-green-500 ml-auto" />
+                        </div>
+                      ))}
+                    </div>
+                    {settings?.inboundTrunkName && (
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Trunk: <span className="text-foreground">{settings.inboundTrunkName}</span>
+                      </p>
+                    )}
                   </div>
-                  {settings.inboundTrunkName && (
-                    <p className="text-xs text-muted-foreground mt-3">
-                      Trunk: <span className="text-foreground">{settings.inboundTrunkName}</span>
-                    </p>
-                  )}
-                </div>
-              )}
+                ) : null;
+              })()}
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -1471,7 +2077,7 @@ export default function PhoneSettingsDetailPage() {
                 </label>
                 <input
                   type="text"
-                  value={inboundPhoneNumbers}
+                  value={inboundPhoneNumbers || ''}
                   onChange={(e) => setInboundPhoneNumbers(e.target.value)}
                   placeholder="+1234567890, +0987654321"
                   className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
@@ -1479,6 +2085,11 @@ export default function PhoneSettingsDetailPage() {
                 <p className="text-xs text-muted-foreground mt-2">
                   Enter phone numbers in E.164 format, separated by commas
                 </p>
+                {persistedInboundNumbers && persistedInboundNumbers.length > 0 && (
+                  <p className="text-xs text-green-400 mt-1">
+                    ✓ {persistedInboundNumbers.length} number(s) saved and will persist after refresh
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3">

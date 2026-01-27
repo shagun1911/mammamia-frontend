@@ -166,9 +166,10 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_1",
         type: "trigger",
-        service: "keplero_mass_sending",
+        service: "batch_call",
         config: {
           event: "batch_call",
+          source: "csv",
           listId: "",
         },
         position: 0,
