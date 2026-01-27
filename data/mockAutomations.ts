@@ -7,39 +7,39 @@ export interface AutomationNode {
     event?: string;
     listId?: string;
     source?: string;
-    
+
     // Delay config
     delay?: number;
     delayUnit?: "seconds" | "minutes" | "hours" | "days";
-    
+
     // Communication config
     template?: string;
     subject?: string;
     message?: string;
     body?: string;
-    
+
     // Contact config
     name?: string;
     email?: string;
     phone?: string;
     tags?: string[];
     lists?: string[];
-    
+
     // Call config
     dynamicInstruction?: string;
     language?: string;
     transferTo?: string;
     escalationCondition?: string;
-    
+
     // API config
     url?: string;
     method?: string;
     headers?: any;
     params?: any;
-    
+
     // WhatsApp config
     variables?: Record<string, string>;
-    
+
     // Generic
     [key: string]: any;
   };

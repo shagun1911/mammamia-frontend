@@ -57,11 +57,10 @@ export function AutomationNode({
   return (
     <div
       onClick={onClick}
-      className={`w-[480px] bg-card rounded-xl p-5 cursor-pointer transition-all ${
-        isSelected || isIncomplete
+      className={`w-[480px] bg-card rounded-xl p-5 cursor-pointer transition-all ${isSelected || isIncomplete
           ? "border-2 border-[#6366f1]"
           : "border border-border hover:border-[#404040]"
-      }`}
+        }`}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -80,7 +79,19 @@ export function AutomationNode({
           <MoreVertical className="w-5 h-5" />
         </button>
       </div>
-      <p className="text-sm text-muted-foreground">{getStepText()}</p>
+      <p className="text-sm text-muted-foreground mb-3">{getStepText()}</p>
+      {node.service.startsWith("keplero_google_") && (
+        <div className="flex flex-col gap-1 pt-3 border-t border-border/50">
+          <div className="flex items-center gap-2 text-xs text-blue-400 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+            Uses your connected Google account
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50"></span>
+            Runs as you
+          </div>
+        </div>
+      )}
     </div>
   );
 }
