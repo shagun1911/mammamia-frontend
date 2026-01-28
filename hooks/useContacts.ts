@@ -108,13 +108,51 @@ export function useDeleteContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => contactService.delete(id),
-    onSuccess: () => {
+    mutationFn: async (id: string) => {
+      console.error('🔵 [useDeleteContact] Mutation called with ID:', id);
+      console.error('[useDeleteContact] ID type:', typeof id);
+      console.error('[useDeleteContact] ID value:', JSON.stringify(id));
+      
+      if (!id || id === 'undefined' || id === 'null') {
+        const error = new Error('Contact ID is required');
+        console.error('[useDeleteContact] ❌ Invalid ID:', id);
+        throw error;
+      }
+      
+      try {
+        console.error('[useDeleteContact] Calling contactService.delete...');
+        const result = await contactService.delete(id);
+        console.error('[useDeleteContact] ✅ Service call successful, result:', result);
+        return result;
+      } catch (error: any) {
+        console.error('[useDeleteContact] ❌ Service call failed:', error);
+        console.error('[useDeleteContact] Error details:', {
+          message: error?.message,
+          response: error?.response,
+          stack: error?.stack
+        });
+        throw error;
+      }
+    },
+    onSuccess: (data, id) => {
+      console.error('[useDeleteContact] ✅ onSuccess called');
+      console.error('[useDeleteContact] Success data:', data);
+      console.error('[useDeleteContact] Success ID:', id);
+      
+      // Invalidate and refetch contacts
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
-      toast.success('Contact deleted');
+      toast.success('Contact deleted successfully');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete contact');
+      console.error('[useDeleteContact] ❌ onError called');
+      console.error('[useDeleteContact] Error object:', error);
+      console.error('[useDeleteContact] Error message:', error?.message);
+      console.error('[useDeleteContact] Error response:', error?.response);
+      console.error('[useDeleteContact] Error stack:', error?.stack);
+      
+      const errorMessage = error?.message || 'Failed to delete contact';
+      console.error('[useDeleteContact] Showing toast with error:', errorMessage);
+      toast.error(errorMessage);
     },
   });
 }

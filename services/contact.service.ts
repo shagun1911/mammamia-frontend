@@ -42,11 +42,15 @@ class ContactService {
       const response = await apiClient.get('/contacts', {
         params,
       });
-      // Backend uses paginatedResponse which returns { data: { items: [...], pagination: {...} } }
+      // Backend uses paginatedResponse which returns { success: true, data: { items: [...], pagination: {...} } }
+      // Access nested data structure: response.data.data.items
+      const responseData = response.data?.data || response.data;
+      const items = responseData?.items || [];
+      
       // Transform _id to id for frontend compatibility and add UI defaults
-      const contacts = (response.data?.items || []).map((contact: any) => ({
+      const contacts = (Array.isArray(items) ? items : []).map((contact: any) => ({
         ...contact,
-        id: contact._id,
+        id: contact._id || contact.id,
         avatar: contact.avatar || contact.name?.charAt(0).toUpperCase() || '?',
         color: contact.color || '#6366f1',
         tags: contact.tags || [],
@@ -54,7 +58,7 @@ class ContactService {
       
       return {
         contacts,
-        pagination: response.data?.pagination,
+        pagination: responseData?.pagination || { page: 1, limit: 30, total: contacts.length, totalPages: 1 },
       };
     } catch (error: any) {
       throw new Error(error.message || 'Failed to fetch contacts');
@@ -138,11 +142,36 @@ class ContactService {
    * Delete contact
    */
   async delete(id: string) {
+    if (!id) {
+      console.error('[Contact Service] Delete called without ID');
+      throw new Error('Contact ID is required');
+    }
+    
     try {
+      console.log('[Contact Service] Deleting contact with ID:', id);
+      console.log('[Contact Service] Full URL will be:', `/contacts/${id}`);
+      
       const response = await apiClient.delete(`/contacts/${id}`);
-      return response.data;
+      
+      console.log('[Contact Service] Delete response status:', response.status);
+      console.log('[Contact Service] Delete response data:', response.data);
+      
+      // Handle both nested and direct response structures
+      const result = response.data?.data || response.data;
+      return result;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to delete contact');
+      console.error('[Contact Service] Delete error details:');
+      console.error('[Contact Service] Error message:', error?.message);
+      console.error('[Contact Service] Error response:', error?.response);
+      console.error('[Contact Service] Error response data:', error?.response?.data);
+      console.error('[Contact Service] Error response status:', error?.response?.status);
+      
+      const errorMessage = error?.response?.data?.message 
+        || error?.response?.data?.error?.message
+        || error?.message 
+        || 'Failed to delete contact';
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -356,6 +385,18 @@ class ContactService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to delete list');
+    }
+  }
+
+  /**
+   * Delete all contacts from a list
+   */
+  async deleteAllContactsFromList(listId: string) {
+    try {
+      const response = await apiClient.delete(`/contacts/lists/${listId}/contacts`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete all contacts from list');
     }
   }
 
