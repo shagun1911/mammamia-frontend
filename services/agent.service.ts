@@ -25,6 +25,14 @@ export interface CreateAgentData {
   // tool_ids are automatically added from backend env variables (PRODUCTS_TOOL_ID and ORDERS_TOOL_ID)
 }
 
+export interface UpdateAgentPromptData {
+  first_message: string;
+  system_prompt: string;
+  language: string;
+  knowledge_base_ids: string[];
+  // tool_ids are automatically added from backend env variables (PRODUCTS_TOOL_ID and ORDERS_TOOL_ID)
+}
+
 class AgentService {
   /**
    * Get all agents for the current user
@@ -62,6 +70,20 @@ class AgentService {
     } catch (error: any) {
       console.error('[AgentService] create() error:', error);
       throw new Error(error.message || 'Failed to create agent');
+    }
+  }
+
+  /**
+   * Update agent prompt
+   */
+  async updatePrompt(agentId: string, data: UpdateAgentPromptData): Promise<Agent> {
+    try {
+      const response = await apiClient.patch<{ success: boolean; message: string; data: Agent }>(`/agents/${agentId}/prompt`, data);
+      // apiClient.patch() returns response.data directly, so response is already { success, message, data }
+      return response.data;
+    } catch (error: any) {
+      console.error('[AgentService] updatePrompt() error:', error);
+      throw new Error(error.message || 'Failed to update agent prompt');
     }
   }
 

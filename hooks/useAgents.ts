@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { agentService, Agent, CreateAgentData } from '@/services/agent.service';
+import { agentService, Agent, CreateAgentData, UpdateAgentPromptData } from '@/services/agent.service';
 import { toast } from 'sonner';
 
 /**
@@ -49,6 +49,26 @@ export function useCreateAgent() {
     onError: (error: any) => {
       console.error('[useCreateAgent] Error:', error);
       toast.error(error.message || 'Failed to create agent');
+    },
+  });
+}
+
+/**
+ * Update agent prompt mutation
+ */
+export function useUpdateAgentPrompt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ agentId, data }: { agentId: string; data: UpdateAgentPromptData }) => 
+      agentService.updatePrompt(agentId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      toast.success('Agent prompt updated successfully');
+    },
+    onError: (error: any) => {
+      console.error('[useUpdateAgentPrompt] Error:', error);
+      toast.error(error.message || 'Failed to update agent prompt');
     },
   });
 }

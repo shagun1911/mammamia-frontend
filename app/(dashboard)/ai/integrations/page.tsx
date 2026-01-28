@@ -1,24 +1,62 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TrainingSidebar } from "@/components/training/TrainingSidebar";
 import { IntegrationModal } from "@/components/integrations/IntegrationModal";
 import { IntegrationList } from "@/components/integrations/IntegrationList";
+import { EmailTemplateModal } from "@/components/integrations/EmailTemplateModal";
 import { toolService, Tool } from "@/services/tool.service";
+import { useEmailTemplates, useDeleteEmailTemplate } from "@/hooks/useEmailTemplates";
 import { Plus, RefreshCw, Brain, Activity } from "lucide-react";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
 
+// Extended Tool interface to include email templates
+interface UnifiedIntegration extends Tool {
+  isEmailTemplate?: boolean;
+  template_id?: string;
+}
+
 export default function IntegrationsPage() {
   const { getSidebarWidth } = useSidebar();
   const [integrations, setIntegrations] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEmailTemplateModalOpen, setIsEmailTemplateModalOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch email templates using React Query
+  const { data: emailTemplates = [], isLoading: isLoadingEmailTemplates, refetch: refetchEmailTemplates } = useEmailTemplates();
+  const deleteEmailTemplate = useDeleteEmailTemplate();
+
+  // Merge integrations and email templates into a unified list
+  const allIntegrations = useMemo<UnifiedIntegration[]>(() => {
+    // Convert email templates to Tool-like format
+    const emailTemplateIntegrations: UnifiedIntegration[] = emailTemplates.map(template => ({
+      tool_id: template.tool_id,
+      tool_name: template.name,
+      tool_type: 'email_template',
+      description: template.description,
+      properties: template.parameters.map(param => ({
+        name: param.name,
+        type: 'string',
+        description: param.description,
+        required: param.required,
+        value: '',
+      })),
+      isEmailTemplate: true,
+      template_id: template.template_id,
+      createdAt: template.createdAt,
+      updatedAt: template.updatedAt,
+    }));
+
+    // Combine regular integrations and email templates
+    return [...integrations, ...emailTemplateIntegrations];
+  }, [integrations, emailTemplates]);
 
   // Fetch all integrations
   const fetchIntegrations = async () => {
@@ -37,6 +75,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     fetchIntegrations();
+    // Email templates are fetched automatically via React Query hook
   }, []);
 
   // Handle create/update integration
@@ -73,14 +112,20 @@ export default function IntegrationsPage() {
     }
   };
 
-  // Handle delete integration
-  const handleDelete = async (toolId: string) => {
+  // Handle delete integration (works for both regular tools and email templates)
+  const handleDelete = async (toolId: string, isEmailTemplate?: boolean, templateId?: string) => {
     try {
       setError(null);
-      await toolService.delete(toolId);
       
-      // Refresh the list
-      await fetchIntegrations();
+      if (isEmailTemplate && templateId) {
+        // Delete email template
+        await deleteEmailTemplate.mutateAsync(templateId);
+        refetchEmailTemplates();
+      } else {
+        // Delete regular tool
+        await toolService.delete(toolId);
+        await fetchIntegrations();
+      }
     } catch (err: any) {
       console.error('Error deleting integration:', err);
       setError(err.message || 'Failed to delete integration');
@@ -98,6 +143,17 @@ export default function IntegrationsPage() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingTool(null);
+  };
+
+  // Handle email template modal
+  const handleEmailTemplateRequest = () => {
+    setIsModalOpen(false);
+    setIsEmailTemplateModalOpen(true);
+  };
+
+  const handleEmailTemplateSuccess = () => {
+    // Refresh email templates after creation
+    refetchEmailTemplates();
   };
 
   return (
@@ -138,11 +194,14 @@ export default function IntegrationsPage() {
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  onClick={fetchIntegrations}
+                  onClick={() => {
+                    fetchIntegrations();
+                    refetchEmailTemplates();
+                  }}
                   className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-xl font-medium hover:bg-accent transition-colors cursor-pointer"
-                  disabled={isLoading}
+                  disabled={isLoading || isLoadingEmailTemplates}
                 >
-                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${(isLoading || isLoadingEmailTemplates) ? 'animate-spin' : ''}`} />
                   Refresh
                 </button>
                 <button
@@ -162,12 +221,15 @@ export default function IntegrationsPage() {
           </div>
         )}
 
-        {/* Integration List */}
+        {/* Integration List (includes both regular integrations and email templates) */}
         <IntegrationList
-          integrations={integrations}
+          integrations={allIntegrations}
           onEdit={handleEdit}
-          onDelete={handleDelete}
-          isLoading={isLoading}
+          onDelete={(toolId, integration) => {
+            const unifiedIntegration = integration as UnifiedIntegration;
+            handleDelete(toolId, unifiedIntegration.isEmailTemplate, unifiedIntegration.template_id);
+          }}
+          isLoading={isLoading || isLoadingEmailTemplates}
         />
 
         {/* Integration Modal */}
@@ -177,6 +239,14 @@ export default function IntegrationsPage() {
           onSubmit={handleSubmit}
           editingTool={editingTool}
           isLoading={isSubmitting}
+          onEmailTemplateRequest={handleEmailTemplateRequest}
+        />
+
+        {/* Email Template Modal */}
+        <EmailTemplateModal
+          isOpen={isEmailTemplateModalOpen}
+          onClose={() => setIsEmailTemplateModalOpen(false)}
+          onSuccess={handleEmailTemplateSuccess}
         />
           </div>
         </div>

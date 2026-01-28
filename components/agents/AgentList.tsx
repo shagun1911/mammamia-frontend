@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-import { Plus, Bot, Loader2, Trash2, MessageSquare, Settings, Globe } from 'lucide-react';
+import { Plus, Bot, Loader2, Trash2, Edit2, MessageSquare, Settings, Globe } from 'lucide-react';
 import { useAgents, useDeleteAgent } from '@/hooks/useAgents';
 import { CreateAgentModal } from './CreateAgentModal';
+import { EditAgentModal } from './EditAgentModal';
 import { Agent } from '@/services/agent.service';
 import { toast } from 'sonner';
 
@@ -11,6 +12,8 @@ export function AgentList() {
   const { data: agents = [], isLoading, error } = useAgents();
   const deleteAgent = useDeleteAgent();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDelete = async (agent: Agent) => {
@@ -94,17 +97,30 @@ export function AgentList() {
                     <p className="text-xs text-muted-foreground">ID: {agent.agent_id}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(agent)}
-                  disabled={deletingId === agent._id}
-                  className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                >
-                  {deletingId === agent._id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingAgent(agent);
+                      setIsEditModalOpen(true);
+                    }}
+                    className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                    title="Edit agent"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(agent)}
+                    disabled={deletingId === agent._id}
+                    className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                    title="Delete agent"
+                  >
+                    {deletingId === agent._id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -144,6 +160,15 @@ export function AgentList() {
       <CreateAgentModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      <EditAgentModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingAgent(null);
+        }}
+        agent={editingAgent}
       />
     </div>
   );

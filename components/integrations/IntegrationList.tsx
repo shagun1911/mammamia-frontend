@@ -6,12 +6,13 @@ import { Edit2, Trash2, Mail, MessageSquare, Zap, Webhook, Database, Bell, Setti
 interface IntegrationListProps {
   integrations: Tool[];
   onEdit: (tool: Tool) => void;
-  onDelete: (toolId: string) => void;
+  onDelete: (toolId: string, integration?: Tool) => void;
   isLoading?: boolean;
 }
 
 const TOOL_TYPE_ICONS: Record<string, { icon: any; color: string; bg: string }> = {
   email: { icon: Mail, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  email_template: { icon: Mail, color: 'text-blue-500', bg: 'bg-blue-500/10' },
   sms: { icon: MessageSquare, color: 'text-green-500', bg: 'bg-green-500/10' },
   api_call: { icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
   webhook: { icon: Webhook, color: 'text-purple-500', bg: 'bg-purple-500/10' },
@@ -97,7 +98,7 @@ export function IntegrationList({
                     {tool.tool_name}
                   </h3>
                   <span className="text-xs text-muted-foreground capitalize">
-                    {tool.tool_type.replace('_', ' ')}
+                    {(tool as any).isEmailTemplate ? 'Email Template' : tool.tool_type.replace('_', ' ')}
                   </span>
                 </div>
               </div>
@@ -122,22 +123,26 @@ export function IntegrationList({
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => onEdit(tool)}
-                className="flex-1 h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
-              >
-                <Edit2 className="w-4 h-4" />
-                Edit
-              </button>
+              {!(tool as any).isEmailTemplate && (
+                <button
+                  onClick={() => onEdit(tool)}
+                  className="flex-1 h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
               <button
                 onClick={() => {
                   if (confirm(`Are you sure you want to delete "${tool.tool_name}"?`)) {
-                    onDelete(tool.tool_id);
+                    onDelete(tool.tool_id, tool);
                   }
                 }}
-                className="h-9 w-9 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors"
+                className={`${!(tool as any).isEmailTemplate ? 'h-9 w-9' : 'flex-1 h-9 px-4'} flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors`}
               >
                 <Trash2 className="w-4 h-4" />
+                {!(tool as any).isEmailTemplate && <span className="sr-only">Delete</span>}
+                {(tool as any).isEmailTemplate && <span className="ml-2">Delete</span>}
               </button>
             </div>
           </div>

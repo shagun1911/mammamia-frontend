@@ -16,6 +16,7 @@ interface IntegrationModalProps {
   }) => void;
   editingTool?: Tool | null;
   isLoading?: boolean;
+  onEmailTemplateRequest?: () => void; // Callback when send_email template is selected
 }
 
 const TOOL_TYPES = [
@@ -43,6 +44,7 @@ export function IntegrationModal({
   onSubmit,
   editingTool,
   isLoading = false,
+  onEmailTemplateRequest,
 }: IntegrationModalProps) {
   const [showTemplates, setShowTemplates] = useState(true);
   const [toolName, setToolName] = useState('');
@@ -75,6 +77,12 @@ export function IntegrationModal({
 
   // Load template
   const loadTemplate = (template: IntegrationTemplate) => {
+    // Special handling for send_email template - show email template modal instead
+    if (template.tool_name === 'send_email' && onEmailTemplateRequest) {
+      onEmailTemplateRequest();
+      return;
+    }
+    
     setToolName(template.tool_name);
     setToolType(template.tool_type);
     setDescription(template.description);
