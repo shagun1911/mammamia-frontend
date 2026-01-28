@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquare, Puzzle } from "lucide-react";
+import { MessageSquare, Puzzle, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type MenuItem = {
@@ -19,6 +19,11 @@ export function TrainingSidebar() {
       icon: MessageSquare,
       label: "AI Behavior",
       href: "/ai",
+    },
+    {
+      icon: Bot,
+      label: "Agents",
+      href: "/ai/agents",
     },
     {
       icon: Puzzle,

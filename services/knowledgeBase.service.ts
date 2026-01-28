@@ -47,7 +47,8 @@ class KnowledgeBaseService {
   async getAll(): Promise<KnowledgeBaseItem[]> {
     try {
       // apiClient.get() already returns response.data, so response is the data object
-      const response = await apiClient.get<any>('/api/v1/knowledge-base?page_size=100');
+      // Note: baseURL already includes /api/v1, so we only need /knowledge-base
+      const response = await apiClient.get<any>('/knowledge-base?page_size=100');
       console.log('📦 [KnowledgeBaseService] getAll() full response:', response);
       console.log('📦 [KnowledgeBaseService] response type:', typeof response);
       console.log('📦 [KnowledgeBaseService] response.documents:', response?.documents);
@@ -104,7 +105,7 @@ class KnowledgeBaseService {
    */
   async getById(documentId: string): Promise<KnowledgeBaseItem | null> {
     try {
-      const response = await apiClient.get<KnowledgeBaseItem>(`/api/v1/knowledge-base/${documentId}`);
+      const response = await apiClient.get<KnowledgeBaseItem>(`/knowledge-base/${documentId}`);
       console.log('📦 [KnowledgeBaseService] getById() response:', response);
       return response;
     } catch (error: any) {
@@ -124,7 +125,7 @@ class KnowledgeBaseService {
   async getFAQs(documentId: string) {
     try {
       const response = await apiClient.get(
-        `/api/v1/knowledge-base/${documentId}/faqs`
+        `/knowledge-base/${documentId}/faqs`
       );
       return response.data.faqs;
     } catch (error: any) {
@@ -138,7 +139,7 @@ class KnowledgeBaseService {
   async createFAQ(documentId: string, data: CreateFAQData) {
     try {
       const response = await apiClient.post(
-        `/api/v1/knowledge-base/${documentId}/faqs`,
+        `/knowledge-base/${documentId}/faqs`,
         data
       );
       return response.data.faq;
@@ -153,7 +154,7 @@ class KnowledgeBaseService {
   async updateFAQ(documentId: string, faqId: string, data: Partial<CreateFAQData>) {
     try {
       const response = await apiClient.patch(
-        `/api/v1/knowledge-base/${documentId}/faqs/${faqId}`,
+        `/knowledge-base/${documentId}/faqs/${faqId}`,
         data
       );
       return response.data.faq;
@@ -168,7 +169,7 @@ class KnowledgeBaseService {
   async deleteFAQ(documentId: string, faqId: string) {
     try {
       const response = await apiClient.delete(
-        `/api/v1/knowledge-base/${documentId}/faqs/${faqId}`
+        `/knowledge-base/${documentId}/faqs/${faqId}`
       );
       return response.data;
     } catch (error: any) {
@@ -185,7 +186,7 @@ class KnowledgeBaseService {
       formData.append('file', file);
 
       const response = await apiClient.uploadFile(
-        `/api/v1/knowledge-base/${documentId}/faqs/import`,
+        `/knowledge-base/${documentId}/faqs/import`,
         formData
       );
       return response.data;
@@ -202,7 +203,7 @@ class KnowledgeBaseService {
   async getWebsites(documentId: string): Promise<Website[]> {
     try {
       const response = await apiClient.get(
-        `/api/v1/knowledge-base/${documentId}/websites`
+        `/knowledge-base/${documentId}/websites`
       );
       return response.data.websites;
     } catch (error: any) {
@@ -216,7 +217,7 @@ class KnowledgeBaseService {
   async addWebsite(documentId: string, data: CreateWebsiteData) {
     try {
       const response = await apiClient.post(
-        `/api/v1/knowledge-base/${documentId}/websites`,
+        `/knowledge-base/${documentId}/websites`,
         data
       );
       return response.data.website;
@@ -231,7 +232,7 @@ class KnowledgeBaseService {
   async removeWebsite(documentId: string, websiteId: string) {
     try {
       const response = await apiClient.delete(
-        `/api/v1/knowledge-base/${documentId}/websites/${websiteId}`
+        `/knowledge-base/${documentId}/websites/${websiteId}`
       );
       return response.data;
     } catch (error: any) {
@@ -245,7 +246,7 @@ class KnowledgeBaseService {
   async resyncWebsite(documentId: string, websiteId: string) {
     try {
       const response = await apiClient.post(
-        `/api/v1/knowledge-base/${documentId}/websites/${websiteId}/update`
+        `/knowledge-base/${documentId}/websites/${websiteId}/update`
       );
       return response.data;
     } catch (error: any) {
@@ -261,7 +262,7 @@ class KnowledgeBaseService {
   async getFiles(documentId: string) {
     try {
       const response = await apiClient.get(
-        `/api/v1/knowledge-base/${documentId}/files`
+        `/knowledge-base/${documentId}/files`
       );
       return response.data.files;
     } catch (error: any) {
@@ -282,7 +283,7 @@ class KnowledgeBaseService {
       formData.append('file', file);
 
       const response = await apiClient.uploadFile(
-        `/api/v1/knowledge-base/${documentId}/files`,
+        `/knowledge-base/${documentId}/files`,
         formData,
         onProgress
           ? (progressEvent: any) => {
@@ -305,7 +306,7 @@ class KnowledgeBaseService {
   async deleteFile(documentId: string, fileId: string) {
     try {
       const response = await apiClient.delete(
-        `/api/v1/knowledge-base/${documentId}/files/${fileId}`
+        `/knowledge-base/${documentId}/files/${fileId}`
       );
       return response.data;
     } catch (error: any) {
@@ -383,7 +384,7 @@ class KnowledgeBaseService {
   async search(documentId: string, query: string) {
     try {
       const response = await apiClient.get(
-        `/api/v1/knowledge-base/${documentId}/search`,
+        `/knowledge-base/${documentId}/search`,
         {
           params: { query },
         }
