@@ -23,21 +23,8 @@ export function ContactsTable({
   onToggleSelectAll,
 }: ContactsTableProps) {
   const allSelected = contacts.length > 0 && selectedIds.length === contacts.length;
-  
-  // Debug: Log when component renders
-  console.error('[ContactsTable] Component rendered with', contacts.length, 'contacts');
-  console.error('[ContactsTable] onDelete function:', typeof onDelete, onDelete);
-  
-  // Test delete function immediately
-  if (contacts.length > 0 && typeof onDelete === 'function') {
-    console.error('[ContactsTable] ✅ onDelete is available and is a function');
-    console.error('[ContactsTable] First contact ID:', contacts[0]?.id);
-  } else {
-    console.error('[ContactsTable] ❌ onDelete issue - contacts:', contacts.length, 'onDelete type:', typeof onDelete);
-  }
 
   if (contacts.length === 0) {
-    console.error('[ContactsTable] No contacts to display');
     return (
       <div className="flex flex-col items-center justify-center py-16 px-6">
         <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
@@ -47,55 +34,12 @@ export function ContactsTable({
         <p className="text-sm text-muted-foreground text-center max-w-md">
           Get started by importing contacts from a CSV file or adding a new contact manually.
         </p>
-        {/* TEST BUTTON */}
-        <button
-          onClick={async () => {
-            console.error('🧪 TEST BUTTON CLICKED');
-            alert('TEST BUTTON WORKS!');
-            if (typeof onDelete === 'function') {
-              console.error('🧪 onDelete is available, calling with test ID');
-              try {
-                await onDelete('test-id-123');
-                console.error('🧪 ✅ Test delete succeeded');
-              } catch (err) {
-                console.error('🧪 ❌ Test delete error:', err);
-              }
-            } else {
-              console.error('🧪 onDelete is NOT available');
-            }
-          }}
-          className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
-        >
-          🧪 TEST DELETE FUNCTION
-        </button>
       </div>
     );
   }
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-        {/* TEST BUTTON - Always visible */}
-        <div className="p-2 bg-yellow-200 dark:bg-yellow-900 border-b">
-          <button
-            onClick={async () => {
-              console.error('🧪 TEST BUTTON CLICKED FROM TABLE');
-              alert('TEST BUTTON WORKS!\n\nContacts: ' + contacts.length + '\nonDelete type: ' + typeof onDelete);
-              if (contacts.length > 0 && typeof onDelete === 'function') {
-                const testId = contacts[0].id;
-                console.error('🧪 Calling onDelete with first contact ID:', testId);
-                try {
-                  await onDelete(testId);
-                  console.error('🧪 ✅ Test delete succeeded');
-                } catch (err) {
-                  console.error('🧪 ❌ Test delete error:', err);
-                }
-              }
-            }}
-            className="px-3 py-1 bg-red-500 text-white rounded text-sm"
-          >
-            🧪 TEST DELETE (Click me first!)
-          </button>
-        </div>
       <table className="w-full">
         {/* Enhanced Header */}
         <thead>
@@ -151,9 +95,7 @@ export function ContactsTable({
 
         {/* Enhanced Body */}
         <tbody className="divide-y divide-border">
-          {contacts.map((contact, index) => {
-            console.error(`[ContactsTable] Rendering contact ${index}:`, contact.name, 'ID:', contact.id);
-            return (
+          {contacts.map((contact, index) => (
             <tr
               key={contact.id}
               className={cn(
@@ -340,8 +282,7 @@ export function ContactsTable({
                 </div>
               </td>
             </tr>
-            );
-          })}
+          ))}
         </tbody>
       </table>
     </div>
