@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 interface ContactsTableProps {
   contacts: Contact[];
   onEdit: (contact: Contact) => void;
-  onDelete: (id: string) => void | Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
@@ -49,12 +49,17 @@ export function ContactsTable({
         </p>
         {/* TEST BUTTON */}
         <button
-          onClick={() => {
+          onClick={async () => {
             console.error('🧪 TEST BUTTON CLICKED');
             alert('TEST BUTTON WORKS!');
             if (typeof onDelete === 'function') {
               console.error('🧪 onDelete is available, calling with test ID');
-              onDelete('test-id-123').catch(err => console.error('🧪 Test delete error:', err));
+              try {
+                await onDelete('test-id-123');
+                console.error('🧪 ✅ Test delete succeeded');
+              } catch (err) {
+                console.error('🧪 ❌ Test delete error:', err);
+              }
             } else {
               console.error('🧪 onDelete is NOT available');
             }
@@ -69,23 +74,28 @@ export function ContactsTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-      {/* TEST BUTTON - Always visible */}
-      <div className="p-2 bg-yellow-200 dark:bg-yellow-900 border-b">
-        <button
-          onClick={() => {
-            console.error('🧪 TEST BUTTON CLICKED FROM TABLE');
-            alert('TEST BUTTON WORKS!\n\nContacts: ' + contacts.length + '\nonDelete type: ' + typeof onDelete);
-            if (contacts.length > 0 && typeof onDelete === 'function') {
-              const testId = contacts[0].id;
-              console.error('🧪 Calling onDelete with first contact ID:', testId);
-              onDelete(testId).catch(err => console.error('🧪 Test delete error:', err));
-            }
-          }}
-          className="px-3 py-1 bg-red-500 text-white rounded text-sm"
-        >
-          🧪 TEST DELETE (Click me first!)
-        </button>
-      </div>
+        {/* TEST BUTTON - Always visible */}
+        <div className="p-2 bg-yellow-200 dark:bg-yellow-900 border-b">
+          <button
+            onClick={async () => {
+              console.error('🧪 TEST BUTTON CLICKED FROM TABLE');
+              alert('TEST BUTTON WORKS!\n\nContacts: ' + contacts.length + '\nonDelete type: ' + typeof onDelete);
+              if (contacts.length > 0 && typeof onDelete === 'function') {
+                const testId = contacts[0].id;
+                console.error('🧪 Calling onDelete with first contact ID:', testId);
+                try {
+                  await onDelete(testId);
+                  console.error('🧪 ✅ Test delete succeeded');
+                } catch (err) {
+                  console.error('🧪 ❌ Test delete error:', err);
+                }
+              }
+            }}
+            className="px-3 py-1 bg-red-500 text-white rounded text-sm"
+          >
+            🧪 TEST DELETE (Click me first!)
+          </button>
+        </div>
       <table className="w-full">
         {/* Enhanced Header */}
         <thead>
@@ -298,25 +308,17 @@ export function ContactsTable({
                       console.error('🔴 onDelete type:', typeof onDelete);
                       console.error('🔴 onDelete function:', onDelete);
                       
-                      // Call the delete handler directly
+                      // Call the delete handler - it always returns a Promise now
                       if (typeof onDelete === 'function') {
                         console.error('🔴 onDelete is a function, calling it NOW...');
-                        try {
-                          const result = onDelete(contactId);
-                          console.error('🔴 onDelete returned:', result);
-                          
-                          // Handle Promise if returned
-                          if (result && typeof result === 'object' && 'catch' in result) {
-                            console.error('🔴 onDelete returned a Promise, setting up catch handler');
-                            (result as Promise<void>).catch((error) => {
-                              console.error('🔴 Promise rejected:', error);
-                            });
-                          } else {
-                            console.error('🔴 onDelete returned synchronously');
-                          }
-                        } catch (error) {
-                          console.error('🔴 Exception calling onDelete:', error);
-                        }
+                        onDelete(contactId)
+                          .then(() => {
+                            console.error('🔴 ✅ Delete completed successfully');
+                          })
+                          .catch((error) => {
+                            console.error('🔴 ❌ Delete failed:', error);
+                            alert('Error deleting contact: ' + (error?.message || 'Unknown error'));
+                          });
                       } else {
                         console.error('🔴 [DELETE ERROR] onDelete is NOT a function!', onDelete);
                         alert('ERROR: Delete handler is not available!\n\nType: ' + typeof onDelete);
