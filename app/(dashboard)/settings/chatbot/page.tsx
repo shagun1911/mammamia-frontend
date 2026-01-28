@@ -66,10 +66,11 @@ export default function ChatbotSettingsPage() {
   const handleSave = async () => {
     try {
       // Find selected knowledge bases details
-      const selectedKBs = knowledgeBases?.filter((kb: any) => 
-        selectedKnowledgeBaseIds.includes(kb._id)
+      const kbArray = Array.isArray(knowledgeBases) ? knowledgeBases : [];
+      const selectedKBs = kbArray.filter((kb: any) => 
+        selectedKnowledgeBaseIds.includes(kb.id)
       );
-      const collectionNames = selectedKBs?.map((kb: any) => kb.collectionName) || [];
+      const collectionNames = selectedKBs.map((kb: any) => kb.collectionName || kb.name) || [];
       
       // For now, save without logo upload (would need backend support for file upload)
       await updateSettings.mutateAsync({
@@ -99,7 +100,8 @@ export default function ChatbotSettingsPage() {
   };
 
   const selectAllKnowledgeBases = () => {
-    const allIds = knowledgeBases?.map((kb: any) => kb._id) || [];
+    const kbArray = Array.isArray(knowledgeBases) ? knowledgeBases : [];
+    const allIds = kbArray.map((kb: any) => kb.id);
     setSelectedKnowledgeBaseIds(allIds);
   };
 
@@ -317,7 +319,7 @@ export default function ChatbotSettingsPage() {
                     {selectedKnowledgeBaseIds.length === 0 
                       ? 'Select knowledge bases for calls & AI responses'
                       : selectedKnowledgeBaseIds.length === 1
-                      ? knowledgeBases?.find((kb: any) => kb._id === selectedKnowledgeBaseIds[0])?.name || 'Unknown'
+                      ? (Array.isArray(knowledgeBases) ? knowledgeBases.find((kb: any) => kb.id === selectedKnowledgeBaseIds[0])?.name : null) || 'Unknown'
                       : `${selectedKnowledgeBaseIds.length} knowledge bases selected`
                     }
                   </span>
@@ -326,20 +328,20 @@ export default function ChatbotSettingsPage() {
                 
                 {showKBDropdown && (
                   <div className="absolute z-10 w-full mt-1 bg-secondary border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {!knowledgeBases || knowledgeBases.length === 0 ? (
+                    {!Array.isArray(knowledgeBases) || knowledgeBases.length === 0 ? (
                       <div className="px-4 py-3 text-sm text-muted-foreground">
                         No knowledge bases available. Create one first.
                       </div>
                     ) : (
                       knowledgeBases.map((kb: any) => (
                         <label
-                          key={kb._id}
+                          key={kb.id}
                           className="flex items-center px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
                         >
                           <input
                             type="checkbox"
-                            checked={selectedKnowledgeBaseIds.includes(kb._id)}
-                            onChange={() => toggleKnowledgeBase(kb._id)}
+                            checked={selectedKnowledgeBaseIds.includes(kb.id)}
+                            onChange={() => toggleKnowledgeBase(kb.id)}
                             className="mr-3 h-4 w-4 text-primary focus:ring-primary border-border rounded"
                           />
                           <span className="text-sm text-foreground">

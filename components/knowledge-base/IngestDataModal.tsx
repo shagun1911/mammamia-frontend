@@ -2,24 +2,25 @@
 
 import { useState, useRef } from 'react';
 import { X, Loader2, Upload, Link as LinkIcon, FileText, FileSpreadsheet } from 'lucide-react';
-import { pythonRagService } from '@/services/pythonRag.service';
+import { useKnowledgeBase } from '@/contexts/KnowledgeBaseContext';
 import { toast } from '@/lib/toast';
 
 interface IngestDataModalProps {
   isOpen: boolean;
   onClose: () => void;
-  collectionName: string;
+  collectionId: string; // This is the ID of the existing KB to ingest into (as parent folder)
 }
 
-export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataModalProps) {
-  const [urlLinks, setUrlLinks] = useState('');
+export function IngestDataModal({ isOpen, onClose, collectionId }: IngestDataModalProps) {
+  const [urlInput, setUrlInput] = useState('');
   const [pdfFiles, setPdfFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
   const [isIngesting, setIsIngesting] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
+
+  const { loadCollections } = useKnowledgeBase();
 
   const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -36,51 +37,107 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate at least one data source
-    if (!urlLinks.trim() && pdfFiles.length === 0 && excelFiles.length === 0) {
+    const urlLinks = urlInput.split(',').map(url => url.trim()).filter(Boolean);
+
+    if (urlLinks.length === 0 && pdfFiles.length === 0 && excelFiles.length === 0) {
       toast.error('Please provide at least one data source (URLs, PDFs, or Excel files)');
       return;
     }
 
     setIsIngesting(true);
-    setUploadProgress(0);
+    let successCount = 0;
+    let failCount = 0;
 
     try {
-      const response = await pythonRagService.ingestData(
-        {
-          collection_name: collectionName,
-          url_links: urlLinks.trim() || undefined,
-          pdf_files: pdfFiles.length > 0 ? pdfFiles : undefined,
-          excel_files: excelFiles.length > 0 ? excelFiles : undefined
-        },
-        (progressEvent) => {
-          if (progressEvent.total) {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setUploadProgress(progress);
-          }
-        }
-      );
+      const token = localStorage.getItem('accessToken');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
 
-      if (response.status === 'success') {
-        toast.success('Data ingested successfully!');
-        
-        // Reset form
-        setUrlLinks('');
-        setPdfFiles([]);
-        setExcelFiles([]);
-        if (pdfInputRef.current) pdfInputRef.current.value = '';
-        if (excelInputRef.current) excelInputRef.current.value = '';
-        
-        onClose();
-      } else {
-        toast.error(response.message || 'Failed to ingest data');
+      const ingestSingleDocument = async (sourceType: 'text' | 'url' | 'file', name: string, content: string | File) => {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('source_type', sourceType);
+        formData.append('parent_folder_id', collectionId);
+
+        if (sourceType === 'text') {
+          formData.append('text', content as string);
+        } else if (sourceType === 'url') {
+          formData.append('url', content as string);
+        } else if (sourceType === 'file') {
+          formData.append('file', content as File);
+        }
+
+        const response = await fetch(`${API_URL}/knowledge-base/ingest`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || errorData.message || `Failed to ingest ${name}`);
+        }
+        successCount++;
+      };
+
+      // Ingest URLs
+      for (const url of urlLinks) {
+        try {
+          await ingestSingleDocument('url', `Document from ${new URL(url).hostname}`, url);
+        } catch (error: any) {
+          console.error(`Failed to ingest URL ${url}:`, error);
+          toast.error(error.message || `Failed to ingest URL: ${url}`);
+          failCount++;
+        }
       }
+
+      // Ingest PDFs
+      for (const file of pdfFiles) {
+        try {
+          await ingestSingleDocument('file', file.name, file);
+        } catch (error: any) {
+          console.error(`Failed to ingest PDF ${file.name}:`, error);
+          toast.error(error.message || `Failed to ingest PDF: ${file.name}`);
+          failCount++;
+        }
+      }
+
+      // Ingest Excel files
+      for (const file of excelFiles) {
+        try {
+          await ingestSingleDocument('file', file.name, file);
+        } catch (error: any) {
+          console.error(`Failed to ingest Excel ${file.name}:`, error);
+          toast.error(error.message || `Failed to ingest Excel: ${file.name}`);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`Successfully ingested ${successCount} document(s).`);
+      }
+      if (failCount > 0) {
+        toast.error(`Failed to ingest ${failCount} document(s). See console for details.`);
+      }
+
+      if (successCount > 0) {
+        await loadCollections(); // Reload collections to show newly added documents
+      }
+
+      // Reset form
+      setUrlInput('');
+      setPdfFiles([]);
+      setExcelFiles([]);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+      if (excelInputRef.current) excelInputRef.current.value = '';
+      onClose();
+
     } catch (error: any) {
-      console.error('Failed to ingest data:', error);
-      toast.error(error.message || 'Failed to connect to RAG service. Please check if the Python service is accessible at https://keplerov1-python-2.onrender.com.');
+      console.error('Failed to start ingestion process:', error);
+      toast.error(error.message || 'Failed to start ingestion process. Please check backend.');
     } finally {
       setIsIngesting(false);
-      setUploadProgress(0);
     }
   };
 
@@ -92,9 +149,9 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-foreground">Ingest Data</h2>
+            <h2 className="text-xl font-bold text-foreground">Ingest Data into Knowledge Base</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Collection: <span className="text-primary font-medium">{collectionName}</span>
+              Parent Knowledge Base: <span className="text-primary font-medium">{collectionId}</span>
             </p>
           </div>
           <button
@@ -116,15 +173,15 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
                 Website URLs
               </label>
               <textarea
-                value={urlLinks}
-                onChange={(e) => setUrlLinks(e.target.value)}
-                placeholder="Enter URLs separated by commas&#10;Example: https://example.com, https://example.com/about"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="Enter URLs separated by commas\nExample: https://example.com, https://example.com/about"
                 rows={3}
                 className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                 disabled={isIngesting}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated URLs to scrape and ingest
+                Comma-separated URLs to scrape and ingest as new documents.
               </p>
             </div>
 
@@ -154,7 +211,7 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
                   Click to upload PDF files
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  You can select multiple PDF files
+                  Each PDF will be ingested as a new document.
                 </p>
               </button>
               {pdfFiles.length > 0 && (
@@ -198,7 +255,7 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
                   Click to upload Excel files
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supports .xlsx, .xls, .csv files
+                  Each Excel/CSV will be ingested as a new document.
                 </p>
               </button>
               {excelFiles.length > 0 && (
@@ -215,22 +272,6 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
                 </div>
               )}
             </div>
-
-            {/* Upload Progress */}
-            {isIngesting && uploadProgress > 0 && (
-              <div className="bg-secondary border border-border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">Uploading...</span>
-                  <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
-                </div>
-                <div className="w-full bg-secondary-foreground/20 rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Actions */}
@@ -245,11 +286,11 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
             </button>
             <button
               type="submit"
-              disabled={isIngesting || (!urlLinks.trim() && pdfFiles.length === 0 && excelFiles.length === 0)}
+              disabled={isIngesting || (urlInput.length === 0 && pdfFiles.length === 0 && excelFiles.length === 0)}
               className="flex items-center gap-2 px-6 py-2 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isIngesting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isIngesting ? 'Ingesting...' : 'Ingest Data'}
+              {isIngesting ? 'Ingesting...' : 'Ingest Documents'}
             </button>
           </div>
         </form>
@@ -257,4 +298,3 @@ export function IngestDataModal({ isOpen, onClose, collectionName }: IngestDataM
     </div>
   );
 }
-

@@ -19,7 +19,7 @@ interface EscalationRule {
 export default function ChatbotSettingsPage() {
   const { data: dbSettings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
-  const { data: knowledgeBases } = useKnowledgeBases();
+  const { data: knowledgeBases, isLoading: isLoadingKBs, refetch: refetchKBs, error: kbError, isError: isKbError } = useKnowledgeBases();
   const { aiBehavior, updateChatAgentPrompt, updateChatAgentHumanOperator } = useAIBehavior();
   const [settings, setSettings] = useState(mockChatbotSettings);
   const [activeLanguage, setActiveLanguage] = useState("en");
@@ -36,6 +36,37 @@ export default function ChatbotSettingsPage() {
   const [greetingMessage, setGreetingMessage] = useState("");
   const [language, setLanguage] = useState("en");
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Refetch knowledge bases when component mounts and periodically
+  useEffect(() => {
+    console.log('🔄 [ChatbotConfig] Component mounted, refetching KBs...');
+    refetchKBs();
+    
+    // Also refetch every 5 seconds to catch newly created KBs
+    const interval = setInterval(() => {
+      console.log('🔄 [ChatbotConfig] Periodic refetch...');
+      refetchKBs();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Debug: Log knowledge bases data
+  useEffect(() => {
+    console.log('📦 [ChatbotConfig] knowledgeBases:', knowledgeBases);
+    console.log('📦 [ChatbotConfig] isLoadingKBs:', isLoadingKBs);
+    console.log('📦 [ChatbotConfig] isKbError:', isKbError);
+    console.log('📦 [ChatbotConfig] kbError:', kbError);
+    console.log('📦 [ChatbotConfig] knowledgeBases length:', Array.isArray(knowledgeBases) ? knowledgeBases.length : 0);
+    console.log('📦 [ChatbotConfig] knowledgeBases array:', Array.isArray(knowledgeBases) ? 'YES' : 'NO');
+    if (Array.isArray(knowledgeBases) && knowledgeBases.length > 0) {
+      console.log('📦 [ChatbotConfig] First KB:', knowledgeBases[0]);
+    }
+    if (isKbError) {
+      console.error('❌ [ChatbotConfig] Error loading KBs:', kbError);
+    }
+  }, [knowledgeBases, isLoadingKBs, isKbError, kbError]);
 
   // Load settings from database when available
   useEffect(() => {
@@ -107,10 +138,11 @@ export default function ChatbotSettingsPage() {
   const handleSave = async () => {
     try {
       // Find selected knowledge bases details
-      const selectedKBs = knowledgeBases?.filter((kb: any) =>
-        selectedKnowledgeBaseIds.includes(kb._id)
+      const kbArray = Array.isArray(knowledgeBases) ? knowledgeBases : [];
+      const selectedKBs = kbArray.filter((kb: any) =>
+        selectedKnowledgeBaseIds.includes(kb.id)
       );
-      const collectionNames = selectedKBs?.map((kb: any) => kb.collectionName) || [];
+      const collectionNames = selectedKBs.map((kb: any) => kb.collectionName || kb.name) || [];
 
       // Save chatbot settings
       await updateSettings.mutateAsync({
@@ -178,7 +210,7 @@ export default function ChatbotSettingsPage() {
   };
 
   const selectAllKnowledgeBases = () => {
-    const allIds = knowledgeBases?.map((kb: any) => kb._id) || [];
+    const allIds = Array.isArray(knowledgeBases) ? knowledgeBases.map((kb: any) => kb.id) : [];
     setSelectedKnowledgeBaseIds(allIds);
   };
 
@@ -351,7 +383,7 @@ export default function ChatbotSettingsPage() {
                       {selectedKnowledgeBaseIds.length === 0
                         ? 'Select knowledge bases for calls & AI responses'
                         : selectedKnowledgeBaseIds.length === 1
-                          ? knowledgeBases?.find((kb: any) => kb._id === selectedKnowledgeBaseIds[0])?.name || 'Unknown'
+                          ? (Array.isArray(knowledgeBases) ? knowledgeBases.find((kb: any) => kb.id === selectedKnowledgeBaseIds[0])?.name : null) || 'Unknown'
                           : `${selectedKnowledgeBaseIds.length} knowledge bases selected`
                       }
                     </span>
@@ -360,20 +392,32 @@ export default function ChatbotSettingsPage() {
 
                   {showKBDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-secondary border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {!knowledgeBases || knowledgeBases.length === 0 ? (
+                      {isLoadingKBs ? (
+                        <div className="px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading knowledge bases...
+                        </div>
+                      ) : isKbError ? (
+                        <div className="px-4 py-3 text-sm text-destructive">
+                          Error loading knowledge bases. Please refresh the page.
+                          <div className="text-xs mt-1 text-muted-foreground">
+                            {kbError instanceof Error ? kbError.message : 'Unknown error'}
+                          </div>
+                        </div>
+                      ) : !Array.isArray(knowledgeBases) || knowledgeBases.length === 0 ? (
                         <div className="px-4 py-3 text-sm text-muted-foreground">
                           No knowledge bases available. Create one first.
                         </div>
                       ) : (
                         knowledgeBases.map((kb: any) => (
                           <label
-                            key={kb._id}
+                            key={kb.id}
                             className="flex items-center px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
                           >
                             <input
                               type="checkbox"
-                              checked={selectedKnowledgeBaseIds.includes(kb._id)}
-                              onChange={() => toggleKnowledgeBase(kb._id)}
+                              checked={selectedKnowledgeBaseIds.includes(kb.id)}
+                              onChange={() => toggleKnowledgeBase(kb.id)}
                               className="mr-3 h-4 w-4 text-primary focus:ring-primary border-border rounded"
                             />
                             <span className="text-sm text-foreground">

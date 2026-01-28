@@ -3,11 +3,17 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-export interface Collection {
-  _id?: string;
-  collection_name: string;
-  name?: string;
-  created_at: string;
+export interface KnowledgeBaseItem {
+  id: string;
+  name: string;
+  type: "text" | "url" | "file";
+  status: "ready" | "processing" | "failed";
+  created_at_unix: number;
+}
+
+export interface Collection extends KnowledgeBaseItem {
+  _id?: string; // Still needed for legacy collection_name mapping or direct mongo _id references
+  collection_name: string; // Used for existing components that rely on this for display or logic
   userId?: string;
 }
 
@@ -29,11 +35,11 @@ export interface ChatThread {
 interface KnowledgeBaseContextType {
   // Collections
   collections: Collection[];
-  addCollection: (collectionName: string, kbData?: any) => void;
+  addCollection: (id: string, name: string, type: "text" | "url" | "file", status: "ready" | "processing" | "failed", created_at_unix: number, userId?: string) => void;
   loadCollections: () => Promise<void>;
   deleteCollection: (kbId: string) => Promise<void>;
-  selectedCollection: string | null;
-  setSelectedCollection: (name: string | null) => void;
+    selectedCollection: string | null; // Stores the ID of the selected KB
+    setSelectedCollection: (id: string | null) => void;
 
   // Chat threads
   chatThreads: Map<string, ChatThread>;
@@ -65,16 +71,22 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
     'You are a helpful AI voice assistant. Speak clearly and be empathetic.'
   );
 
-  const addCollection = useCallback((collectionName: string, kbData?: any) => {
-    const newCollection: Collection = kbData || {
-      collection_name: collectionName,
-      created_at: new Date().toISOString()
+  const addCollection = useCallback((id: string, name: string, type: "text" | "url" | "file", status: "ready" | "processing" | "failed", created_at_unix: number, userId?: string) => {
+    const newCollection: Collection = {
+      id,
+      name,
+      type,
+      status,
+      created_at_unix,
+      _id: id, // For backward compatibility
+      collection_name: name || id, // For backward compatibility
+      userId,
     };
     setCollections(prev => {
       const updated = [...prev, newCollection];
       // Auto-select if it's the first collection
       if (prev.length === 0) {
-        setSelectedCollection(collectionName);
+        setSelectedCollection(id);
       }
       return updated;
     });
@@ -85,7 +97,7 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const response = await fetch('/api/v1/knowledge-bases', {
+      const response = await fetch('/api/v1/knowledge-base?page_size=100', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -93,19 +105,22 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const data = await response.json();
-        const kbs = data.data || [];
+        const kbs = (data.documents || []).filter((doc: any) => doc.status === "ready");
         const mappedCollections: Collection[] = kbs.map((kb: any) => ({
-          _id: kb._id,
-          collection_name: kb.collectionName,
+          id: kb.id,
+          _id: kb.id, // For backward compatibility with components expecting _id
           name: kb.name,
-          created_at: kb.createdAt,
-          userId: kb.userId
+          collection_name: kb.name || kb.id, // For backward compatibility
+          type: kb.type,
+          status: kb.status,
+          created_at_unix: kb.created_at_unix,
+          created_at: new Date(kb.created_at_unix * 1000).toISOString(), // Map to existing created_at
         }));
         setCollections(mappedCollections);
         
-        // Auto-select first collection if available
+        // Auto-select first collection if available, using its id
         if (mappedCollections.length > 0) {
-          setSelectedCollection(prev => prev || mappedCollections[0].collection_name);
+          setSelectedCollection(prev => prev || mappedCollections[0].id);
         }
       }
     } catch (error) {
@@ -118,7 +133,7 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('accessToken');
       if (!token) throw new Error('Not authenticated');
 
-      const response = await fetch(`/api/v1/knowledge-bases/${kbId}`, {
+      const response = await fetch(`/api/v1/knowledge-base/${kbId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -131,11 +146,11 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
       }
 
       // Remove from local state
-      setCollections(prev => prev.filter(c => c._id !== kbId));
+      setCollections(prev => prev.filter(c => c.id !== kbId));
       
       // Clear selection if the deleted collection was selected
-      const deletedCollection = collections.find(c => c._id === kbId);
-      if (deletedCollection && selectedCollection === deletedCollection.collection_name) {
+      const deletedCollection = collections.find(c => c.id === kbId);
+      if (deletedCollection && selectedCollection === deletedCollection.id) {
         setSelectedCollection(null);
       }
     } catch (error: any) {
@@ -144,11 +159,11 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
     }
   }, [collections, selectedCollection]);
 
-  const createNewThread = useCallback((collectionName: string): string => {
+  const createNewThread = useCallback((collectionId: string): string => {
     const threadId = uuidv4();
     const newThread: ChatThread = {
       thread_id: threadId,
-      collection_name: collectionName,
+      collection_name: collectionId, // Store the ID here for simplicity and consistency
       messages: [],
       created_at: new Date()
     };

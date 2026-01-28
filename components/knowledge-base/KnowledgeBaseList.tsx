@@ -25,12 +25,12 @@ export function KnowledgeBaseList() {
     load();
   }, [loadCollections]);
 
-  const handleIngestClick = (collectionName: string) => {
-    setSelectedCollectionForIngest(collectionName);
+  const handleIngestClick = (collectionId: string, collectionName: string) => {
+    setSelectedCollectionForIngest(collectionId);
     setIsIngestModalOpen(true);
   };
 
-  const handleDeleteClick = async (kbId: string | undefined, collectionName: string) => {
+  const handleDeleteClick = async (kbId: string, collectionName: string) => {
     if (!kbId) {
       toast.error('Invalid knowledge base ID');
       return;
@@ -95,7 +95,7 @@ export function KnowledgeBaseList() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {collections.map((collection) => (
             <div
-              key={collection.collection_name}
+              key={collection.id}
               className="bg-card border border-border rounded-xl p-6 hover:border-primary hover:shadow-lg transition-all cursor-pointer"
             >
               <div className="flex items-start gap-3 mb-4">
@@ -103,30 +103,47 @@ export function KnowledgeBaseList() {
                   <Database className="w-6 h-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-base font-semibold text-foreground truncate mb-1">
-                    {collection.collection_name}
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Created {new Date(collection.created_at).toLocaleDateString()}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <h4 className="text-base font-semibold text-foreground truncate">
+                      {collection.name}
+                    </h4>
+                    {collection.status && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium uppercase ${
+                        collection.status === 'ready' ? 'bg-green-500/10 text-green-500' :
+                        collection.status === 'failed' ? 'bg-red-500/10 text-red-500' :
+                        'bg-yellow-500/10 text-yellow-500 animate-pulse'
+                      }`}>
+                        {collection.status}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground uppercase">
+                      {collection.type}
+                    </p>
+                    <span className="text-muted-foreground/30">•</span>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(collection.created_at_unix * 1000).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => handleIngestClick(collection.collection_name)}
+                  onClick={() => handleIngestClick(collection.id, collection.name)}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors cursor-pointer"
                 >
                   <Upload className="w-4 h-4" />
                   Ingest Data
                 </button>
                 <button
-                  onClick={() => handleDeleteClick(collection._id, collection.collection_name)}
-                  disabled={deletingId === collection._id}
+                  onClick={() => handleDeleteClick(collection.id, collection.name)}
+                  disabled={deletingId === collection.id}
                   className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   title="Delete Knowledge Base"
                 >
-                  {deletingId === collection._id ? (
+                  {deletingId === collection.id ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Trash2 className="w-4 h-4" />
@@ -151,7 +168,7 @@ export function KnowledgeBaseList() {
             setIsIngestModalOpen(false);
             setSelectedCollectionForIngest(null);
           }}
-          collectionName={selectedCollectionForIngest}
+          collectionId={selectedCollectionForIngest}
         />
       )}
     </div>

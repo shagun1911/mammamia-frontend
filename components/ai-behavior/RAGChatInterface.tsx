@@ -23,7 +23,7 @@ export function RAGChatInterface() {
   const [query, setQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showRetrievedDocs, setShowRetrievedDocs] = useState<string | null>(null);
-  const [selectedCollections, setSelectedCollections] = useState<string[]>([]); // Multiple KB selection
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]); // Multiple KB selection (stores IDs)
   const [showKBDropdown, setShowKBDropdown] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +34,7 @@ export function RAGChatInterface() {
     if (selectedCollection && !selectedCollections.includes(selectedCollection)) {
       setSelectedCollections([selectedCollection]);
     }
-  }, [selectedCollection]);
+  }, [selectedCollection, selectedCollections]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,11 +50,11 @@ export function RAGChatInterface() {
     console.log('📋 [RAG Chat] Collections:', selectedCollections);
     console.log('💬 [RAG Chat] Query:', query);
 
-    // Create new thread if none exists - use first collection for thread naming
+    // Create new thread if none exists - use first collection ID for thread naming (or first selected for simplicity)
     let threadId = currentThreadId;
-    const mainCollection = selectedCollections[0];
-    if (!threadId || currentThread?.collection_name !== mainCollection) {
-      threadId = createNewThread(mainCollection);
+    const mainCollectionId = selectedCollections[0];
+    if (!threadId || currentThread?.collection_name !== mainCollectionId) {
+      threadId = createNewThread(mainCollectionId);
       console.log('🆕 [RAG Chat] Created new thread:', threadId);
     } else {
       console.log('🔄 [RAG Chat] Using existing thread:', threadId);
@@ -88,13 +88,13 @@ export function RAGChatInterface() {
       });
 
       // Construct system prompt
-      const systemPrompt = `Knowledge bases: ${selectedCollections.join(', ')}. Use documents from these collections to answer questions accurately.\n\n${chatAgentPrompt}`;
+      const systemPrompt = `Knowledge bases: ${selectedCollections.join(', ')}. Use documents from these knowledge bases to answer questions accurately.\n\n${chatAgentPrompt}`;
       console.log('📝 [RAG Chat] System prompt length:', systemPrompt.length);
 
       console.log('🚀 [RAG Chat] Sending request to Python RAG service...');
       const response = await pythonRagService.chat({
         query: userQuery,
-        collection_names: selectedCollections, // Updated to support multiple collections
+        collection_ids: selectedCollections, // Updated to support multiple collection IDs
         thread_id: threadId,
         system_prompt: systemPrompt,
         top_k: 5,
@@ -143,24 +143,24 @@ export function RAGChatInterface() {
 
   const handleNewChat = () => {
     if (selectedCollections.length > 0) {
-      createNewThread(selectedCollections[0]);
+      createNewThread(selectedCollections[0]); // Use the ID of the first selected collection
       toast.success('Started new chat session');
     }
   };
 
-  const toggleCollection = (collectionName: string) => {
+  const toggleCollection = (collectionId: string) => {
     setSelectedCollections(prev => {
-      if (prev.includes(collectionName)) {
-        return prev.filter(c => c !== collectionName);
+      if (prev.includes(collectionId)) {
+        return prev.filter(c => c !== collectionId);
       } else {
-        return [...prev, collectionName];
+        return [...prev, collectionId];
       }
     });
   };
 
   const selectAllCollections = () => {
-    const allCollectionNames = Object.keys(collections);
-    setSelectedCollections(allCollectionNames);
+    const allCollectionIds = collections.map(c => c.id);
+    setSelectedCollections(allCollectionIds);
   };
 
   const clearAllSelections = () => {
@@ -200,8 +200,8 @@ export function RAGChatInterface() {
               {selectedCollections.length === 0 
                 ? 'Select knowledge bases...'
                 : selectedCollections.length === 1
-                ? selectedCollections[0]
-                : `${selectedCollections.length} knowledge bases selected`
+                  ? collections.find(kb => kb.id === selectedCollections[0])?.name || 'Unknown'
+                  : `${selectedCollections.length} knowledge bases selected`
               }
             </span>
             <ChevronDown className={`w-4 h-4 transition-transform ${showKBDropdown ? 'rotate-180' : ''}`} />
@@ -216,17 +216,17 @@ export function RAGChatInterface() {
               ) : (
                 collections.map((collection) => (
                   <label
-                    key={collection.collection_name}
+                    key={collection.id}
                     className="flex items-center px-4 py-2 hover:bg-accent cursor-pointer transition-colors"
                   >
                     <input
                       type="checkbox"
-                      checked={selectedCollections.includes(collection.collection_name)}
-                      onChange={() => toggleCollection(collection.collection_name)}
+                      checked={selectedCollections.includes(collection.id)}
+                      onChange={() => toggleCollection(collection.id)}
                       className="mr-3 h-4 w-4 text-primary focus:ring-primary border-border rounded"
                     />
                     <span className="text-sm text-foreground">
-                      {collection.collection_name}
+                      {collection.name} ({collection.type})
                     </span>
                   </label>
                 ))

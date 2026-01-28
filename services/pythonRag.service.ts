@@ -15,7 +15,7 @@ export interface DataIngestionRequest {
 
 export interface ChatRequest {
   query: string;
-  collection_names: string[]; // Updated to support multiple collections
+  collection_ids: string[]; // Updated to support multiple collections
   top_k?: number;
   thread_id?: string;
   system_prompt?: string;
@@ -153,8 +153,8 @@ export class PythonRagService {
     try {
       console.log('🔧 [Python RAG Service] Chat request initiated');
       console.log('📦 [Python RAG Service] Parameters:', {
-        collections: params.collection_names,
-        collectionsCount: params.collection_names?.length || 0,
+        collection_ids: params.collection_ids,
+        collectionsCount: params.collection_ids?.length || 0,
         query: params.query?.substring(0, 50) + '...',
         threadId: params.thread_id,
         topK: params.top_k,
@@ -189,7 +189,7 @@ export class PythonRagService {
 
       const requestBody = {
         query: params.query,
-        collection_names: params.collection_names, // Updated to support multiple collections
+        collection_ids: params.collection_ids, // Updated to support multiple collections
         top_k: params.top_k || 5,
         thread_id: params.thread_id,
         system_prompt: params.system_prompt,

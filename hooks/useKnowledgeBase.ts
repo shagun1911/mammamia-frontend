@@ -1,14 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { knowledgeBaseService, CreateFAQData, CreateWebsiteData } from '@/services/knowledgeBase.service';
+import { KnowledgeBaseItem } from '@/contexts/KnowledgeBaseContext';
 import { toast } from 'sonner';
 
 /**
  * Get all knowledge bases
  */
 export function useKnowledgeBases() {
-  return useQuery({
+  return useQuery<KnowledgeBaseItem[]>({
     queryKey: ['knowledge-bases'],
-    queryFn: () => knowledgeBaseService.getAll(),
+    queryFn: async () => {
+      console.log('🔄 [useKnowledgeBases] Fetching knowledge bases...');
+      try {
+        const result = await knowledgeBaseService.getAll();
+        console.log('✅ [useKnowledgeBases] Fetched knowledge bases:', result);
+        console.log('✅ [useKnowledgeBases] Result type:', typeof result);
+        console.log('✅ [useKnowledgeBases] Is array:', Array.isArray(result));
+        console.log('✅ [useKnowledgeBases] Length:', Array.isArray(result) ? result.length : 'N/A');
+        return result || []; // Ensure we always return an array
+      } catch (error: any) {
+        console.error('❌ [useKnowledgeBases] Error fetching knowledge bases:', error);
+        console.error('❌ [useKnowledgeBases] Error details:', error?.response?.data || error?.message);
+        throw error; // Re-throw to let React Query handle it
+      }
+    },
+    staleTime: 0, // Always refetch
+    gcTime: 0, // Don't cache empty results (gcTime replaced cacheTime in React Query v5)
+    retry: 1, // Retry once on failure
+    retryDelay: 1000, // Wait 1 second before retry
   });
 }
 

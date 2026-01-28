@@ -116,7 +116,7 @@ export function WidgetSimulator() {
 
         const response = await pythonRagService.chat({
           query: userQuery,
-          collection_names: [selectedCollection], // Updated to array for multiple collections support
+          collection_ids: [selectedCollection],
           thread_id: threadId,
           system_prompt: systemPrompt,
           top_k: 5
