@@ -5,6 +5,7 @@ import { Plus, Megaphone, Activity } from "lucide-react";
 import { CampaignList } from "@/components/campaigns/CampaignList";
 import { CampaignBuilder } from "@/components/campaigns/CampaignBuilder";
 import { BatchCallBuilder } from "@/components/campaigns/BatchCallBuilder";
+import { BatchCallList } from "@/components/campaigns/BatchCallList";
 import { useCampaigns, useCreateCampaign } from "@/hooks/useCampaigns";
 import { campaignService } from "@/services/campaign.service";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ export default function CampaignsPage() {
   const { getSidebarWidth } = useSidebar();
   const [showBuilder, setShowBuilder] = useState(false);
   const [showBatchCallBuilder, setShowBatchCallBuilder] = useState(false);
+  const [showBatchCallList, setShowBatchCallList] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<any | null>(null);
   const [isSending, setIsSending] = useState(false);
 
@@ -161,6 +163,13 @@ export default function CampaignsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setShowBatchCallList(true)}
+            className="px-6 py-3 bg-secondary text-secondary-foreground rounded-xl text-sm font-bold hover:bg-secondary/80 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+          >
+            <Activity className="w-4 h-4" />
+            <span>View Batch Calls</span>
+          </button>
+          <button
             onClick={() => setShowBatchCallBuilder(true)}
             className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-blue-600 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
           >
@@ -182,7 +191,11 @@ export default function CampaignsPage() {
 
       {/* Premium Content */}
       <div className="flex-1 overflow-auto p-8 bg-gradient-to-br from-background via-background to-primary/[0.01]">
-        {isLoading ? (
+        {showBatchCallList ? (
+          <div className="max-w-6xl mx-auto">
+            <BatchCallList onClose={() => setShowBatchCallList(false)} />
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <LoadingLogo size="md" text="Loading campaigns..." />

@@ -4,6 +4,7 @@ export interface BatchCallRecipient {
   phone_number: string;
   name: string;
   email?: string;
+  dynamic_variables?: Record<string, any>;
 }
 
 export interface BatchCallRequest {
@@ -56,6 +57,48 @@ class BatchCallingService {
     } catch (error: any) {
       console.error('❌ [BatchCallingService] submitBatchCall() error:', error);
       throw new Error(error.response?.data?.error?.message || error.message || 'Failed to submit batch call');
+    }
+  }
+
+  /**
+   * Get batch job status
+   * GET /api/v1/batch-calling/:jobId
+   */
+  async getBatchJobStatus(jobId: string): Promise<BatchCallResponse> {
+    try {
+      const response = await apiClient.get<BatchCallResponse>(`/batch-calling/${jobId}`);
+      return response;
+    } catch (error: any) {
+      console.error('❌ [BatchCallingService] getBatchJobStatus() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to get batch job status');
+    }
+  }
+
+  /**
+   * Cancel batch job
+   * POST /api/v1/batch-calling/:jobId/cancel
+   */
+  async cancelBatchJob(jobId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await apiClient.post<{ success: boolean; message: string }>(`/batch-calling/${jobId}/cancel`, {});
+      return response;
+    } catch (error: any) {
+      console.error('❌ [BatchCallingService] cancelBatchJob() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to cancel batch job');
+    }
+  }
+
+  /**
+   * Get all batch calls for the user
+   * GET /api/v1/batch-calling
+   */
+  async getAllBatchCalls(): Promise<any[]> {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: any[] }>('/batch-calling');
+      return response.data || [];
+    } catch (error: any) {
+      console.error('❌ [BatchCallingService] getAllBatchCalls() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to get batch calls');
     }
   }
 }

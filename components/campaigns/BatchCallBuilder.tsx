@@ -9,6 +9,7 @@ import { useSocialIntegrationsStatus } from "@/hooks/useSocialIntegrationsStatus
 import { useOutboundCall } from "@/hooks/useSipTrunk";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 interface BatchCallBuilderProps {
   onClose: () => void;
@@ -34,7 +35,6 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>("");
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [fileFormat, setFileFormat] = useState<"csv" | "xls">("csv");
   const [isUploading, setIsUploading] = useState(false);
   const [isTestingCall, setIsTestingCall] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
@@ -43,7 +43,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Generate CSV template
+  // Generate CSV template (works for both CSV and Excel)
   const downloadTemplate = () => {
     const headers = ["name", "phone_number", "email", "language"];
     const sampleData = [
@@ -52,24 +52,14 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       ["Thor", "+3838310429", "thor@example.com", "de"]
     ];
 
-    let content = "";
-    if (fileFormat === "csv") {
-      content = [headers.join(","), ...sampleData.map(row => row.join(","))].join("\n");
-    } else {
-      // For XLS, we'll create a CSV that can be opened in Excel
-      content = [headers.join(","), ...sampleData.map(row => row.join(","))].join("\n");
-    }
-
-    const blob = new Blob([content], { type: fileFormat === "csv" ? "text/csv" : "application/vnd.ms-excel" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `batch_call_template.${fileFormat === "csv" ? "csv" : "xls"}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Template downloaded");
+    // Create Excel file using xlsx library
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Recipients");
+    
+    // Generate Excel file
+    XLSX.writeFile(workbook, "batch_call_template.xlsx");
+    toast.success("Template downloaded (Excel format)");
   };
 
   // Parse a single CSV line handling quoted fields (e.g. "Smith, John", "+123")
@@ -105,67 +95,144 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     return result;
   };
 
-  // Parse CSV/XLS file (handles BOM, CRLF/LF, quoted fields)
+  // Parse CSV/Excel file (handles BOM, CRLF/LF, quoted fields, and Excel formats)
   const parseFile = async (file: File): Promise<Recipient[]> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          let text = (e.target?.result as string) ?? "";
-          // Strip BOM (Excel and some editors add UTF-8 BOM)
-          text = text.replace(/^\uFEFF/, "");
-          // Normalize line endings to \n
-          text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-          const lines = text.split("\n").filter((line) => line.trim());
-          if (lines.length < 2) {
-            reject(new Error("File must contain at least a header row and one data row"));
-            return;
-          }
+      const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      const isExcel = fileExtension === ".xls" || fileExtension === ".xlsx";
 
-          // Parse header with quoted-field support
-          const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
-          const phoneNumberIndex = headers.findIndex((h) => h === "phone_number" || h === "phone");
-          const nameIndex = headers.findIndex((h) => h === "name");
-          const emailIndex = headers.findIndex((h) => h === "email");
-
-          if (phoneNumberIndex === -1 || nameIndex === -1) {
-            reject(new Error("File must contain 'phone_number' (or 'phone') and 'name' columns"));
-            return;
-          }
-
-          const parsedRecipients: Recipient[] = [];
-          for (let i = 1; i < lines.length; i++) {
-            const values = parseCSVLine(lines[i]);
-            const phone = values[phoneNumberIndex]?.trim().replace(/^"|"$/g, "") ?? "";
-            const name = values[nameIndex]?.trim().replace(/^"|"$/g, "") ?? "";
-            if (phone && name) {
-              const recipient: Recipient = {
-                phone_number: phone,
-                name,
-                ...(emailIndex !== -1 && values[emailIndex]?.trim() && { email: values[emailIndex].trim().replace(/^"|"$/g, "") })
-              };
-              headers.forEach((header, index) => {
-                if (index !== phoneNumberIndex && index !== nameIndex && index !== emailIndex && values[index]?.trim()) {
-                  recipient[header] = values[index].trim().replace(/^"|"$/g, "");
-                }
-              });
-              parsedRecipients.push(recipient);
+      if (isExcel) {
+        // Parse Excel file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: "array" });
+            
+            // Get the first sheet
+            const firstSheetName = workbook.SheetNames[0];
+            if (!firstSheetName) {
+              reject(new Error("Excel file must contain at least one sheet"));
+              return;
             }
-          }
+            
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
+            
+            if (jsonData.length < 2) {
+              reject(new Error("File must contain at least a header row and one data row"));
+              return;
+            }
 
-          if (parsedRecipients.length === 0) {
-            reject(new Error("No valid recipients found in file"));
-            return;
-          }
+            // Parse header
+            const headers = (jsonData[0] || []).map((h: any) => String(h).trim().toLowerCase());
+            const phoneNumberIndex = headers.findIndex((h: string) => h === "phone_number" || h === "phone");
+            const nameIndex = headers.findIndex((h: string) => h === "name");
+            const emailIndex = headers.findIndex((h: string) => h === "email");
 
-          resolve(parsedRecipients);
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : "Parse failed";
-          reject(new Error(`Failed to parse file: ${message}`));
-        }
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsText(file, "UTF-8");
+            if (phoneNumberIndex === -1 || nameIndex === -1) {
+              reject(new Error("File must contain 'phone_number' (or 'phone') and 'name' columns"));
+              return;
+            }
+
+            const parsedRecipients: Recipient[] = [];
+            for (let i = 1; i < jsonData.length; i++) {
+              const row = jsonData[i] || [];
+              const phone = String(row[phoneNumberIndex] || "").trim();
+              const name = String(row[nameIndex] || "").trim();
+              
+              if (phone && name) {
+                const recipient: Recipient = {
+                  phone_number: phone,
+                  name,
+                  ...(emailIndex !== -1 && row[emailIndex] && { email: String(row[emailIndex]).trim() })
+                };
+                
+                // Add any other columns as dynamic variables
+                headers.forEach((header, index) => {
+                  if (index !== phoneNumberIndex && index !== nameIndex && index !== emailIndex && row[index]) {
+                    recipient[header] = String(row[index]).trim();
+                  }
+                });
+                
+                parsedRecipients.push(recipient);
+              }
+            }
+
+            if (parsedRecipients.length === 0) {
+              reject(new Error("No valid recipients found in file"));
+              return;
+            }
+
+            resolve(parsedRecipients);
+          } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Parse failed";
+            reject(new Error(`Failed to parse Excel file: ${message}`));
+          }
+        };
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsArrayBuffer(file);
+      } else {
+        // Parse CSV file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            let text = (e.target?.result as string) ?? "";
+            // Strip BOM (Excel and some editors add UTF-8 BOM)
+            text = text.replace(/^\uFEFF/, "");
+            // Normalize line endings to \n
+            text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+            const lines = text.split("\n").filter((line) => line.trim());
+            if (lines.length < 2) {
+              reject(new Error("File must contain at least a header row and one data row"));
+              return;
+            }
+
+            // Parse header with quoted-field support
+            const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+            const phoneNumberIndex = headers.findIndex((h) => h === "phone_number" || h === "phone");
+            const nameIndex = headers.findIndex((h) => h === "name");
+            const emailIndex = headers.findIndex((h) => h === "email");
+
+            if (phoneNumberIndex === -1 || nameIndex === -1) {
+              reject(new Error("File must contain 'phone_number' (or 'phone') and 'name' columns"));
+              return;
+            }
+
+            const parsedRecipients: Recipient[] = [];
+            for (let i = 1; i < lines.length; i++) {
+              const values = parseCSVLine(lines[i]);
+              const phone = values[phoneNumberIndex]?.trim().replace(/^"|"$/g, "") ?? "";
+              const name = values[nameIndex]?.trim().replace(/^"|"$/g, "") ?? "";
+              if (phone && name) {
+                const recipient: Recipient = {
+                  phone_number: phone,
+                  name,
+                  ...(emailIndex !== -1 && values[emailIndex]?.trim() && { email: values[emailIndex].trim().replace(/^"|"$/g, "") })
+                };
+                headers.forEach((header, index) => {
+                  if (index !== phoneNumberIndex && index !== nameIndex && index !== emailIndex && values[index]?.trim()) {
+                    recipient[header] = values[index].trim().replace(/^"|"$/g, "");
+                  }
+                });
+                parsedRecipients.push(recipient);
+              }
+            }
+
+            if (parsedRecipients.length === 0) {
+              reject(new Error("No valid recipients found in file"));
+              return;
+            }
+
+            resolve(parsedRecipients);
+          } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Parse failed";
+            reject(new Error(`Failed to parse CSV file: ${message}`));
+          }
+        };
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsText(file, "UTF-8");
+      }
     });
   };
 
@@ -173,11 +240,11 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const validExtensions = fileFormat === "csv" ? [".csv"] : [".xls", ".xlsx"];
+    // Validate file type - accept both CSV and Excel files
+    const validExtensions = [".csv", ".xls", ".xlsx"];
     const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
     if (!validExtensions.includes(fileExtension)) {
-      toast.error(`Please upload a ${fileFormat.toUpperCase()} file`);
+      toast.error("Please upload a CSV or Excel file (.csv, .xls, or .xlsx)");
       return;
     }
 
@@ -291,11 +358,31 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       const payload: any = {
         agent_id: selectedAgent.agent_id,
         call_name: batchName,
-        recipients: recipients.map(r => ({
-          phone_number: r.phone_number,
-          name: r.name,
-          ...(r.email && { email: r.email })
-        })),
+        recipients: recipients.map(r => {
+          // Extract dynamic_variables (any fields that aren't phone_number, name, or email)
+          const dynamicVars: Record<string, any> = {};
+          Object.keys(r).forEach(key => {
+            if (key !== 'phone_number' && key !== 'name' && key !== 'email') {
+              dynamicVars[key] = r[key];
+            }
+          });
+          
+          const recipient: any = {
+            phone_number: r.phone_number,
+            name: r.name
+          };
+          
+          if (r.email) {
+            recipient.email = r.email;
+          }
+          
+          // Add dynamic_variables if any exist
+          if (Object.keys(dynamicVars).length > 0) {
+            recipient.dynamic_variables = dynamicVars;
+          }
+          
+          return recipient;
+        }),
         retry_count: 0,
         phone_number_id: selectedPhoneNumberId // Always include phone_number_id
       };
@@ -353,10 +440,11 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
               />
             </div>
 
-            {/* Phone Number Selection */}
+            {/* Phone Number Selection - Single Select Only */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Phone Number <span className="text-red-500">*</span>
+                Source Phone Number <span className="text-red-500">*</span>
+                <span className="text-xs text-muted-foreground ml-2">(Select one number for all calls)</span>
               </label>
               <select
                 value={selectedPhoneNumberId}
@@ -408,44 +496,21 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                 Recipients <span className="text-red-500">*</span>
               </label>
               
-              {/* File Format Toggle */}
-              <div className="flex gap-3 mb-3">
-                <button
-                  onClick={() => setFileFormat("csv")}
-                  className={cn(
-                    "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                    fileFormat === "csv"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-foreground hover:bg-secondary/80"
-                  )}
-                >
-                  CSV
-                </button>
-                <button
-                  onClick={() => setFileFormat("xls")}
-                  className={cn(
-                    "flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                    fileFormat === "xls"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-foreground hover:bg-secondary/80"
-                  )}
-                >
-                  XLS
-                </button>
-              </div>
-
-              {/* Upload Area */}
+              {/* Upload Area - Accepts both CSV and Excel */}
               <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept={fileFormat === "csv" ? ".csv,text/csv" : ".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+                  accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   onChange={handleFileUpload}
                   className="hidden"
-                  aria-label="Upload recipients file"
+                  aria-label="Upload recipients file (CSV or Excel)"
                 />
                 <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm text-foreground mb-1">
+                  Upload CSV or Excel file (.csv, .xls, or .xlsx)
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
                   Maximum file size: 25.0 MB
                 </p>
                 <button
@@ -454,7 +519,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                   disabled={isUploading}
                   className="mt-3 px-6 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isUploading ? "Uploading..." : "Upload CSV"}
+                  {isUploading ? "Uploading..." : "Upload File"}
                 </button>
               </div>
 

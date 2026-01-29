@@ -30,6 +30,7 @@ export function ConversationDetail({
   const [selectedChannel, setSelectedChannel] = useState<'sms' | 'whatsapp' | null>(null);
   const [realtimeMessages, setRealtimeMessages] = useState<any[]>([]);
   const [isFetchingTranscript, setIsFetchingTranscript] = useState(false);
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -44,6 +45,15 @@ export function ConversationDetail({
     console.log('[ConversationDetail] Conversation updated, bookmark state:', bookmarkState);
     setIsBookmarked(bookmarkState);
   }, [conversation.id, (conversation as any).isBookmarked]);
+
+  // Cleanup blob URL on unmount or when conversation changes
+  useEffect(() => {
+    return () => {
+      if (audioBlobUrl) {
+        URL.revokeObjectURL(audioBlobUrl);
+      }
+    };
+  }, [audioBlobUrl]);
   
   const updateStatus = useUpdateConversationStatus();
   const assignOperator = useAssignOperator();
@@ -417,7 +427,8 @@ export function ConversationDetail({
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
       
-      const response = await fetch(
+      // Fetch transcript
+      const transcriptResponse = await fetch(
         `${API_URL}/conversations/transcript/${callerId}`,
         {
           method: 'GET',
@@ -427,13 +438,49 @@ export function ConversationDetail({
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!transcriptResponse.ok) {
+        const errorData = await transcriptResponse.json();
         throw new Error(errorData.error?.message || 'Failed to fetch transcript');
       }
 
-      const data = await response.json();
+      const data = await transcriptResponse.json();
       console.log('Transcript fetched successfully:', data);
+      
+      // Fetch audio recording if conversation has conversation_id
+      // @ts-ignore
+      const conversationId = conversation.id || conversation._id;
+      if (conversationId) {
+        try {
+          const audioResponse = await fetch(
+            `${API_URL}/conversations/${conversationId}/audio`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          );
+
+          if (audioResponse.ok) {
+            const audioBlob = await audioResponse.blob();
+            // Create a blob URL for the audio
+            const blobUrl = URL.createObjectURL(audioBlob);
+            setAudioBlobUrl(blobUrl);
+            console.log('Audio recording fetched successfully');
+          } else {
+            console.warn('Audio recording not available for this conversation');
+            // Clear any previous audio URL
+            if (audioBlobUrl) {
+              URL.revokeObjectURL(audioBlobUrl);
+              setAudioBlobUrl(null);
+            }
+          }
+        } catch (audioError: any) {
+          console.warn('Failed to fetch audio recording:', audioError);
+          // Don't fail the whole operation if audio fetch fails
+        }
+      }
+      
       toast.success('Transcript loaded!');
       
       // Refresh conversation data without page reload
@@ -689,7 +736,7 @@ export function ConversationDetail({
                 {/* Recording Player */}
                 {(() => {
                   // @ts-ignore - metadata may exist
-                  const recordingUrl = conversation.metadata?.recording_url;
+                  const recordingUrl = audioBlobUrl || conversation.metadata?.recording_url;
                   if (!recordingUrl) {
                     return (
                       <span className="text-muted-foreground text-xs">
@@ -707,7 +754,7 @@ export function ConversationDetail({
                         </div>
                         <a
                           href={recordingUrl}
-                          download
+                          download={`conversation-${conversation.id || conversation._id}.mp3`}
                           className="text-muted-foreground hover:text-foreground transition-colors"
                           title="Download recording"
                         >
