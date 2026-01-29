@@ -13,6 +13,9 @@ import { VOICE_OPTIONS, phoneSettingsService } from "@/services/phoneSettings.se
 import { inboundNumbersService } from "@/services/inboundNumbers.service";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
+import { useCreatePhoneNumber, usePhoneNumbersList } from "@/hooks/usePhoneNumber";
+import { useQueryClient } from "@tanstack/react-query";
+import { PhoneNumber } from "@/services/phoneNumber.service";
 
 export default function PhoneSettingsDetailPage() {
   const router = useRouter();
@@ -21,6 +24,8 @@ export default function PhoneSettingsDetailPage() {
   const { configs: inboundConfigs, syncConfig, updateConfig, deleteConfig } = useInboundAgentConfig();
   const { configs: outboundConfigs, getConfigByNumber, createOrUpdateConfig } = useOutboundAgentConfig();
   const { inboundNumbers: persistedInboundNumbers, isLoading: isLoadingInboundNumbers, addNumbers: addInboundNumbersMutation, removeNumber: removeInboundNumberMutation, clearAll: clearAllInboundMutation } = useInboundNumbers();
+  const { data: phoneNumbersList, refetch: refetchPhoneNumbers } = usePhoneNumbersList();
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<"voiceAgentBehaviour" | "endOfCall" | "inbound">("voiceAgentBehaviour");
   const [isDeletingInbound, setIsDeletingInbound] = useState<string | null>(null);
@@ -48,6 +53,7 @@ export default function PhoneSettingsDetailPage() {
   const [showSetupMethods, setShowSetupMethods] = useState(false);
   const [activeSetupMethod, setActiveSetupMethod] = useState<"full" | "generic" | null>(null);
   const [isSettingUp, setIsSettingUp] = useState(false);
+  const createPhoneNumber = useCreatePhoneNumber();
 
   // Full Setup (Method 1) form state
   const [fullSetupLabel, setFullSetupLabel] = useState("");
@@ -58,10 +64,12 @@ export default function PhoneSettingsDetailPage() {
   // Generic SIP Trunk (Method 2) form state
   const [genericSetupLabel, setGenericSetupLabel] = useState("");
   const [genericSetupPhone, setGenericSetupPhone] = useState("");
+  const [genericSetupProvider, setGenericSetupProvider] = useState("sip_trunk");
   const [genericSetupSipAddress, setGenericSetupSipAddress] = useState("");
   const [genericSetupUsername, setGenericSetupUsername] = useState("");
   const [genericSetupPassword, setGenericSetupPassword] = useState("");
-  const [genericSetupTransport, setGenericSetupTransport] = useState("udp");
+  const [genericSetupTransport, setGenericSetupTransport] = useState("auto");
+  const [genericSetupMediaEncryption, setGenericSetupMediaEncryption] = useState("allowed");
 
   // Inbound setup state
   const [inboundStep, setInboundStep] = useState(1);
@@ -87,9 +95,26 @@ export default function PhoneSettingsDetailPage() {
   // Get available outbound numbers
   const getAvailableOutboundNumbers = (): string[] => {
     const numbers = new Set<string>();
+    
+    // Add phone numbers from the new phone-numbers endpoint
+    console.log('📞 [getAvailableOutboundNumbers] phoneNumbersList:', phoneNumbersList);
+    if (phoneNumbersList && phoneNumbersList.length > 0) {
+      phoneNumbersList.forEach((phoneNumber: PhoneNumber) => {
+        console.log('📞 [getAvailableOutboundNumbers] Processing phone number:', phoneNumber);
+        if (phoneNumber.phone_number) {
+          numbers.add(phoneNumber.phone_number);
+        }
+      });
+    } else {
+      console.log('⚠️ [getAvailableOutboundNumbers] No phone numbers found in list');
+    }
+    
+    // Legacy: Add from phone settings (for backward compatibility)
     if (settings?.twilioPhoneNumber) {
       numbers.add(settings.twilioPhoneNumber);
     }
+    
+    // Legacy: Add from outbound configs (for backward compatibility)
     if (outboundConfigs && outboundConfigs.length > 0) {
       outboundConfigs.forEach(config => {
         if (config.outboundNumber) {
@@ -97,6 +122,7 @@ export default function PhoneSettingsDetailPage() {
         }
       });
     }
+    
     return Array.from(numbers).sort();
   };
 
@@ -205,7 +231,8 @@ export default function PhoneSettingsDetailPage() {
         customVoiceId,
         humanOperatorPhone,
         greetingMessage,
-        language
+        language,
+        systemPrompt
       });
 
       // Save infrastructure settings (only if twilioPhoneNumber is set)
@@ -232,6 +259,17 @@ export default function PhoneSettingsDetailPage() {
           language,
         }
       });
+
+      // Save system prompt if provided
+      if (systemPrompt && systemPrompt.trim()) {
+        try {
+          await updateVoiceAgentPrompt.mutateAsync(systemPrompt);
+          console.log('✅ [Save Settings] System prompt saved');
+        } catch (promptError: any) {
+          console.warn('⚠️ [Save Settings] Failed to save system prompt:', promptError);
+          // Don't fail the entire save if prompt save fails
+        }
+      }
 
       console.log('✅ [Save Settings] Saved config for', selectedOutboundNumber);
       toast.success(`Configuration saved for ${selectedOutboundNumber}`);
@@ -401,79 +439,53 @@ export default function PhoneSettingsDetailPage() {
     setEscalationRules(escalationRules.filter((_, i) => i !== index));
   };
 
-  // Full SIP Trunk Setup (Method 1)
+  // Full Setup - ONLY imports phone number, returns phone_number_id
+  // NO SIP setup, NO agent config, NO phone settings update
   const handleFullSetup = async () => {
     if (!fullSetupLabel || !fullSetupPhone || !fullSetupTwilioSid || !fullSetupTwilioToken) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    console.log('🚀 [SIP Trunk Setup] Starting full setup...');
-    console.log('📋 [SIP Trunk Setup] Request data:', {
-      label: fullSetupLabel,
-      phone_number: fullSetupPhone,
-      twilio_sid: fullSetupTwilioSid,
-      twilio_auth_token: '***hidden***'
-    });
-
     setIsSettingUp(true);
     try {
-      const result = await phoneSettingsService.setupSipTrunk({
+      console.log('📞 [Phone Import] Importing phone number only...');
+      console.log('📋 [Phone Import] Request data:', {
         label: fullSetupLabel,
         phone_number: fullSetupPhone,
-        twilio_sid: fullSetupTwilioSid,
-        twilio_auth_token: fullSetupTwilioToken,
+        sid: fullSetupTwilioSid,
+        token: '***hidden***'
       });
 
-      console.log('✅ [SIP Trunk Setup] Full response received:');
-      console.log(JSON.stringify(result, null, 2));
-
-      // Auto-fill the form with returned values
-      setTwilioPhoneNumber(fullSetupPhone);
-      setLivekitSipTrunkId(result.livekit_trunk_id);
-      setTwilioTrunkSid(result.twilio_trunk_sid);
-      setTerminationUri(result.termination_uri);
-      setOriginationUri(result.origination_uri);
-
-      // Save infrastructure settings (but don't replace existing outbound number in settings)
-      await updateSettings({
-        selectedVoice,
-        // Only update twilioPhoneNumber if it's empty, otherwise keep existing
-        twilioPhoneNumber: settings?.twilioPhoneNumber || fullSetupPhone,
-        livekitSipTrunkId: result.livekit_trunk_id,
-        twilioTrunkSid: result.twilio_trunk_sid,
-        terminationUri: result.termination_uri,
-        originationUri: result.origination_uri,
-        humanOperatorPhone,
+      // 🔴 ONLY CALL THIS ENDPOINT - NO OTHER CALLS
+      const result = await createPhoneNumber.mutateAsync({
+        label: fullSetupLabel,
+        phone_number: fullSetupPhone,
+        sid: fullSetupTwilioSid,
+        token: fullSetupTwilioToken
       });
 
-      // Create per-number config for this new number (doesn't replace others)
-      await createOrUpdateConfig.mutateAsync({
-        outboundNumber: fullSetupPhone,
-        data: {
-          selectedVoice,
-          customVoiceId,
-          humanOperatorPhone,
-          greetingMessage,
-          language,
-        }
-      });
+      console.log('✅ [Phone Import] Phone number imported:', result);
+      console.log('📞 [Phone Import] Phone Number ID:', result.phone_number_id);
 
-      // Auto-select the newly added number
-      setSelectedOutboundNumber(fullSetupPhone);
+      // 🔴 STOP HERE - Just show success, don't call SIP or agent config
+      toast.success(`Phone number imported successfully! ID: ${result.phone_number_id}`);
 
-      toast.success("SIP Trunk setup completed successfully!");
-      setShowSetupMethods(false);
-      setActiveSetupMethod(null);
+      // Refresh phone numbers list to show the newly imported number
+      await refetchPhoneNumbers();
 
+      // Clear form
       setFullSetupLabel("");
       setFullSetupPhone("");
       setFullSetupTwilioSid("");
       setFullSetupTwilioToken("");
+      setShowSetupMethods(false);
+      setActiveSetupMethod(null);
 
+      // 🔴 NO SIP SETUP, NO AGENT CONFIG, NO PHONE SETTINGS UPDATE
     } catch (error: any) {
-      console.error('❌ [SIP Trunk Setup] Setup failed:', error);
-      toast.error(error.message || "Failed to setup SIP trunk");
+      console.error('❌ [Phone Import] Error:', error);
+      toast.error(error.message || "Failed to import phone number");
     } finally {
       setIsSettingUp(false);
     }
@@ -729,79 +741,99 @@ const handleSaveConfig = async (config: any) => {
   }
 };
 
-  // Generic SIP Trunk Setup (Method 2)
+  // Generic SIP Trunk Setup (Method 2) - ONLY imports phone number, returns phone_number_id
+  // NO agent config, NO phone settings update
   const handleGenericSetup = async () => {
-    // Allow multiple numbers - removed the restriction
+    if (
+      !genericSetupLabel ||
+      !genericSetupPhone ||
+      !genericSetupProvider ||
+      !genericSetupSipAddress ||
+      !genericSetupUsername ||
+      !genericSetupPassword
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
 
-  if (
-    !genericSetupLabel ||
-    !genericSetupPhone ||
-    !genericSetupSipAddress ||
-    !genericSetupUsername ||
-    !genericSetupPassword
-  ) {
-    toast.error("Please fill in all required fields");
-    return;
-  }
-
-  setIsSettingUp(true);
-  try {
-    const result = await phoneSettingsService.createGenericSipTrunk({
-      label: genericSetupLabel,
-      phone_number: genericSetupPhone,
-      sip_address: genericSetupSipAddress,
-      username: genericSetupUsername,
-      password: genericSetupPassword,
-      transport: genericSetupTransport,
-    });
-
-    // Auto-fill the form with returned values
-    setTwilioPhoneNumber(result.phone_number);
-    setLivekitSipTrunkId(result.livekit_trunk_id);
-
-    // Save settings automatically
-      // Save infrastructure settings (but don't replace existing outbound number)
-      await updateSettings({
-        selectedVoice,
-        // Only update twilioPhoneNumber if it's empty, otherwise keep existing
-        twilioPhoneNumber: settings?.twilioPhoneNumber || result.phone_number,
-        livekitSipTrunkId: result.livekit_trunk_id,
-        humanOperatorPhone,
+    setIsSettingUp(true);
+    try {
+      console.log('📞 [SIP Trunk Import] Importing SIP trunk phone number...');
+      console.log('📋 [SIP Trunk Import] Request data:', {
+        label: genericSetupLabel,
+        phone_number: genericSetupPhone,
+        sip_address: genericSetupSipAddress,
+        username: genericSetupUsername,
+        password: '***hidden***',
+        transport: genericSetupTransport
       });
 
-      // Create per-number config for this new number (doesn't replace others)
-      await createOrUpdateConfig.mutateAsync({
-        outboundNumber: result.phone_number,
-        data: {
-          selectedVoice,
-          customVoiceId,
-          humanOperatorPhone,
-          greetingMessage,
-          language,
+      // 🔴 ONLY CALL THIS ENDPOINT - NO OTHER CALLS
+      // REQUIRED FIELDS (as per Amar Sir's spec):
+      // - label
+      // - phone_number
+      // - provider (user-selected)
+      // - supports_outbound: true (auto-set)
+      // - outbound_trunk_config (address, credentials.username, credentials.password, media_encryption, transport)
+      const requestPayload = {
+        label: genericSetupLabel,
+        phone_number: genericSetupPhone,
+        provider: genericSetupProvider, // REQUIRED - User-selected
+        supports_outbound: true, // REQUIRED - Auto-set
+        outbound_trunk_config: {
+          address: genericSetupSipAddress,
+          credentials: {
+            username: genericSetupUsername,
+            password: genericSetupPassword
+          },
+          media_encryption: genericSetupMediaEncryption,
+          transport: genericSetupTransport
+        }
+      };
+
+      console.log('📤 [SIP Trunk Import] Full request payload:', {
+        ...requestPayload,
+        outbound_trunk_config: {
+          ...requestPayload.outbound_trunk_config,
+          credentials: {
+            ...requestPayload.outbound_trunk_config.credentials,
+            password: '***hidden***'
+          }
         }
       });
 
-      // Auto-select the newly added number
-      setSelectedOutboundNumber(result.phone_number);
+      const result = await apiClient.post<{ phone_number_id: string }>('/phone-numbers/sip-trunk', requestPayload);
 
-      toast.success("Generic SIP Trunk created successfully!");
-    setShowSetupMethods(false);
-    setActiveSetupMethod(null);
+      console.log('✅ [SIP Trunk Import] Phone number imported:', result);
+      console.log('📞 [SIP Trunk Import] Phone Number ID:', result.phone_number_id);
 
-    // Clear form
-    setGenericSetupLabel("");
-    setGenericSetupPhone("");
-    setGenericSetupSipAddress("");
-    setGenericSetupUsername("");
-    setGenericSetupPassword("");
-    setGenericSetupTransport("udp");
-  } catch (error: any) {
-    toast.error(error.message || "Failed to create Generic SIP trunk");
-    console.error("Setup error:", error);
-  } finally {
-    setIsSettingUp(false);
-  }
-};
+      // 🔴 STOP HERE - Just show success, don't call agent config or phone settings
+      toast.success(`SIP trunk phone number imported successfully! ID: ${result.phone_number_id}`);
+
+      // Refresh phone numbers list to show the newly imported number
+      queryClient.invalidateQueries({ queryKey: ['phone-numbers'] });
+      await refetchPhoneNumbers();
+
+      // Clear form
+      setGenericSetupLabel("");
+      setGenericSetupPhone("");
+      setGenericSetupProvider("sip_trunk");
+      setGenericSetupSipAddress("");
+      setGenericSetupUsername("");
+      setGenericSetupPassword("");
+      setGenericSetupTransport("auto");
+      setGenericSetupMediaEncryption("allowed");
+      setShowSetupMethods(false);
+      setActiveSetupMethod(null);
+
+      // 🔴 NO AGENT CONFIG, NO PHONE SETTINGS UPDATE
+    } catch (error: any) {
+      console.error('❌ [SIP Trunk Import] Error:', error);
+      toast.error(error.message || "Failed to import SIP trunk phone number");
+    } finally {
+      setIsSettingUp(false);
+    }
+  };
 
   const handleSaveEscalationRules = async () => {
     try {
@@ -1099,7 +1131,7 @@ return (
                 </div>
                 <div className="text-left">
                   <h3 className="text-lg font-semibold text-foreground">Import Number</h3>
-                  <p className="text-sm text-muted-foreground">Configure your number with automatic SIP trunk setup</p>
+                  <p className="text-sm text-muted-foreground">Import phone number with Twilio credentials</p>
                 </div>
               </div>
               {showSetupMethods ? (
@@ -1128,7 +1160,7 @@ return (
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-foreground mb-1">Full Setup</h4>
                         <p className="text-xs text-muted-foreground">
-                          Complete setup from scratch with SIP provider credentials
+                          Import phone number with Twilio credentials
                         </p>
                       </div>
                     </div>
@@ -1168,7 +1200,7 @@ return (
                         type="text"
                         value={fullSetupLabel}
                         onChange={(e) => setFullSetupLabel(e.target.value)}
-                        placeholder="e.g., My Voice Agent"
+                        placeholder="e.g., Customer Support Line"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -1180,7 +1212,7 @@ return (
                         type="text"
                         value={fullSetupPhone}
                         onChange={(e) => setFullSetupPhone(e.target.value)}
-                        placeholder="+1234567890"
+                        placeholder="+12625925656"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -1192,7 +1224,7 @@ return (
                         type="text"
                         value={fullSetupTwilioSid}
                         onChange={(e) => setFullSetupTwilioSid(e.target.value)}
-                        placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                        placeholder="TWILIO_ACCOUNT_SID"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -1216,10 +1248,10 @@ return (
                       {isSettingUp ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Setting up...
+                          Importing...
                         </>
                       ) : (
-                        "Setup SIP Trunk"
+                        "Import Phone Number"
                       )}
                     </button>
                   </div>
@@ -1228,6 +1260,11 @@ return (
                 {/* Generic SIP Trunk Form */}
                 {activeSetupMethod === "generic" && (
                   <div className="mt-4 p-4 bg-secondary/50 rounded-lg space-y-4 border border-border">
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-2">
+                      <p className="text-xs text-blue-400">
+                        ℹ️ Supports Outbound: <strong>true</strong> (automatically configured)
+                      </p>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
                         Label <span className="text-red-500">*</span>
@@ -1236,7 +1273,7 @@ return (
                         type="text"
                         value={genericSetupLabel}
                         onChange={(e) => setGenericSetupLabel(e.target.value)}
-                        placeholder="e.g., My SIP Provider"
+                        placeholder="e.g., Italy SIP Line"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -1248,19 +1285,31 @@ return (
                         type="text"
                         value={genericSetupPhone}
                         onChange={(e) => setGenericSetupPhone(e.target.value)}
-                        placeholder="+1234567890"
+                        placeholder="+390620199287"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
-                        SIP Address <span className="text-red-500">*</span>
+                        Provider <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={genericSetupProvider}
+                        onChange={(e) => setGenericSetupProvider(e.target.value)}
+                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="sip_trunk">SIP Trunk</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Outbound SIP Address <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         value={genericSetupSipAddress}
                         onChange={(e) => setGenericSetupSipAddress(e.target.value)}
-                        placeholder="sip.provider.com"
+                        placeholder="voiceagent.fibrapro.it"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -1272,7 +1321,7 @@ return (
                         type="text"
                         value={genericSetupUsername}
                         onChange={(e) => setGenericSetupUsername(e.target.value)}
-                        placeholder="your_username"
+                        placeholder="+390620199287"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>
@@ -1284,9 +1333,23 @@ return (
                         type="password"
                         value={genericSetupPassword}
                         onChange={(e) => setGenericSetupPassword(e.target.value)}
-                        placeholder="••••••••••••••••"
+                        placeholder="your_password"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Media Encryption <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={genericSetupMediaEncryption}
+                        onChange={(e) => setGenericSetupMediaEncryption(e.target.value)}
+                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="allowed">Allowed</option>
+                        <option value="required">Required</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
@@ -1297,6 +1360,7 @@ return (
                         onChange={(e) => setGenericSetupTransport(e.target.value)}
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                       >
+                        <option value="auto">Auto</option>
                         <option value="udp">UDP</option>
                         <option value="tcp">TCP</option>
                         <option value="tls">TLS</option>
@@ -1304,7 +1368,7 @@ return (
                     </div>
                     <button
                       onClick={handleGenericSetup}
-                      disabled={isSettingUp || !genericSetupLabel || !genericSetupPhone || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword}
+                      disabled={isSettingUp || !genericSetupLabel || !genericSetupPhone || !genericSetupProvider || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword}
                       className="w-full h-10 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isSettingUp ? (

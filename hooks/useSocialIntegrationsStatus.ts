@@ -7,6 +7,11 @@ export interface SocialIntegration {
     status: 'connected' | 'disconnected' | 'error';
     credentials?: {
         email?: string;
+        [key: string]: any;
+    };
+    metadata?: {
+        email?: string;
+        [key: string]: any;
     };
 }
 

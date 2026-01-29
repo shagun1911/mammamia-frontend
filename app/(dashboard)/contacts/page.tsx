@@ -72,6 +72,9 @@ export default function ContactsPage() {
     totalPages: 1
   };
 
+  // Calculate total contacts across all lists for "All Contacts" view
+  const totalAllContacts = lists.reduce((sum: number, list: any) => sum + (list.contactCount || 0), 0);
+
   // Reset to page 1 when list changes
   useEffect(() => {
     setCurrentPage(1);
@@ -389,26 +392,29 @@ export default function ContactsPage() {
           >
             <Folder className="w-4 h-4 shrink-0" />
             <span className="flex-1 text-left truncate">All Contacts</span>
-            <span className="text-xs text-muted-foreground">{contacts.length}</span>
+            <span className="text-xs text-muted-foreground">{totalAllContacts}</span>
           </button>
 
           {/* Dynamic Lists from API */}
-          {lists.map((list: any) => (
-            <button
-              key={list.id}
-              onClick={() => setSelectedList(list.id)}
-              className={cn(
-                "w-full flex items-center gap-3 h-10 px-3 rounded-md text-sm transition-colors",
-                selectedList === list.id
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
-              )}
-            >
-              <Folder className="w-4 h-4 shrink-0" />
-              <span className="flex-1 text-left truncate">{list.name}</span>
-              <span className="text-xs text-muted-foreground">{list.contactCount || 0}</span>
-            </button>
-          ))}
+          {lists.map((list: any) => {
+            const listId = list.id || list._id;
+            return (
+              <button
+                key={listId}
+                onClick={() => setSelectedList(listId)}
+                className={cn(
+                  "w-full flex items-center gap-3 h-10 px-3 rounded-md text-sm transition-colors",
+                  selectedList === listId
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                )}
+              >
+                <Folder className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-left truncate">{list.name}</span>
+                <span className="text-xs text-muted-foreground">{list.contactCount || 0}</span>
+              </button>
+            );
+          })}
         </nav>
 
         <div className="p-3">
@@ -646,26 +652,17 @@ export default function ContactsPage() {
           <div className="flex-1 overflow-auto">
             <div className="p-6">
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Contacts</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+                        {selectedList === "all" ? "Total Contacts" : "Contacts in List"}
+                      </p>
                       <p className="text-2xl font-bold text-foreground">{pagination.total.toLocaleString()}</p>
                     </div>
                     <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
                       <Users className="w-6 h-6 text-primary" />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 rounded-xl p-4 border border-green-500/20 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">In Current List</p>
-                      <p className="text-2xl font-bold text-foreground">{contacts.length.toLocaleString()}</p>
-                    </div>
-                    <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                      <Folder className="w-6 h-6 text-green-500" />
                     </div>
                   </div>
                 </div>
