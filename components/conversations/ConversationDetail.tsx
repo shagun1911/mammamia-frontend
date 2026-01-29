@@ -754,7 +754,7 @@ export function ConversationDetail({
                         </div>
                         <a
                           href={recordingUrl}
-                          download={`conversation-${conversation.id || conversation._id}.mp3`}
+                          download={`conversation-${(conversation.id || (conversation as { _id?: string })._id) ?? 'recording'}.mp3`}
                           className="text-muted-foreground hover:text-foreground transition-colors"
                           title="Download recording"
                         >

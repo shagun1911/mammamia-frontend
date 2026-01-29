@@ -1,47 +1,34 @@
 import { useMutation } from '@tanstack/react-query';
-import { sipTrunkService } from '@/services/sipTrunk.service';
+import { apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 
 export interface OutboundCallRequest {
   agent_id: string;
   agent_phone_number_id: string;
   to_number: string;
-  customer_info?: {
-    email?: string;
-    name?: string;
-  };
-  dynamic_variables?: {
-    [key: string]: any;
-  };
+  customer_info?: { name?: string; email?: string; [key: string]: any };
   sender_email?: string;
 }
 
 export interface OutboundCallResponse {
-  success: boolean;
-  message: string;
-  conversation_id: string;
-  sip_call_id?: string;
-  callSid?: string;
-  conversation_db_id?: string; // MongoDB conversation ID - used to navigate to conversation
-  ecommerce_enabled?: boolean;
+  success?: boolean;
+  message?: string;
+  [key: string]: any;
 }
 
 /**
- * Initiate outbound call mutation
+ * Mutation to initiate a single outbound call (test call or one-off).
+ * Calls POST /api/v1/sip-trunk/outbound-call.
  */
 export function useOutboundCall() {
   return useMutation({
-    mutationFn: (data: OutboundCallRequest) => sipTrunkService.outboundCall(data),
-    onSuccess: (data: OutboundCallResponse) => {
-      if (data.success) {
-        toast.success(data.message || 'Outbound call initiated successfully');
-      } else {
-        toast.error(data.message || 'Outbound call failed');
-      }
+    mutationFn: async (data: OutboundCallRequest) => {
+      const response = await apiClient.post<OutboundCallResponse>('/sip-trunk/outbound-call', data);
+      return response;
     },
     onError: (error: any) => {
       console.error('❌ [useOutboundCall] Error:', error);
-      toast.error(error.message || 'Failed to initiate outbound call');
+      toast.error(error.response?.data?.error?.message || error.message || 'Failed to initiate outbound call');
     },
   });
 }
