@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from 'react';
-import { Plus, Bot, Loader2, Trash2, Edit2, MessageSquare, Settings, Globe } from 'lucide-react';
-import { useAgents, useDeleteAgent } from '@/hooks/useAgents';
-import { CreateAgentModal } from './CreateAgentModal';
-import { EditAgentModal } from './EditAgentModal';
-import { Agent } from '@/services/agent.service';
-import { toast } from 'sonner';
+import { useState } from "react";
+import { Plus, Bot, Loader2, Trash2, Edit2, MessageSquare, Mic, Database, Wrench } from "lucide-react";
+import { useAgents, useDeleteAgent } from "@/hooks/useAgents";
+import { CreateAgentModal } from "./CreateAgentModal";
+import { EditAgentModal } from "./EditAgentModal";
+import { Agent } from "@/services/agent.service";
+import { toast } from "sonner";
 
 export function AgentList() {
   const { data: agents = [], isLoading, error } = useAgents();
@@ -20,90 +20,85 @@ export function AgentList() {
     if (!confirm(`Are you sure you want to delete "${agent.name}"? This action cannot be undone.`)) {
       return;
     }
-
     setDeletingId(agent._id);
     try {
       await deleteAgent.mutateAsync(agent._id);
     } catch (error: any) {
-      console.error('Failed to delete agent:', error);
-      toast.error(error.message || 'Failed to delete agent');
+      console.error("Failed to delete agent:", error);
+      toast.error(error.message || "Failed to delete agent");
     } finally {
       setDeletingId(null);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header with Create Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">Agents</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Create and manage AI agents with custom configurations
-          </p>
-        </div>
+    <div className="space-y-6 min-w-0">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 shrink-0" />
           Create Agent
         </button>
       </div>
 
-      {/* Agents List */}
+      {/* Content */}
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <div className="flex flex-col items-center justify-center py-24 min-h-[280px]">
+          <Loader2 className="w-10 h-10 text-primary animate-spin mb-4 shrink-0" />
           <p className="text-sm text-muted-foreground">Loading agents...</p>
         </div>
       ) : error ? (
-        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-destructive rounded-xl bg-card/50">
-          <p className="text-sm text-destructive">Failed to load agents. Please try again.</p>
+        <div className="flex flex-col items-center justify-center py-24 min-h-[280px] border-2 border-dashed border-destructive/50 rounded-2xl bg-destructive/5">
+          <p className="text-sm text-destructive font-medium">Failed to load agents.</p>
+          <p className="text-xs text-muted-foreground mt-1">Please try again later.</p>
         </div>
       ) : agents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-border rounded-xl bg-card/50">
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-            <Bot className="w-10 h-10 text-primary" />
+        <div className="flex flex-col items-center justify-center py-24 min-h-[280px] border-2 border-dashed border-border rounded-2xl bg-card/50">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 shrink-0">
+            <Bot className="w-8 h-8 text-primary" />
           </div>
-          <h3 className="text-xl font-semibold text-foreground mb-2">
-            No Agents Yet
-          </h3>
-          <p className="text-sm text-muted-foreground mb-6 text-center max-w-md">
-            Create your first AI agent with custom knowledge bases, tools, and behavior settings
+          <h3 className="text-lg font-semibold text-foreground mb-1">No agents yet</h3>
+          <p className="text-sm text-muted-foreground text-center max-w-sm mb-6">
+            Create your first AI agent with custom knowledge bases, tools, and behavior.
           </p>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer shadow-lg shadow-primary/20"
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer shadow-lg shadow-primary/20"
           >
-            <Plus className="w-4 h-4" />
-            Create First Agent
+            <Plus className="w-4 h-4 shrink-0" />
+            Create first agent
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-5">
           {agents.map((agent) => (
             <div
               key={agent._id}
-              className="bg-card border border-border rounded-xl p-6 hover:border-primary hover:shadow-lg transition-all"
+              className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 hover:shadow-md transition-all flex flex-col min-w-0"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Bot className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">{agent.name}</h3>
-                    <p className="text-xs text-muted-foreground">ID: {agent.agent_id}</p>
-                  </div>
+              {/* Card header */}
+              <div className="p-4 lg:p-5 flex items-start gap-3 min-w-0 border-b border-border/60">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Bot className="w-5 h-5 text-primary" />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground truncate" title={agent.name}>
+                    {agent.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5" title={agent.agent_id}>
+                    {agent.agent_id}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => {
                       setEditingAgent(agent);
                       setIsEditModalOpen(true);
                     }}
-                    className="p-2 text-muted-foreground hover:text-primary transition-colors"
+                    className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Edit agent"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -111,7 +106,7 @@ export function AgentList() {
                   <button
                     onClick={() => handleDelete(agent)}
                     disabled={deletingId === agent._id}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                    className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                     title="Delete agent"
                   >
                     {deletingId === agent._id ? (
@@ -123,33 +118,39 @@ export function AgentList() {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">First Message</p>
-                    <p className="text-sm text-foreground truncate">{agent.first_message}</p>
+              {/* Card body */}
+              <div className="p-4 lg:p-5 space-y-3 flex-1 flex flex-col min-w-0">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                    <span>First message</span>
                   </div>
+                  <p className="text-sm text-foreground line-clamp-2 break-words" title={agent.first_message}>
+                    {agent.first_message || "—"}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Globe className="w-3 h-3" />
-                    <span>{agent.language.toUpperCase()}</span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-medium text-foreground/80">{agent.language?.toUpperCase() ?? "EN"}</span>
+                  </span>
                   {agent.voice_id && (
-                    <div className="flex items-center gap-1">
-                      <Settings className="w-3 h-3" />
-                      <span>Voice: {agent.voice_id}</span>
-                    </div>
+                    <span className="flex items-center gap-1.5 truncate max-w-[140px]" title={agent.voice_id}>
+                      <Mic className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{agent.voice_id}</span>
+                    </span>
                   )}
                 </div>
 
-                <div className="pt-3 border-t border-border">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Knowledge Bases: {agent.knowledge_base_ids.length}</span>
-                    <span>Tools: {agent.tool_ids.length}</span>
-                  </div>
+                <div className="pt-3 mt-auto border-t border-border/60 flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <Database className="w-3.5 h-3.5" />
+                    {agent.knowledge_base_ids?.length ?? 0} KB
+                  </span>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <Wrench className="w-3.5 h-3.5" />
+                    {agent.tool_ids?.length ?? 0} tools
+                  </span>
                 </div>
               </div>
             </div>
@@ -157,11 +158,7 @@ export function AgentList() {
         </div>
       )}
 
-      <CreateAgentModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-      />
-
+      <CreateAgentModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
       <EditAgentModal
         isOpen={isEditModalOpen}
         onClose={() => {
@@ -173,4 +170,3 @@ export function AgentList() {
     </div>
   );
 }
-

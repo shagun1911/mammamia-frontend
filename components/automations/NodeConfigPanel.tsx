@@ -8,6 +8,8 @@ import { apiClient } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { useGoogleIntegrationsStatus } from "@/hooks/useGoogleIntegrationsStatus";
 import { useSocialIntegrationsStatus } from "@/hooks/useSocialIntegrationsStatus";
+import { useAgents } from "@/hooks/useAgents";
+import { usePhoneNumbersList } from "@/hooks/usePhoneNumber";
 
 interface NodeConfigPanelProps {
   node: AutomationNode;
@@ -34,6 +36,11 @@ export function NodeConfigPanel({
 
   const { status: googleIntegrationStatus, isLoading: isLoadingGoogleStatus } = useGoogleIntegrationsStatus();
   const { integrations: socialIntegrations, isLoading: isLoadingSocialStatus } = useSocialIntegrationsStatus();
+  const { data: agents = [], isLoading: isLoadingAgents } = useAgents();
+  const { data: phoneNumbersList = [], isLoading: isLoadingPhoneNumbers } = usePhoneNumbersList();
+  const outboundPhoneNumbers = (phoneNumbersList as { id: string; label?: string; phone_number?: string; supports_outbound?: boolean }[]).filter(
+    (p) => p.supports_outbound === true
+  );
 
   // Sync selectedSpreadsheetId with node.config.spreadsheetId when node changes
   // This ensures state persists when switching between nodes or reopening the panel
@@ -511,6 +518,52 @@ export function NodeConfigPanel({
           {/* AISTEIN-IT - OUTBOUND CALL ACTION */}
           {node.service === "keplero_outbound_call" && (
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Agent *
+                </label>
+                <select
+                  value={node.config.agent_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, agent_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isLoadingAgents}
+                >
+                  <option value="">Select agent</option>
+                  {(agents as { _id: string; name?: string; agent_id?: string }[]).map((agent) => (
+                    <option key={agent._id} value={agent.agent_id || agent._id}>
+                      {agent.name || agent.agent_id || agent._id}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Required. Same as test call / batch call.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Phone Number *
+                </label>
+                <select
+                  value={node.config.phone_number_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, phone_number_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isLoadingPhoneNumbers}
+                >
+                  <option value="">Select phone number</option>
+                  {outboundPhoneNumbers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label || p.phone_number || p.id}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Required. Use an outbound-capable number.
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Dynamic Instruction

@@ -113,73 +113,24 @@ export default function ContactsPage() {
   };
 
   const handleDeleteContact = async (id: string) => {
-    // Use console.error which is harder to miss and won't be filtered
-    console.error('🔴🔴🔴 handleDeleteContact CALLED 🔴🔴🔴');
-    console.error('[DELETE] Received ID:', id);
-    console.error('[DELETE] ID type:', typeof id);
-    console.error('[DELETE] ID value:', JSON.stringify(id));
-    
-    // Also store in window for debugging
-    (window as any).lastDeleteAttempt = {
-      time: new Date().toISOString(),
-      id: id
-    };
-    
     if (!id || id === 'undefined' || id === 'null' || id === '') {
-      const errorMsg = 'Contact ID is missing or invalid';
-      console.error('[DELETE ERROR]', errorMsg, 'ID:', id);
-      alert('ERROR: ' + errorMsg + '\n\nID received: ' + id + '\n\nCheck console (F12) for details.');
-      toast.error(errorMsg);
+      toast.error('Contact ID is missing or invalid');
       return;
     }
 
-    // Confirmation dialog
-    console.error('[DELETE] Showing confirmation dialog...');
-    const confirmed = window.confirm(`Are you sure you want to delete this contact?\n\nContact ID: ${id}\n\nThis action cannot be undone.`);
-    console.error('[DELETE] User confirmed:', confirmed);
-    
-    if (!confirmed) {
-      console.error('[DELETE] User cancelled deletion');
-      return;
-    }
+    const confirmed = window.confirm('Are you sure you want to delete this contact? This action cannot be undone.');
+    if (!confirmed) return;
 
     try {
-      console.error('[DELETE] Starting deletion process...');
-      console.error('[DELETE] deleteContact object:', deleteContact);
-      console.error('[DELETE] deleteContact.mutateAsync:', deleteContact?.mutateAsync);
-      
-      if (!deleteContact || !deleteContact.mutateAsync) {
-        const error = 'Delete mutation is not available';
-        console.error('[DELETE ERROR]', error);
-        alert('ERROR: ' + error + '\n\nCheck console (F12)');
-        throw new Error(error);
+      if (!deleteContact?.mutateAsync) {
+        toast.error('Delete is not available');
+        return;
       }
-      
-      console.error('[DELETE] Calling deleteContact.mutateAsync with ID:', id);
-      const result = await deleteContact.mutateAsync(id);
-      
-      console.error('[DELETE] ✅ Mutation completed successfully');
-      console.error('[DELETE] Result:', result);
-      
-      // Remove from selected IDs if it was selected
-      setSelectedIds(prev => {
-        const filtered = prev.filter((i) => i !== id);
-        console.error('[DELETE] Updated selectedIds. Before:', prev, 'After:', filtered);
-        return filtered;
-      });
-      
-      console.error('[DELETE] ✅ Successfully deleted contact:', id);
-      alert('✅ Contact deleted successfully! Check console (F12) for details.');
+      await deleteContact.mutateAsync(id);
+      setSelectedIds((prev) => prev.filter((i) => i !== id));
+      // Success toast is shown by useDeleteContact onSuccess
     } catch (error: any) {
-      console.error('[DELETE] ❌ FAILED to delete contact');
-      console.error('[DELETE] Error object:', error);
-      console.error('[DELETE] Error message:', error?.message);
-      console.error('[DELETE] Error response:', error?.response);
-      console.error('[DELETE] Error stack:', error?.stack);
-      
-      const errorMessage = error?.message || error?.response?.data?.message || 'Failed to delete contact';
-      alert('ERROR deleting contact: ' + errorMessage + '\n\nCheck console (F12) for full details.');
-      toast.error(errorMessage);
+      // Toast is already shown by useDeleteContact onError
     }
   };
 

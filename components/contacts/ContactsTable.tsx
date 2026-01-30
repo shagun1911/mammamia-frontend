@@ -197,73 +197,16 @@ export function ContactsTable({
                     <Pencil className="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                   </button>
                   <button
-                    onMouseDown={(e) => {
-                      console.error('🟢 MOUSEDOWN on delete button');
-                      e.stopPropagation();
-                    }}
-                    onMouseUp={(e) => {
-                      console.error('🟢 MOUSEUP on delete button');
-                      e.stopPropagation();
-                    }}
                     onClick={(e) => {
-                      // FORCE LOG - This MUST appear if click fires
-                      console.error('🔴🔴🔴 DELETE BUTTON CLICKED 🔴🔴🔴');
-                      console.error('🔴 Contact Name:', contact.name);
-                      console.error('🔴 Contact ID:', contact.id);
-                      
-                      // Force alert to verify click works
-                      const shouldProceed = window.confirm('DELETE BUTTON CLICKED!\n\nContact: ' + contact.name + '\nID: ' + contact.id + '\n\nClick OK to proceed with delete.');
-                      
-                      if (!shouldProceed) {
-                        console.error('🔴 User cancelled in button handler');
-                        return;
-                      }
-                      
                       e.preventDefault();
                       e.stopPropagation();
-                      
-                      // Also log to window for debugging
-                      (window as any).lastDeleteClick = {
-                        time: new Date().toISOString(),
-                        contact: contact,
-                        id: contact.id
-                      };
-                      
-                      console.error('🔴 Stored in window.lastDeleteClick');
-                      
-                      // Try multiple ways to get the ID
-                      const contactId = contact.id 
-                        || (contact as any)._id 
+                      const contactId = contact.id
+                        || (contact as any)._id
                         || (contact as any).contactId
                         || (contact as any).contact_id;
-                      
-                      console.error('🔴 Resolved contactId:', contactId);
-                      
-                      if (!contactId) {
-                        const errorMsg = 'Contact ID is missing. Cannot delete.';
-                        console.error('🔴 [DELETE ERROR]', errorMsg);
-                        alert(errorMsg + '\n\nContact object: ' + JSON.stringify(contact, null, 2));
-                        return;
-                      }
-                      
-                      console.error('🔴 Calling onDelete with ID:', contactId);
-                      console.error('🔴 onDelete type:', typeof onDelete);
-                      console.error('🔴 onDelete function:', onDelete);
-                      
-                      // Call the delete handler - it always returns a Promise now
+                      if (!contactId) return;
                       if (typeof onDelete === 'function') {
-                        console.error('🔴 onDelete is a function, calling it NOW...');
-                        onDelete(contactId)
-                          .then(() => {
-                            console.error('🔴 ✅ Delete completed successfully');
-                          })
-                          .catch((error) => {
-                            console.error('🔴 ❌ Delete failed:', error);
-                            alert('Error deleting contact: ' + (error?.message || 'Unknown error'));
-                          });
-                      } else {
-                        console.error('🔴 [DELETE ERROR] onDelete is NOT a function!', onDelete);
-                        alert('ERROR: Delete handler is not available!\n\nType: ' + typeof onDelete);
+                        onDelete(contactId);
                       }
                     }}
                     className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all group/btn cursor-pointer relative z-10"
