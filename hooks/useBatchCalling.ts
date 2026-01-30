@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { batchCallingService, BatchCallRequest, BatchCallResponse } from '@/services/batchCalling.service';
+import { batchCallingService, BatchCallRequest, BatchCallResponse, BatchJobCallsResponse } from '@/services/batchCalling.service';
 import { toast } from 'sonner';
 
 /**
@@ -60,6 +60,40 @@ export function useBatchCalls() {
   return useQuery({
     queryKey: ['batchCalls'],
     queryFn: () => batchCallingService.getAllBatchCalls(),
-    refetchInterval: 30000, // Refetch every 30 seconds to get updated status
+    refetchInterval: (query) => {
+      // Auto-refetch every 15 seconds if there are any active batch calls
+      const data = query.state.data as any[] | undefined;
+      if (data && data.length > 0) {
+        const hasActiveCalls = data.some((call: any) => 
+          ['pending', 'running', 'scheduled', 'in_progress'].includes(call.status?.toLowerCase())
+        );
+        return hasActiveCalls ? 15000 : 30000; // 15 seconds for active, 30 seconds for inactive
+      }
+      return false; // Don't auto-refetch if no batch calls
+    },
+  });
+}
+
+/**
+ * Get batch job calls query
+ */
+export function useBatchJobCalls(
+  jobId: string | null,
+  options?: {
+    status?: string;
+    cursor?: string;
+    page_size?: number;
+    enabled?: boolean;
+  }
+) {
+  return useQuery({
+    queryKey: ['batchJobCalls', jobId, options],
+    queryFn: () => batchCallingService.getBatchJobCalls(jobId!, {
+      status: options?.status,
+      cursor: options?.cursor,
+      page_size: options?.page_size
+    }),
+    enabled: (options?.enabled !== false) && !!jobId,
+    refetchInterval: 20000, // Refetch every 20 seconds
   });
 }

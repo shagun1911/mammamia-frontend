@@ -41,6 +41,15 @@ export interface BatchCallResponse {
   agent_name: string;
 }
 
+export interface BatchCallResult {
+  [key: string]: any;
+}
+
+export interface BatchJobCallsResponse {
+  calls: BatchCallResult[];
+  cursor?: string;
+}
+
 /**
  * Batch Calling Service
  * Handles batch calling operations
@@ -95,10 +104,69 @@ class BatchCallingService {
   async getAllBatchCalls(): Promise<any[]> {
     try {
       const response = await apiClient.get<{ success: boolean; data: any[] }>('/batch-calling');
-      return response.data || [];
+      console.log('[BatchCallingService] Raw response:', response);
+      
+      // Backend returns { success: true, data: batchCalls }
+      // apiClient.get() returns response.data, so response is { success: true, data: batchCalls }
+      // We need to extract the data array
+      if (response && typeof response === 'object' && 'data' in response) {
+        const batchCalls = (response as any).data;
+        console.log('[BatchCallingService] Extracted batch calls:', batchCalls?.length || 0);
+        return Array.isArray(batchCalls) ? batchCalls : [];
+      }
+      
+      // Fallback: if response is already an array, return it
+      if (Array.isArray(response)) {
+        console.log('[BatchCallingService] Response is already an array:', response.length);
+        return response;
+      }
+      
+      console.warn('[BatchCallingService] Unexpected response format:', response);
+      return [];
     } catch (error: any) {
       console.error('❌ [BatchCallingService] getAllBatchCalls() error:', error);
+      console.error('❌ [BatchCallingService] Error details:', {
+        message: error.message,
+        status: error.status,
+        data: error.data,
+        response: error.response
+      });
       throw new Error(error.response?.data?.error?.message || error.message || 'Failed to get batch calls');
+    }
+  }
+
+  /**
+   * Get batch job calls (individual call results)
+   * GET /api/v1/batch-calling/:jobId/calls
+   */
+  async getBatchJobCalls(
+    jobId: string,
+    options?: {
+      status?: string;
+      cursor?: string;
+      page_size?: number;
+    }
+  ): Promise<BatchJobCallsResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (options?.status) params.append('status', options.status);
+      if (options?.cursor) params.append('cursor', options.cursor);
+      if (options?.page_size) params.append('page_size', options.page_size.toString());
+      
+      const queryString = params.toString();
+      const url = `/batch-calling/${jobId}/calls${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await apiClient.get<{ success: boolean; data: BatchJobCallsResponse }>(url);
+      
+      // Backend returns { success: true, data: { calls: [], cursor: ... } }
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as any).data;
+      }
+      
+      return response as any;
+    } catch (error: any) {
+      console.error('❌ [BatchCallingService] getBatchJobCalls() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to get batch job calls');
     }
   }
 }

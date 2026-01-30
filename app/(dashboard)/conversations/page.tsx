@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ConversationFilters } from "@/components/conversations/ConversationFilters";
 import { ConversationList } from "@/components/conversations/ConversationList";
@@ -68,6 +68,9 @@ export default function ConversationsPage() {
   useEffect(() => {
     setSelectedConversationId(null);
   }, [filter]);
+
+  // Track which conversations have already shown transcript toast
+  const transcriptToastShown = useRef<Set<string>>(new Set());
 
   // Join organization room and listen for real-time updates
   useEffect(() => {
@@ -139,8 +142,33 @@ export default function ConversationsPage() {
       try {
         console.log('[ConversationsPage] 📝 Transcript updated:', data);
         
-        // Show toast notification
-        toast.success('Call transcript ready!');
+        const conversationId = data.conversationId?.toString() || '';
+        
+        // Only show toast once per conversation, and only when both transcript and audio are ready
+        // OR if transcript is ready and we haven't shown toast for this conversation yet
+        const hasTranscript = data.hasTranscript === true;
+        const hasRecording = data.hasRecording === true;
+        const alreadyShown = transcriptToastShown.current.has(conversationId);
+        
+        // Show toast only if:
+        // 1. Transcript is ready
+        // 2. We haven't shown toast for this conversation yet
+        // 3. Either both transcript and recording are ready, OR we'll show it when transcript is ready (audio might come later)
+        if (hasTranscript && !alreadyShown) {
+          // Mark as shown immediately to prevent duplicate toasts
+          transcriptToastShown.current.add(conversationId);
+          
+          // Show toast with appropriate message
+          if (hasTranscript && hasRecording) {
+            toast.success('Call transcript and recording ready!');
+          } else {
+            toast.success('Call transcript ready!');
+          }
+          
+          console.log('[ConversationsPage] ✅ Transcript toast shown for conversation:', conversationId);
+        } else if (hasTranscript && alreadyShown) {
+          console.log('[ConversationsPage] ⏭️ Skipping duplicate transcript toast for conversation:', conversationId);
+        }
         
         // Invalidate conversations query to show updated data
         queryClient.invalidateQueries({ queryKey: ['conversations'] });

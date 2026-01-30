@@ -38,6 +38,7 @@ export function ConversationDetail({
   const [isBookmarked, setIsBookmarked] = useState((conversation as any).isBookmarked || false);
   const [isBookmarking, setIsBookmarking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptToastShown = useRef<boolean>(false);
 
   // Update bookmark state when conversation changes
   useEffect(() => {
@@ -196,7 +197,12 @@ export function ConversationDetail({
           if (response.ok) {
             const data = await response.json();
             console.log('[ConversationDetail] ✅ Transcript found!');
-            toast.success('Call transcript ready!');
+            
+            // Only show toast once per conversation
+            if (!transcriptToastShown.current) {
+              transcriptToastShown.current = true;
+              toast.success('Call transcript ready!');
+            }
             
             // Refresh conversation data without page reload
             queryClient.invalidateQueries({ queryKey: ['conversation', conversation.id] });
