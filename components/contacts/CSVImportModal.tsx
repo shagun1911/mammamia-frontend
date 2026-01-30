@@ -451,11 +451,17 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
           <div className="p-4 bg-background rounded-lg border border-border">
             <h4 className="text-sm font-medium text-foreground mb-2">Expected CSV Format:</h4>
             <p className="text-xs text-muted-foreground mb-2">
-              Your CSV file should have headers in the first row. Common columns:
+              First row must be headers. <strong>Name</strong> is required — use <code className="bg-black/30 px-1 rounded">name</code> (or <code className="bg-black/30 px-1 rounded">first name</code> + <code className="bg-black/30 px-1 rounded">last name</code>). Optional: <code className="bg-black/30 px-1 rounded">email</code>, <code className="bg-black/30 px-1 rounded">phone</code>, <code className="bg-black/30 px-1 rounded">tags</code>. Extra columns (e.g. Company name, Job title, Notes) are stored as custom fields.
             </p>
-            <code className="text-xs text-secondary-foreground bg-black/50 px-2 py-1 rounded block mb-3">
-              name,email,phone,company,notes,tags
+            <code className="text-xs text-secondary-foreground bg-black/50 px-2 py-1 rounded block mb-2">
+              name,email,phone,company name,notes,tags
             </code>
+            <code className="text-xs text-secondary-foreground bg-black/50 px-2 py-1 rounded block mb-2">
+              first name,last name,email,phone,company name,tags
+            </code>
+            <p className="text-xs text-muted-foreground mb-3">
+              Recognized: <strong>name</strong> / <strong>full name</strong>; <strong>first name</strong>, <strong>last name</strong> (or firstname, lastname, fname, lname, surname); <strong>company name</strong>, <strong>phone number</strong>, <strong>email address</strong>. Other headers become custom fields.
+            </p>
             <a
               href="/contacts-template.csv"
               download="contacts-template.csv"

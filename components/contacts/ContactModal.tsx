@@ -21,7 +21,7 @@ interface ContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: ContactFormData) => Promise<void>;
-  initialData?: Partial<ContactFormData>;
+  initialData?: Partial<ContactFormData> & { metadata?: Record<string, any> };
   mode?: "add" | "edit";
   lists?: any[];
   preSelectedListId?: string;
@@ -149,6 +149,21 @@ export function ContactModal({
               <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>
             )}
           </div>
+
+          {/* Custom fields from CSV (read-only when editing) */}
+          {mode === "edit" && initialData?.metadata && Object.keys(initialData.metadata).length > 0 && (
+            <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Custom fields</p>
+              {Object.entries(initialData.metadata).map(([label, value]) =>
+                value != null && String(value).trim() !== "" ? (
+                  <div key={label} className="flex flex-col gap-0.5">
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                    <span className="text-sm text-foreground">{String(value)}</span>
+                  </div>
+                ) : null
+              )}
+            </div>
+          )}
 
           {/* Lists Selection */}
           {lists.length > 0 && (

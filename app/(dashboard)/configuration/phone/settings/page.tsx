@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios"; // Import axios directly
-import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles, Play } from "lucide-react";
+import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePhoneSettings } from "@/hooks/usePhoneSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { useInboundAgentConfig } from "@/hooks/useInboundAgentConfig";
 import { useOutboundAgentConfig } from "@/hooks/useOutboundAgentConfig";
 import { useInboundNumbers } from "@/hooks/useInboundNumbers";
-import { VOICE_OPTIONS, phoneSettingsService } from "@/services/phoneSettings.service";
+import { phoneSettingsService } from "@/services/phoneSettings.service";
 import { inboundNumbersService } from "@/services/inboundNumbers.service";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
@@ -20,34 +20,24 @@ import { PhoneNumber } from "@/services/phoneNumber.service";
 export default function PhoneSettingsDetailPage() {
   const router = useRouter();
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
-  const { aiBehavior, updateVoiceAgentHumanOperator, updateVoiceAgentPrompt } = useAIBehavior();
+  const { aiBehavior } = useAIBehavior();
   const { configs: inboundConfigs, syncConfig, updateConfig, deleteConfig } = useInboundAgentConfig();
   const { configs: outboundConfigs, getConfigByNumber, createOrUpdateConfig } = useOutboundAgentConfig();
   const { inboundNumbers: persistedInboundNumbers, isLoading: isLoadingInboundNumbers, addNumbers: addInboundNumbersMutation, removeNumber: removeInboundNumberMutation, clearAll: clearAllInboundMutation } = useInboundNumbers();
   const { data: phoneNumbersList, refetch: refetchPhoneNumbers } = usePhoneNumbersList();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"voiceAgentBehaviour" | "endOfCall" | "inbound">("voiceAgentBehaviour");
+  const [activeTab, setActiveTab] = useState<"outbound" | "inbound">("outbound");
   const [isDeletingInbound, setIsDeletingInbound] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null); // State to track which voice is currently playing
   const [selectedOutboundNumber, setSelectedOutboundNumber] = useState<string | null>(null);
 
   // Form state
-  const [voiceType, setVoiceType] = useState<"predefined" | "custom">(
-    settings?.customVoiceId ? "custom" : "predefined"
-  );
-  const [selectedVoice, setSelectedVoice] = useState(settings?.selectedVoice || "adam");
-  const [customVoiceId, setCustomVoiceId] = useState(settings?.customVoiceId || "");
   const [twilioPhoneNumber, setTwilioPhoneNumber] = useState(settings?.twilioPhoneNumber || "");
   const [livekitSipTrunkId, setLivekitSipTrunkId] = useState(settings?.livekitSipTrunkId || "");
   const [twilioTrunkSid, setTwilioTrunkSid] = useState(settings?.twilioTrunkSid || "");
   const [terminationUri, setTerminationUri] = useState(settings?.terminationUri || "");
   const [originationUri, setOriginationUri] = useState(settings?.originationUri || "");
-  const [humanOperatorPhone, setHumanOperatorPhone] = useState(settings?.humanOperatorPhone || "");
-  const [escalationRules, setEscalationRules] = useState<string[]>(
-    aiBehavior?.voiceAgent?.humanOperator?.escalationRules || []
-  );
 
   // Setup methods state
   const [showSetupMethods, setShowSetupMethods] = useState(false);
@@ -81,15 +71,9 @@ export default function PhoneSettingsDetailPage() {
   const [inboundConnectedNumbers, setInboundConnectedNumbers] = useState<string[]>([]);
   const [isCreatingInbound, setIsCreatingInbound] = useState(false);
 
-  // Greeting message, language, and system prompt settings
-  const [greetingMessage, setGreetingMessage] = useState("");
-  const [language, setLanguage] = useState("en");
-  const [systemPrompt, setSystemPrompt] = useState(aiBehavior?.voiceAgent?.systemPrompt || "");
 
   // Edit mode for inbound configs
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
-  const [editGreetingMessage, setEditGreetingMessage] = useState("");
-  const [editLanguage, setEditLanguage] = useState("en");
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   // Get available outbound numbers
@@ -151,30 +135,12 @@ export default function PhoneSettingsDetailPage() {
           greeting: config.greetingMessage,
           language: config.language
         });
-        setSelectedVoice(config.selectedVoice || 'adam');
-        setCustomVoiceId(config.customVoiceId || '');
-        setHumanOperatorPhone(config.humanOperatorPhone || '');
-        setEscalationRules(config.escalationRules || []);
-        setGreetingMessage(config.greetingMessage || 'Hello! How can I help you today?');
-        setLanguage(config.language || 'en');
+        // Voice, language, greeting, and escalation are now configured per Agent
+        // No need to load these from outbound config
       } else {
-        // No config exists for this number, use defaults
-        console.log('ℹ️ [Outbound Config] No config found, using defaults');
-        setSelectedVoice(settings?.selectedVoice || 'adam');
-        setCustomVoiceId(settings?.customVoiceId || '');
-        setHumanOperatorPhone(settings?.humanOperatorPhone || '');
-        setEscalationRules(aiBehavior?.voiceAgent?.humanOperator?.escalationRules || []);
-        setGreetingMessage(settings?.greetingMessage || 'Hello! How can I help you today?');
-        setLanguage(settings?.language || 'en');
+        // No config exists for this number
+        console.log('ℹ️ [Outbound Config] No config found');
       }
-    } else if (!selectedOutboundNumber) {
-      // No number selected, reset to defaults
-      setSelectedVoice(settings?.selectedVoice || 'adam');
-      setCustomVoiceId(settings?.customVoiceId || '');
-      setHumanOperatorPhone(settings?.humanOperatorPhone || '');
-      setEscalationRules(aiBehavior?.voiceAgent?.humanOperator?.escalationRules || []);
-      setGreetingMessage(settings?.greetingMessage || 'Hello! How can I help you today?');
-      setLanguage(settings?.language || 'en');
     }
   }, [selectedOutboundNumber, outboundConfigs, settings, aiBehavior]);
 
@@ -195,113 +161,35 @@ export default function PhoneSettingsDetailPage() {
   // Update form state when settings load
   useEffect(() => {
     if (settings) {
-      setSelectedVoice(settings.selectedVoice || "adam");
-      setCustomVoiceId(settings.customVoiceId || "");
-      setVoiceType(settings.customVoiceId ? "custom" : "predefined");
       setTwilioPhoneNumber(settings.twilioPhoneNumber || "");
       setLivekitSipTrunkId(settings.livekitSipTrunkId || "");
       setTwilioTrunkSid(settings.twilioTrunkSid || "");
       setTerminationUri(settings.terminationUri || "");
       setOriginationUri(settings.originationUri || "");
-      setHumanOperatorPhone(settings.humanOperatorPhone || "");
-      setGreetingMessage(settings.greetingMessage || "Hello! How can I help you today?");
-      setLanguage(settings.language || "en");
     }
   }, [settings]);
 
-  useEffect(() => {
-    if (aiBehavior?.voiceAgent?.humanOperator?.escalationRules) {
-      setEscalationRules(aiBehavior.voiceAgent.humanOperator.escalationRules);
-    }
-    if (aiBehavior?.voiceAgent?.systemPrompt) {
-      setSystemPrompt(aiBehavior.voiceAgent.systemPrompt);
-    }
-  }, [aiBehavior]);
 
+  // Note: Voice, language, greeting, and escalation are now configured per Agent
+  // This handler is kept for backward compatibility but only saves infrastructure settings
   const handleSaveSettings = async () => {
     try {
-      if (!selectedOutboundNumber) {
-        toast.error("Please select an outbound number first");
-        return;
-      }
-
-      console.log('💾 [Save Settings] Saving for number:', selectedOutboundNumber);
-      console.log('💾 [Save Settings] Config values:', {
-        selectedVoice,
-        customVoiceId,
-        humanOperatorPhone,
-        greetingMessage,
-        language,
-        systemPrompt
-      });
-
-      // Save infrastructure settings (only if twilioPhoneNumber is set)
+      // Save infrastructure settings only (SIP trunk, phone number routing)
       if (twilioPhoneNumber) {
         await updateSettings({
-          selectedVoice,
-          customVoiceId,
           twilioPhoneNumber,
           livekitSipTrunkId,
-          humanOperatorPhone,
-          greetingMessage,
-          language,
+          twilioTrunkSid,
+          terminationUri,
+          originationUri,
         });
-      }
-
-      // Save per-outbound-number configuration (CRITICAL - saves to THIS number only)
-      await createOrUpdateConfig.mutateAsync({
-        outboundNumber: selectedOutboundNumber,
-        data: {
-          selectedVoice,
-          customVoiceId,
-          humanOperatorPhone,
-          greetingMessage,
-          language,
-        }
-      });
-
-      // Save system prompt if provided
-      if (systemPrompt && systemPrompt.trim()) {
-        try {
-          await updateVoiceAgentPrompt.mutateAsync(systemPrompt);
-          console.log('✅ [Save Settings] System prompt saved');
-        } catch (promptError: any) {
-          console.warn('⚠️ [Save Settings] Failed to save system prompt:', promptError);
-          // Don't fail the entire save if prompt save fails
-        }
-      }
-
-      console.log('✅ [Save Settings] Saved config for', selectedOutboundNumber);
-      toast.success(`Configuration saved for ${selectedOutboundNumber}`);
-     
-      if (inboundConfigs && inboundConfigs.length > 0) {
-        await Promise.all(
-          inboundConfigs.map((config) =>
-            updateConfig.mutateAsync({
-              calledNumber: config.calledNumber,
-              greeting_message: greetingMessage,
-              language,
-            })
-          )
-        );
-        if (typeof syncConfig.mutateAsync === 'function') await syncConfig.mutateAsync();
+        toast.success('Infrastructure settings saved');
+      } else {
+        toast.info('No phone number configured. Use "Import Number" to add a phone number.');
       }
     } catch (error: any) {
       console.error('❌ [Save Settings] Error:', error);
       toast.error(error.message || 'Failed to save settings');
-    }
-  };
-
-  const handleSaveSystemPrompt = async () => {
-    if (!systemPrompt.trim()) {
-      toast.error("System prompt cannot be empty");
-      return;
-    }
-    try {
-      await updateVoiceAgentPrompt.mutateAsync(systemPrompt);
-
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save system prompt");
     }
   };
 
@@ -425,19 +313,6 @@ export default function PhoneSettingsDetailPage() {
     }
   };
 
-  const addEscalationRule = () => {
-    setEscalationRules([...escalationRules, ""]);
-  };
-
-  const updateEscalationRule = (index: number, value: string) => {
-    const updated = [...escalationRules];
-    updated[index] = value;
-    setEscalationRules(updated);
-  };
-
-  const removeEscalationRule = (index: number) => {
-    setEscalationRules(escalationRules.filter((_, i) => i !== index));
-  };
 
   // Full Setup - ONLY imports phone number, returns phone_number_id
   // NO SIP setup, NO agent config, NO phone settings update
@@ -675,66 +550,35 @@ const resetInboundSetup = () => {
   setInboundConnectedNumbers([]);
 };
 
-// Handle edit config
+// Handle edit config - Note: Voice, language, greeting are now configured per Agent
 const handleEditConfig = (config: any) => {
   console.log('🖊️ [Edit Config] Starting edit for config:', config._id);
-  console.log('📋 [Edit Config] Current values:', {
-    greeting_message: config.greeting_message,
-    language: config.language
-  });
-
   setEditingConfigId(config._id);
-  setEditGreetingMessage(
-    config.greeting_message || "Hello! How can I help you today?"
-  );
-  setEditLanguage(config.language || "en");
 };
 
 // Handle cancel edit
 const handleCancelEdit = () => {
   console.log('❌ [Edit Config] Canceling edit');
   setEditingConfigId(null);
-  setEditGreetingMessage("");
-  setEditLanguage("en");
 };
 
-// Handle save config
+// Handle save config - Note: Voice, language, greeting are now configured per Agent
+// Inbound configs only store routing information
 const handleSaveConfig = async (config: any) => {
-  console.log('💾 [Save Config] ==========================================');
-  console.log('💾 [Save Config] SAVE CONFIG CALLED');
-  console.log('💾 [Save Config] Config ID:', config._id);
-  console.log('💾 [Save Config] Called Number:', config.calledNumber);
-  console.log('💾 [Save Config] New greeting message:', editGreetingMessage);
-  console.log('💾 [Save Config] New language:', editLanguage);
-  console.log('💾 [Save Config] ==========================================');
-
+  console.log('💾 [Save Config] Saving config for:', config.calledNumber);
   setIsSavingConfig(true);
   try {
+    // Only save infrastructure-related configs
+    // Voice, language, greeting are configured per Agent
     const updateData = {
       calledNumber: config.calledNumber,
-      greeting_message: editGreetingMessage,
-      language: editLanguage,
     };
 
-    console.log(
-      '📤 [Save Config] Sending update request with data:',
-      JSON.stringify(updateData, null, 2)
-    );
-
     await updateConfig.mutateAsync(updateData);
-
-    console.log('✅ [Save Config] Config updated successfully');
-
     toast.success('Configuration updated successfully');
     setEditingConfigId(null);
-    setEditGreetingMessage("");
-    setEditLanguage("en");
   } catch (error: any) {
     console.error('❌ [Save Config] Error updating config:', error);
-    console.error('📊 [Save Config] Error details:', {
-      message: error.message,
-      response: error.response?.data
-    });
     toast.error(error.message || 'Failed to update configuration');
   } finally {
     setIsSavingConfig(false);
@@ -835,99 +679,7 @@ const handleSaveConfig = async (config: any) => {
     }
   };
 
-  const handleSaveEscalationRules = async () => {
-    try {
-      // Determine which outbound number to use
-      let outboundNumberToSave = selectedOutboundNumber;
-      if (!outboundNumberToSave && twilioPhoneNumber) {
-        outboundNumberToSave = twilioPhoneNumber;
-        setSelectedOutboundNumber(twilioPhoneNumber);
-      }
 
-      if (!outboundNumberToSave) {
-        toast.error("Please select an outbound number first");
-        return;
-      }
-
-      console.log('💾 [Escalation Rules] Saving for number:', outboundNumberToSave);
-      console.log('💾 [Escalation Rules] Rules:', escalationRules);
-
-      // Get existing config to preserve other fields
-      const existingConfig = outboundConfigs?.find(c => c.outboundNumber === outboundNumberToSave);
-      
-      // Save escalation rules per-outbound-number (preserve other config fields)
-      await createOrUpdateConfig.mutateAsync({
-        outboundNumber: outboundNumberToSave,
-        data: {
-          escalationRules,
-          // Preserve other fields if they exist
-          selectedVoice: existingConfig?.selectedVoice || selectedVoice,
-          customVoiceId: existingConfig?.customVoiceId || customVoiceId,
-          humanOperatorPhone: existingConfig?.humanOperatorPhone || humanOperatorPhone,
-          greetingMessage: existingConfig?.greetingMessage || greetingMessage,
-          language: existingConfig?.language || language,
-        }
-      });
-
-      // Also update global AI behavior for backward compatibility
-      await updateVoiceAgentHumanOperator.mutateAsync({ escalationRules });
-      
-      toast.success(`Escalation rules saved for ${outboundNumberToSave}`);
-    } catch (error: any) {
-      console.error('❌ [Escalation Rules] Save error:', error);
-      toast.error(error.message || "Failed to save escalation rules");
-    }
-  };
-
-  const playVoiceSample = async (voiceId: string, voiceName: string) => {
-    setPlayingVoiceId(voiceId); // Set the voice currently playing
-    try {
-      const sampleText = `Hey, I am your ${voiceName} voice from Aistein.`;
-      const token = localStorage.getItem('accessToken'); // Get token for Authorization header
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-
-      const response = await axios.post(
-        `${API_BASE_URL}/tts/generate-audio`,
-        { voiceId, text: sampleText },
-        {
-          responseType: 'arraybuffer',
-          headers: {
-            Authorization: token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      const responseData = response.data; // Extract data from the raw axios response
-
-      // ❗ SAFETY CHECK
-      if (!responseData || !(responseData instanceof ArrayBuffer) || responseData.byteLength < 1000) {
-        throw new Error("Invalid audio received from backend: data is not ArrayBuffer or too small");
-      }
-
-      const audioBlob = new Blob([responseData], { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-
-      audio.onended = () => {
-        setPlayingVoiceId(null); // Reset when audio finishes
-        URL.revokeObjectURL(audioUrl);
-      };
-      audio.onerror = (e) => {
-        console.error('Audio playback error:', e);
-        toast.error('Failed to play voice sample.');
-        setPlayingVoiceId(null);
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      audio.play();
-      toast.success(`Playing sample for ${voiceName}...`);
-    } catch (error: any) {
-      console.error("Error playing voice sample:", error.response?.data ? new TextDecoder().decode(error.response.data) : error.message);
-      toast.error(error.message || "Failed to play voice sample");
-      setPlayingVoiceId(null);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -975,8 +727,8 @@ return (
 
       {/* Connected Numbers Display - Removed as requested */}
 
-      {/* Outbound Number Selector - Show for Voice Agent Behaviour and Escalation Rules tabs */}
-      {(activeTab === "voiceAgentBehaviour" || activeTab === "endOfCall") && (
+      {/* Outbound Number Selector */}
+      {activeTab === "outbound" && (
         <div className="mb-6 max-w-2xl">
           <div className="bg-gradient-to-br from-card to-card/80 border border-border rounded-xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-5">
@@ -1078,24 +830,14 @@ return (
       {/* Tabs */}
       <div className="flex gap-1 bg-secondary rounded-lg p-1 mb-6 max-w-2xl">
         <button
-          onClick={() => setActiveTab("voiceAgentBehaviour")}
+          onClick={() => setActiveTab("outbound")}
           className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "voiceAgentBehaviour"
+            activeTab === "outbound"
               ? "bg-primary text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          Voice Agent Behaviour
-        </button>
-        <button
-          onClick={() => setActiveTab("endOfCall")}
-          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "endOfCall"
-              ? "bg-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Escalation Rules
+          Outbound Setup
         </button>
         <button
           onClick={() => setActiveTab("inbound")}
@@ -1109,16 +851,22 @@ return (
         </button>
       </div>
 
-      {/* Voice Agent Behaviour Tab */}
-      {activeTab === "voiceAgentBehaviour" && (
+      {/* Outbound Setup Tab */}
+      {activeTab === "outbound" && (
         <div className="space-y-6 max-w-2xl">
-          {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-              <p className="text-sm text-yellow-400">
-                Select an outbound number above to configure its behavior
-              </p>
+          {/* Info Banner */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+            <div className="flex gap-3">
+              <div className="text-blue-400 mt-0.5">ℹ️</div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-blue-400 mb-1">Voice, Language & Greeting Configuration</h4>
+                <p className="text-xs text-muted-foreground">
+                  Voice, language, greeting message, and escalation rules are now configured per Agent. 
+                  Please configure these settings in <strong>AI → Agents</strong> when creating or editing an agent.
+                </p>
+              </div>
             </div>
-          )}
+          </div>
           {/* Auto Setup Methods Section */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
@@ -1385,293 +1133,6 @@ return (
               </div>
             )}
           </div>
-
-          {/* Manual Configuration */}
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold text-foreground">Manual Configuration</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Or enter your settings manually if you prefer
-              </p>
-            </div>
-            
-          <div className="space-y-6">
-            {/* Voice Type Selection */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Voice Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={voiceType}
-                onChange={(e) => {
-                  const newType = e.target.value as "predefined" | "custom";
-                  setVoiceType(newType);
-                  // Clear custom voice ID when switching to predefined
-                  if (newType === "predefined") {
-                    setCustomVoiceId("");
-                  }
-                }}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="predefined">Predefined Voice</option>
-                <option value="custom">Custom Voice ID</option>
-              </select>
-            </div>
-
-            {/* Predefined Voice Selection (Custom UI) */}
-            {voiceType === "predefined" && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-3">
-                  Select Voice <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {VOICE_OPTIONS.map((voice) => (
-                    <div
-                      key={voice.value}
-                      className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all
-                        ${selectedVoice === voice.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}
-                      `}
-                      onClick={() => setSelectedVoice(voice.value)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{voice.flag}</span>
-                        <div>
-                          <div className="font-medium text-foreground">
-                            {voice.label}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {voice.language} • {voice.gender}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent selecting the voice when clicking play
-                          playVoiceSample(voice.voiceId, voice.label);
-                        }}
-                        disabled={playingVoiceId === voice.voiceId}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors
-                          ${playingVoiceId === voice.voiceId ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-secondary hover:bg-primary/10 text-primary"}
-                        `}
-                        title={`Play sample for ${voice.label}`}
-                      >
-                        {playingVoiceId === voice.voiceId ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Play className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Select the voice for your AI agent.
-                </p>
-              </div>
-            )}
-
-            {/* Custom Voice ID */}
-            {voiceType === "custom" && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-3">
-                  Custom Voice ID <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customVoiceId}
-                  onChange={(e) => setCustomVoiceId(e.target.value)}
-                  placeholder="Enter custom ElevenLabs voice ID"
-                  className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-                <p className="text-xs text-muted-foreground mt-2">
-                  Enter your custom ElevenLabs voice ID. This will override any predefined voice selection.
-                </p>
-              </div>
-            )}
-
-            {/* Language Selection */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Language <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="it">Italian</option>
-                <option value="pt">Portuguese</option>
-                <option value="ar">Arabic</option>
-                <option value="tr">Turkish</option>
-                <option value="zh">Chinese</option>
-                <option value="ja">Japanese</option>
-                <option value="ko">Korean</option>
-              </select>
-              <p className="text-xs text-muted-foreground mt-2">
-                Select the language for the voice agent and greeting message.
-              </p>
-            </div>
-
-            {/* Greeting Message */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                Greeting Message <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={greetingMessage}
-                onChange={(e) => setGreetingMessage(e.target.value)}
-                placeholder="Hello! How can I help you today?"
-                rows={4}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                This greeting message will be used when the voice agent starts a conversation.
-              </p>
-            </div>
-
-            {/* System Prompt */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-3">
-                System Prompt <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder="You are a helpful AI assistant. Be friendly and concise."
-                rows={6}
-                className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Define the personality and behavior of your voice agent. This prompt guides how the AI responds to users.
-              </p>
-            </div>
-
-            {/* Save Buttons */}
-            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t border-border">
-              <button
-                onClick={handleSaveSystemPrompt}
-                disabled={updateVoiceAgentPrompt.isPending || !systemPrompt.trim()}
-                className="h-11 px-6 bg-secondary text-foreground rounded-lg text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-              >
-                {updateVoiceAgentPrompt.isPending ? "Saving..." : "Save System Prompt"}
-              </button>
-              <button
-                onClick={handleSaveSettings}
-                disabled={isUpdating || createOrUpdateConfig.isPending || (voiceType === "predefined" && !selectedVoice) || (voiceType === "custom" && !customVoiceId.trim()) || !greetingMessage.trim() || (!selectedOutboundNumber && availableOutboundNumbers.length > 0)}
-                className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-bold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed shadow-md"
-              >
-                {(isUpdating || createOrUpdateConfig.isPending) ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    💾 Save Configuration
-                    {selectedOutboundNumber && (
-                      <span className="ml-2 text-xs opacity-80">({selectedOutboundNumber})</span>
-                    )}
-                  </>
-                )}
-              </button>
-            </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Escalation Rules Tab */}
-      {activeTab === "endOfCall" && (
-        <div className="bg-card border border-border rounded-xl p-6 max-w-2xl">
-          {!selectedOutboundNumber && availableOutboundNumbers.length > 0 && (
-            <div className="mb-6 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-              <p className="text-sm text-yellow-400">
-                Select an outbound number above to configure escalation rules
-              </p>
-            </div>
-          )}
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">Escalation Conditions</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Define when calls should be escalated to a human operator
-                  </p>
-                </div>
-                <button
-                  onClick={addEscalationRule}
-                  className="h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all cursor-pointer"
-                >
-                  Add Rule
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {escalationRules.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    No escalation rules defined. Click "Add Rule" to create one.
-                  </div>
-                ) : (
-                  escalationRules.map((rule, index) => (
-                    <div key={index} className="flex gap-3">
-                      <input
-                        type="text"
-                        value={rule}
-                        onChange={(e) => updateEscalationRule(index, e.target.value)}
-                        placeholder="e.g., Customer requests to speak with human"
-                        className="flex-1 h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
-                      <button
-                        onClick={() => removeEscalationRule(index)}
-                        className="h-11 px-4 bg-red-500/10 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all cursor-pointer"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-400 mb-2">Example Escalation Rules:</h4>
-                <ul className="text-xs text-muted-foreground space-y-1.5">
-                  <li>• Customer explicitly requests to speak with a human operator</li>
-                  <li>• Customer expresses frustration or anger</li>
-                  <li>• Complex technical issue that requires human expertise</li>
-                  <li>• Request for refund or account changes</li>
-                  <li>• Multiple failed attempts to resolve the issue</li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end pt-4">
-              <button
-                onClick={handleSaveEscalationRules}
-                disabled={updateVoiceAgentHumanOperator.isPending || createOrUpdateConfig.isPending || (!selectedOutboundNumber && availableOutboundNumbers.length > 0)}
-                className="h-11 px-6 bg-primary text-foreground rounded-lg text-sm font-bold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed shadow-md"
-              >
-                {(updateVoiceAgentHumanOperator.isPending || createOrUpdateConfig.isPending) ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    💾 Save Escalation Rules
-                    {selectedOutboundNumber && (
-                      <span className="ml-2 text-xs opacity-80">({selectedOutboundNumber})</span>
-                    )}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -1828,59 +1289,37 @@ return (
                     </div>
                     
                     {editingConfigId === config._id ? (
-                      <div className="space-y-5 pt-5 border-t-2 border-border">
-                        <div>
-                          <label className="block text-sm md:text-base font-bold text-foreground mb-3">
-                            Language <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            value={editLanguage}
-                            onChange={(e) => setEditLanguage(e.target.value)}
-                            className="w-full h-12 md:h-14 bg-secondary border-2 border-border rounded-xl px-4 text-sm md:text-base text-foreground focus:outline-none focus:border-primary transition-colors"
-                          >
-                            <option value="en">English</option>
-                            <option value="es">Spanish</option>
-                            <option value="it">Italian</option>
-                            <option value="fr">French</option>
-                            <option value="de">German</option>
-                            <option value="pt">Portuguese</option>
-                            <option value="ar">Arabic</option>
-                            <option value="zh">Chinese</option>
-                            <option value="ja">Japanese</option>
-                            <option value="ko">Korean</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm md:text-base font-bold text-foreground mb-3">
-                            Greeting Message <span className="text-red-500">*</span>
-                          </label>
-                          <textarea
-                            value={editGreetingMessage}
-                            onChange={(e) => setEditGreetingMessage(e.target.value)}
-                            placeholder="Enter greeting message..."
-                            rows={5}
-                            className="w-full bg-secondary border-2 border-border rounded-xl px-4 py-3 text-sm md:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-                          />
+                      <div className="pt-5 border-t-2 border-border">
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                          <div className="flex gap-3">
+                            <div className="text-blue-400 mt-0.5">ℹ️</div>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-medium text-blue-400 mb-1">Voice & Language Configuration</h4>
+                              <p className="text-xs text-muted-foreground">
+                                Voice, language, greeting message, and escalation rules are now configured per Agent. 
+                                Please configure these settings in <strong>AI → Agents</strong> when creating or editing an agent.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 pt-5 border-t-2 border-border">
-                        <div className="p-4 md:p-5 bg-background/60 rounded-xl border-2 border-border hover:border-primary/30 transition-colors">
-                          <div className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Language</div>
-                          <div className="text-base md:text-lg font-bold text-foreground">{config.language || 'en'}</div>
-                        </div>
-                        <div className="p-4 md:p-5 bg-background/60 rounded-xl border-2 border-border hover:border-primary/30 transition-colors">
-                          <div className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Voice ID</div>
-                          <div className="text-sm md:text-base font-mono text-foreground break-all">{config.voice_id || 'Not set'}</div>
-                        </div>
-                        <div className="p-4 md:p-5 bg-background/60 rounded-xl border-2 border-border hover:border-primary/30 transition-colors md:col-span-2">
-                          <div className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Greeting Message</div>
-                          <div className="text-sm md:text-base text-foreground leading-relaxed">{config.greeting_message || 'Hello! How can I help you today?'}</div>
+                      <div className="pt-5 border-t-2 border-border">
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
+                          <div className="flex gap-3">
+                            <div className="text-blue-400 mt-0.5">ℹ️</div>
+                            <div className="flex-1">
+                              <h4 className="text-sm font-medium text-blue-400 mb-1">Voice & Language Configuration</h4>
+                              <p className="text-xs text-muted-foreground">
+                                Voice, language, greeting message, and escalation rules are now configured per Agent. 
+                                Please configure these settings in <strong>AI → Agents</strong> when creating or editing an agent.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                         {config.collections && config.collections.length > 0 && (
-                          <div className="p-4 md:p-5 bg-background/60 rounded-xl border-2 border-border hover:border-primary/30 transition-colors md:col-span-2">
-                            <div className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Collections</div>
+                          <div className="p-4 md:p-5 bg-background/60 rounded-xl border-2 border-border hover:border-primary/30 transition-colors">
+                            <div className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Knowledge Base Collections</div>
                             <div className="flex flex-wrap gap-2">
                               {config.collections.map((col, idx) => (
                                 <span key={idx} className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs md:text-sm font-semibold border border-primary/20">

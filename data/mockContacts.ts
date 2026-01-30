@@ -9,6 +9,8 @@ export interface Contact {
   listId?: string;
   status?: string;
   createdAt: string;
+  /** Custom fields from CSV import (e.g. Company name, Notes, Job title) */
+  metadata?: Record<string, any>;
 }
 
 const colors = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"];

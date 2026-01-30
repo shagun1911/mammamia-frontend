@@ -6,8 +6,10 @@ export interface Agent {
   name: string;
   first_message: string;
   system_prompt: string;
+  greeting_message?: string;
   language: string;
   voice_id?: string;
+  escalationRules?: string[];
   knowledge_base_ids: string[];
   tool_ids: string[];
   userId: string;
@@ -19,8 +21,10 @@ export interface CreateAgentData {
   name: string;
   first_message: string;
   system_prompt: string;
+  greeting_message?: string;
   language: string;
   voice_id?: string;
+  escalationRules?: string[];
   knowledge_base_ids: string[];
   // tool_ids are automatically added from backend env variables (PRODUCTS_TOOL_ID and ORDERS_TOOL_ID)
 }
@@ -28,7 +32,10 @@ export interface CreateAgentData {
 export interface UpdateAgentPromptData {
   first_message: string;
   system_prompt: string;
+  greeting_message?: string;
   language: string;
+  voice_id?: string;
+  escalationRules?: string[];
   knowledge_base_ids: string[];
   // tool_ids are automatically added from backend env variables (PRODUCTS_TOOL_ID and ORDERS_TOOL_ID)
 }

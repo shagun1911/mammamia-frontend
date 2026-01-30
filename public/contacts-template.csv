@@ -1,4 +1,4 @@
-name,email,phone,company,notes,tags
+name,email,phone,company name,notes,tags
 John Doe,john.doe@example.com,+1234567890,Acme Corp,Important client,premium,customer
 Jane Smith,jane.smith@example.com,+1987654321,Tech Inc,Follow up needed,lead
 Bob Johnson,bob@example.com,+1555555555,Startup Co,Interested in product,sales

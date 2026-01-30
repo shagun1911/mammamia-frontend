@@ -368,7 +368,7 @@ export default function ContactsPage() {
           })}
         </nav>
 
-        <div className="p-3">
+        <div className="p-3 pb-5">
           <button
             onClick={() => setIsAddListModalOpen(true)}
             className="w-full h-10 bg-primary text-foreground rounded-lg text-sm font-medium hover:brightness-110 transition-all flex items-center justify-center gap-2"
@@ -599,9 +599,9 @@ export default function ContactsPage() {
         )}
 
         {/* Content */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-background via-background to-secondary/5">
-          <div className="flex-1 overflow-auto">
-            <div className="p-6">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gradient-to-br from-background via-background to-secondary/5">
+          <div className="flex-1 min-w-0 overflow-auto">
+            <div className="p-6 min-w-0">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 border border-primary/20 shadow-sm">
@@ -642,7 +642,7 @@ export default function ContactsPage() {
               </div>
 
               {/* Enhanced Contacts Table */}
-              <div className="bg-card rounded-xl shadow-lg border border-border overflow-hidden">
+              <div className="min-w-0 max-w-full rounded-xl border border-border overflow-hidden">
                 <ContactsTable
                   contacts={contacts}
                   selectedIds={selectedIds}
@@ -689,6 +689,7 @@ export default function ContactsPage() {
                 email: editingContact.email,
                 phone: editingContact.phone,
                 tags: editingContact.tags,
+                metadata: editingContact.metadata,
               }
             : undefined
         }
