@@ -29,10 +29,9 @@ interface EditAgentModalProps {
 export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) {
   const [firstMessage, setFirstMessage] = useState('Hello! How can I help you today?');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [greetingMessage, setGreetingMessage] = useState('');
   const [language, setLanguage] = useState('en');
-  // Track if user has manually edited greeting/system prompt
-  const [hasCustomizedGreeting, setHasCustomizedGreeting] = useState(false);
+  // Track if user has manually edited first message/system prompt
+  const [hasCustomizedFirstMessage, setHasCustomizedFirstMessage] = useState(false);
   const [hasCustomizedSystemPrompt, setHasCustomizedSystemPrompt] = useState(false);
   const [voiceType, setVoiceType] = useState<'predefined' | 'manual'>('predefined');
   const [selectedVoice, setSelectedVoice] = useState('');
@@ -71,15 +70,14 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
       const agentLanguage = agent.language || 'en';
       setFirstMessage(agent.first_message || 'Hello! How can I help you today?');
       setSystemPrompt(agent.system_prompt || getDefaultSystemPrompt(agentLanguage));
-      setGreetingMessage(agent.greeting_message || getDefaultGreeting(agentLanguage));
       setLanguage(agentLanguage);
       setSelectedKBIds(agent.knowledge_base_ids || []);
       setEscalationRules(agent.escalationRules && agent.escalationRules.length > 0 ? agent.escalationRules : getDefaultEscalationConditions(agentLanguage));
       
-      // Check if greeting/system prompt match defaults (user hasn't customized)
-      const defaultGreeting = getDefaultGreeting(agentLanguage);
+      // Check if first message/system prompt match defaults (user hasn't customized)
+      const defaultFirstMessage = getDefaultGreeting(agentLanguage);
       const defaultSystemPrompt = getDefaultSystemPrompt(agentLanguage);
-      setHasCustomizedGreeting(!!(agent.greeting_message && agent.greeting_message !== defaultGreeting));
+      setHasCustomizedFirstMessage(!!(agent.first_message && agent.first_message !== defaultFirstMessage));
       setHasCustomizedSystemPrompt(!!(agent.system_prompt && agent.system_prompt !== defaultSystemPrompt));
       
       // Set voice type and selection from voice_id
@@ -101,11 +99,11 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
   // Update defaults when language changes
   useEffect(() => {
     if (language) {
-      // Always update greeting to language-specific default when language changes
+      // Always update first message to language-specific default when language changes
       // unless user has explicitly customized it
-      if (!hasCustomizedGreeting) {
+      if (!hasCustomizedFirstMessage) {
         const currentDefault = getDefaultGreeting(language);
-        setGreetingMessage(currentDefault);
+        setFirstMessage(currentDefault);
       }
       
       // Always update system prompt to language-specific default when language changes
@@ -133,13 +131,13 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
 
   // Reset customization flags when language changes
   useEffect(() => {
-    setHasCustomizedGreeting(false);
+    setHasCustomizedFirstMessage(false);
     setHasCustomizedSystemPrompt(false);
   }, [language]);
 
-  // Get rendered greeting preview
-  const greetingPreview = greetingMessage 
-    ? renderGreeting(greetingMessage, previewContact)
+  // Get rendered first message preview
+  const firstMessagePreview = firstMessage 
+    ? renderGreeting(firstMessage, previewContact)
     : '';
 
   // Handle voice preview playback - instant playback with caching
@@ -210,7 +208,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
 
     if (!agent) return;
 
-    if (!greetingMessage.trim() || !systemPrompt.trim()) {
+    if (!firstMessage.trim() || !systemPrompt.trim()) {
       return;
     }
 
@@ -227,15 +225,11 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
     }
 
     try {
-      // Use greeting_message as first_message for Python API compatibility
-      const finalGreetingMessage = greetingMessage.trim() || getDefaultGreeting(language);
-      
       await updateAgentPrompt.mutateAsync({
         agentId: agent.agent_id,
         data: {
-          first_message: finalGreetingMessage, // Use greeting_message as first_message
+          first_message: firstMessage.trim() || getDefaultGreeting(language),
           system_prompt: systemPrompt.trim() || getDefaultSystemPrompt(language),
-          greeting_message: finalGreetingMessage,
           language: language.trim(),
           voice_id: voiceId,
           escalationRules: escalationRules.filter(rule => rule.trim() !== '') || undefined,
@@ -279,18 +273,40 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* First Message */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              First Message <span className="text-destructive">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-foreground">
+                First Message <span className="text-destructive">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowGreetingPreview(!showGreetingPreview)}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              >
+                <Eye className="w-3 h-3" />
+                Preview
+              </button>
+            </div>
             <textarea
               value={firstMessage}
-              onChange={(e) => setFirstMessage(e.target.value)}
-              placeholder="Hello! How can I help you today?"
+              onChange={(e) => {
+                setFirstMessage(e.target.value);
+                setHasCustomizedFirstMessage(true);
+              }}
+              placeholder="Hi {{name}}, this is an AI assistant calling from Aistein.it."
               rows={3}
               className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
               disabled={updateAgentPrompt.isPending}
               required
             />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Use variables: <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{name}}'}</code>, <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{email}}'}</code>, <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{phone}}'}</code>
+            </p>
+            {showGreetingPreview && firstMessagePreview && (
+              <div className="mt-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-1 font-medium">Preview:</p>
+                <p className="text-sm text-foreground">{firstMessagePreview}</p>
+              </div>
+            )}
           </div>
 
           {/* Language */}
@@ -467,43 +483,6 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
             </div>
           </div>
 
-          {/* Greeting Message */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-foreground">
-                Greeting Message <span className="text-destructive">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowGreetingPreview(!showGreetingPreview)}
-                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-              >
-                <Eye className="w-3 h-3" />
-                Preview
-              </button>
-            </div>
-            <textarea
-              value={greetingMessage}
-              onChange={(e) => {
-                setGreetingMessage(e.target.value);
-                setHasCustomizedGreeting(true);
-              }}
-              placeholder="Hi {{name}}, this is an AI assistant calling from Aistein.it."
-              rows={3}
-              className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
-              disabled={updateAgentPrompt.isPending}
-              required
-            />
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Use variables: <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{name}}'}</code>, <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{email}}'}</code>, <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{phone}}'}</code>
-            </p>
-            {showGreetingPreview && greetingPreview && (
-              <div className="mt-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1 font-medium">Preview:</p>
-                <p className="text-sm text-foreground">{greetingPreview}</p>
-              </div>
-            )}
-          </div>
 
           {/* System Prompt */}
           <div>

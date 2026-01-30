@@ -313,6 +313,59 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     }
   };
 
+  // Helper function to extract variables from greeting message (e.g., {{name}}, {{email}})
+  const extractVariablesFromGreeting = (greetingMessage: string): string[] => {
+    if (!greetingMessage) return [];
+    const variablePattern = /\{\{(\w+)\}\}/g;
+    const variables: string[] = [];
+    let match;
+    while ((match = variablePattern.exec(greetingMessage)) !== null) {
+      const varName = match[1].toLowerCase(); // Normalize to lowercase
+      if (!variables.includes(varName)) {
+        variables.push(varName);
+      }
+    }
+    return variables;
+  };
+
+  // Helper function to map CSV/XLS columns to dynamic_variables
+  // Includes ALL non-standard columns as dynamic_variables (not just those in first_message)
+  const mapColumnsToDynamicVariables = (recipient: Recipient, greetingVariables: string[]): Record<string, any> => {
+    const dynamicVars: Record<string, any> = {};
+    
+    // Get all column names from the recipient (excluding standard fields)
+    const recipientKeys = Object.keys(recipient).filter(
+      key => key !== 'phone_number' && key !== 'name' && key !== 'email' && key !== 'dynamic_variables'
+    );
+    
+    // First, map greeting variables to CSV/XLS columns (use variable name from first_message)
+    greetingVariables.forEach(varName => {
+      // Try exact match first (case-insensitive)
+      const matchingKey = recipientKeys.find(
+        key => key.toLowerCase() === varName.toLowerCase()
+      );
+      
+      if (matchingKey && recipient[matchingKey] !== undefined && recipient[matchingKey] !== null && recipient[matchingKey] !== '') {
+        // Use the variable name from first_message (e.g., "appointment") not the CSV column name
+        dynamicVars[varName] = String(recipient[matchingKey]).trim();
+      }
+    });
+    
+    // Then, include ALL other columns that aren't standard fields
+    // This ensures we capture all dynamic data from CSV/XLS, even if not in first_message
+    recipientKeys.forEach(key => {
+      const isAlreadyMapped = greetingVariables.some(
+        varName => varName.toLowerCase() === key.toLowerCase()
+      );
+      // Include all non-standard columns, even if not in first_message
+      if (!isAlreadyMapped && recipient[key] !== undefined && recipient[key] !== null && recipient[key] !== '') {
+        dynamicVars[key] = String(recipient[key]).trim();
+      }
+    });
+    
+    return dynamicVars;
+  };
+
   const handleSubmitBatchCall = async () => {
     if (!batchName.trim()) {
       toast.error("Please enter a batch name");
@@ -355,17 +408,20 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     }
 
     try {
+      // Extract variables from agent's first_message
+      const firstMessage = selectedAgent.first_message || '';
+      const greetingVariables = extractVariablesFromGreeting(firstMessage);
+      
+      console.log('[BatchCallBuilder] Agent first message:', firstMessage);
+      console.log('[BatchCallBuilder] Extracted variables from first message:', greetingVariables);
+
       const payload: any = {
         agent_id: selectedAgent.agent_id,
         call_name: batchName,
         recipients: recipients.map(r => {
-          // Extract dynamic_variables (any fields that aren't phone_number, name, or email)
-          const dynamicVars: Record<string, any> = {};
-          Object.keys(r).forEach(key => {
-            if (key !== 'phone_number' && key !== 'name' && key !== 'email') {
-              dynamicVars[key] = r[key];
-            }
-          });
+          // Map CSV/XLS columns to dynamic_variables
+          // This includes ALL non-standard columns, mapped to first_message variables if they match
+          const dynamicVars = mapColumnsToDynamicVariables(r, greetingVariables);
           
           const recipient: any = {
             phone_number: r.phone_number,
@@ -376,9 +432,24 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
             recipient.email = r.email;
           }
           
-          // Add dynamic_variables if any exist
+          // ALWAYS add dynamic_variables if any exist (even if empty, but we check length > 0)
+          // This ensures all CSV/XLS columns beyond name, phone_number, email are included
           if (Object.keys(dynamicVars).length > 0) {
             recipient.dynamic_variables = dynamicVars;
+            console.log('[BatchCallBuilder] ✅ Mapped dynamic_variables for recipient:', {
+              name: r.name,
+              phone: r.phone_number,
+              email: r.email,
+              dynamic_variables: dynamicVars,
+              greeting_variables: greetingVariables
+            });
+          } else {
+            console.log('[BatchCallBuilder] ⚠️  No dynamic_variables found for recipient:', {
+              name: r.name,
+              phone: r.phone_number,
+              recipient_keys: Object.keys(r),
+              greeting_variables: greetingVariables
+            });
           }
           
           return recipient;
@@ -398,7 +469,8 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         phone_number_id: payload.phone_number_id,
         recipients_count: payload.recipients.length,
         retry_count: payload.retry_count,
-        sender_email: payload.sender_email || 'not provided'
+        sender_email: payload.sender_email || 'not provided',
+        greeting_variables: greetingVariables
       });
       
       await submitBatchCallMutation.mutateAsync(payload);

@@ -27,10 +27,9 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
   const [name, setName] = useState('');
   const [firstMessage, setFirstMessage] = useState('Hello! How can I help you today?');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [greetingMessage, setGreetingMessage] = useState('');
   const [language, setLanguage] = useState('en');
-  // Track if user has manually edited greeting/system prompt
-  const [hasCustomizedGreeting, setHasCustomizedGreeting] = useState(false);
+  // Track if user has manually edited first message/system prompt
+  const [hasCustomizedFirstMessage, setHasCustomizedFirstMessage] = useState(false);
   const [hasCustomizedSystemPrompt, setHasCustomizedSystemPrompt] = useState(false);
   const [voiceType, setVoiceType] = useState<'predefined' | 'manual'>('predefined');
   const [selectedVoice, setSelectedVoice] = useState('');
@@ -65,8 +64,8 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
 
   // Initialize defaults when component mounts
   useEffect(() => {
-    if (!greetingMessage) {
-      setGreetingMessage(getDefaultGreeting(language));
+    if (!firstMessage) {
+      setFirstMessage(getDefaultGreeting(language));
     }
     if (!systemPrompt) {
       setSystemPrompt(getDefaultSystemPrompt(language));
@@ -76,11 +75,11 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
   // Update defaults when language changes
   useEffect(() => {
     if (language) {
-      // Always update greeting to language-specific default when language changes
+      // Always update first message to language-specific default when language changes
       // unless user has explicitly customized it
-      if (!hasCustomizedGreeting) {
+      if (!hasCustomizedFirstMessage) {
         const currentDefault = getDefaultGreeting(language);
-        setGreetingMessage(currentDefault);
+        setFirstMessage(currentDefault);
       }
       
       // Always update system prompt to language-specific default when language changes
@@ -110,13 +109,13 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
 
   // Reset customization flags when language changes
   useEffect(() => {
-    setHasCustomizedGreeting(false);
+    setHasCustomizedFirstMessage(false);
     setHasCustomizedSystemPrompt(false);
   }, [language]);
 
-  // Get rendered greeting preview
-  const greetingPreview = greetingMessage 
-    ? renderGreeting(greetingMessage, previewContact)
+  // Get rendered first message preview
+  const firstMessagePreview = firstMessage 
+    ? renderGreeting(firstMessage, previewContact)
     : '';
 
   // Handle voice preview playback - instant playback with caching
@@ -190,8 +189,8 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
       return;
     }
 
-    if (!greetingMessage.trim()) {
-      toast.error('Greeting message is required');
+    if (!firstMessage.trim()) {
+      toast.error('First message is required');
       return;
     }
 
@@ -222,14 +221,10 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
     }
 
     try {
-      // Use greeting_message as first_message for Python API compatibility
-      const finalGreetingMessage = greetingMessage.trim() || getDefaultGreeting(language);
-      
       await createAgent.mutateAsync({
         name: name.trim(),
-        first_message: finalGreetingMessage, // Use greeting_message as first_message
+        first_message: firstMessage.trim() || getDefaultGreeting(language),
         system_prompt: systemPrompt.trim() || getDefaultSystemPrompt(language),
-        greeting_message: finalGreetingMessage,
         language: language.trim(),
         voice_id: voiceId,
         escalationRules: escalationRules.filter(rule => rule.trim() !== '') || undefined,
@@ -240,11 +235,10 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
       setName('');
       setFirstMessage('Hello! How can I help you today?');
       setSystemPrompt(getDefaultSystemPrompt('en'));
-      setGreetingMessage(getDefaultGreeting('en'));
       setLanguage('en');
       setVoiceType('predefined');
       setSelectedVoice('');
-      setHasCustomizedGreeting(false);
+      setHasCustomizedFirstMessage(false);
       setHasCustomizedSystemPrompt(false);
       setManualVoiceId('');
       setEscalationRules(getDefaultEscalationConditions('en'));
@@ -463,11 +457,11 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
             </div>
           </div>
 
-          {/* Greeting Message */}
+          {/* First Message */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-foreground">
-                Greeting Message <span className="text-destructive">*</span>
+                First Message <span className="text-destructive">*</span>
               </label>
               <button
                 type="button"
@@ -479,10 +473,10 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
               </button>
             </div>
             <textarea
-              value={greetingMessage}
+              value={firstMessage}
               onChange={(e) => {
-                setGreetingMessage(e.target.value);
-                setHasCustomizedGreeting(true);
+                setFirstMessage(e.target.value);
+                setHasCustomizedFirstMessage(true);
               }}
               className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
               rows={3}
@@ -492,10 +486,10 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
             <p className="text-xs text-muted-foreground mt-1.5">
               Use variables: <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{name}}'}</code>, <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{email}}'}</code>, <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">{'{{phone}}'}</code>
             </p>
-            {showGreetingPreview && greetingPreview && (
+            {showGreetingPreview && firstMessagePreview && (
               <div className="mt-2 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1 font-medium">Preview:</p>
-                <p className="text-sm text-foreground">{greetingPreview}</p>
+                <p className="text-sm text-foreground">{firstMessagePreview}</p>
               </div>
             )}
           </div>
