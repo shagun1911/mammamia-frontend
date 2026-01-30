@@ -100,29 +100,14 @@ class BatchCallingService {
   /**
    * Get all batch calls for the user
    * GET /api/v1/batch-calling
+   * Backend returns { success: true, data: batchCalls[] }; apiClient.get returns the body.
    */
   async getAllBatchCalls(): Promise<any[]> {
     try {
-      const response = await apiClient.get<{ success: boolean; data: any[] }>('/batch-calling');
-      console.log('[BatchCallingService] Raw response:', response);
-      
-      // Backend returns { success: true, data: batchCalls }
-      // apiClient.get() returns response.data, so response is { success: true, data: batchCalls }
-      // We need to extract the data array
-      if (response && typeof response === 'object' && 'data' in response) {
-        const batchCalls = (response as any).data;
-        console.log('[BatchCallingService] Extracted batch calls:', batchCalls?.length || 0);
-        return Array.isArray(batchCalls) ? batchCalls : [];
-      }
-      
-      // Fallback: if response is already an array, return it
-      if (Array.isArray(response)) {
-        console.log('[BatchCallingService] Response is already an array:', response.length);
-        return response;
-      }
-      
-      console.warn('[BatchCallingService] Unexpected response format:', response);
-      return [];
+      const response = await apiClient.get<{ success?: boolean; data?: any[] } | any[]>('/batch-calling');
+      if (Array.isArray(response)) return response;
+      const list = response?.data;
+      return Array.isArray(list) ? list : [];
     } catch (error: any) {
       console.error('❌ [BatchCallingService] getAllBatchCalls() error:', error);
       console.error('❌ [BatchCallingService] Error details:', {
