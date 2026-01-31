@@ -8,6 +8,7 @@ import { usePhoneSettings } from "@/hooks/usePhoneSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { useInboundAgentConfig } from "@/hooks/useInboundAgentConfig";
 import { useOutboundAgentConfig } from "@/hooks/useOutboundAgentConfig";
+import { useAgents } from "@/hooks/useAgents";
 import { useInboundNumbers } from "@/hooks/useInboundNumbers";
 import { phoneSettingsService } from "@/services/phoneSettings.service";
 import { inboundNumbersService } from "@/services/inboundNumbers.service";
@@ -22,6 +23,9 @@ export default function PhoneSettingsDetailPage() {
   const { settings, isLoading, updateSettings, isUpdating } = usePhoneSettings();
   const { aiBehavior } = useAIBehavior();
   const { configs: inboundConfigs, syncConfig, updateConfig, deleteConfig } = useInboundAgentConfig();
+  
+  // Filter out chatbot configs (empty calledNumber) - these are not real inbound phone numbers
+  const realInboundConfigs = inboundConfigs?.filter(config => config.calledNumber && config.calledNumber.trim() !== '') || [];
   const { configs: outboundConfigs, getConfigByNumber, createOrUpdateConfig } = useOutboundAgentConfig();
   const { inboundNumbers: persistedInboundNumbers, isLoading: isLoadingInboundNumbers, addNumbers: addInboundNumbersMutation, removeNumber: removeInboundNumberMutation, clearAll: clearAllInboundMutation } = useInboundNumbers();
   const { data: phoneNumbersList, refetch: refetchPhoneNumbers } = usePhoneNumbersList();
@@ -69,7 +73,11 @@ export default function PhoneSettingsDetailPage() {
   const [inboundTrunkId, setInboundTrunkId] = useState("");
   const [inboundTrunkName, setInboundTrunkName] = useState("");
   const [inboundConnectedNumbers, setInboundConnectedNumbers] = useState<string[]>([]);
+  const [inboundSelectedAgentId, setInboundSelectedAgentId] = useState<string>("");
   const [isCreatingInbound, setIsCreatingInbound] = useState(false);
+  
+  // Get agents for selection
+  const { data: agents = [], isLoading: isLoadingAgents } = useAgents();
 
 
   // Edit mode for inbound configs
@@ -386,6 +394,17 @@ export default function PhoneSettingsDetailPage() {
         return;
       }
 
+      // Check if user has existing inbound setup in their database
+      const hasExistingInbound = (settings?.inboundTrunkId && settings.inboundTrunkId.trim() !== '') ||
+                                  (persistedInboundNumbers && persistedInboundNumbers.length > 0) ||
+                                  (realInboundConfigs && realInboundConfigs.length > 0);
+      
+      if (hasExistingInbound) {
+        toast.error("You already have an inbound setup. Please delete your existing inbound configuration first before creating a new one.");
+        setIsCreatingInbound(false);
+        return;
+      }
+
       console.log('📞 [Create Inbound Trunk] Request:', {
         name: inboundName,
         phone_numbers: phoneNumbersArray,
@@ -393,7 +412,7 @@ export default function PhoneSettingsDetailPage() {
         krisp_enabled: inboundKrispEnabled
       });
 
-      const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
+      const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://elvenlabs-voiceagent.onrender.com';
       const response = await fetch(`${API_URL}/calls/create-inbound-trunk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -407,22 +426,52 @@ export default function PhoneSettingsDetailPage() {
 
       if (!response.ok) {
         let errorMessage = `Failed to create inbound trunk (${response.status})`;
+        let existingTrunkIdFromError: string | null = null;
+        
         try {
           const err = await response.json();
           console.error('❌ [Create Inbound Trunk] Error response:', err);
           errorMessage = err.detail || err.message || err.error?.message || errorMessage;
           
+          // Extract existing trunk ID from conflict error
+          // Error format: "Conflicting inbound SIP Trunks: "<new>" and "ST_CckAMki2TTgK", using the same number(s)..."
+          if (errorMessage.includes('Conflicting inbound SIP Trunks')) {
+            // Try to extract trunk ID after "and "
+            const andMatch = errorMessage.match(/and\s+"([A-Za-z0-9_]+)"/);
+            if (andMatch && andMatch[1]) {
+              existingTrunkIdFromError = andMatch[1];
+              console.log('🔍 [Create Inbound Trunk] Found existing trunk ID in error:', existingTrunkIdFromError);
+            } else {
+              // Fallback: try to find any trunk ID pattern
+              const trunkIdMatch = errorMessage.match(/"([A-Za-z0-9_]+)"/g);
+              if (trunkIdMatch && trunkIdMatch.length >= 2) {
+                // Skip "<new>" and get the actual trunk ID
+                for (const match of trunkIdMatch) {
+                  const trunkId = match.replace(/"/g, '');
+                  if (trunkId !== '<new>') {
+                    existingTrunkIdFromError = trunkId;
+                    console.log('🔍 [Create Inbound Trunk] Found existing trunk ID in error (fallback):', existingTrunkIdFromError);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
           // Provide more helpful error messages
           if (response.status === 500) {
             // Check if it's a trunk conflict error
             if (errorMessage.includes('Conflicting inbound SIP Trunks') || errorMessage.includes('without AllowedNumbers set')) {
-              errorMessage = `Phone number conflict: ${errorMessage}. This number may already be registered. Please delete existing trunks or use a different number.`;
+              // Don't offer to reuse - this trunk belongs to another user or system
+              // User should use a different phone number or contact support
+              errorMessage = `Phone number conflict: This number "${phoneNumbersArray.join(', ')}" is already registered to another trunk. Please use a different phone number or contact support if you believe this is an error.`;
             } else {
               errorMessage = `Server error: ${errorMessage}. Please check if the Python API is running and accessible.`;
             }
           } else if (response.status === 400) {
             if (errorMessage.includes('Conflicting inbound SIP Trunks') || errorMessage.includes('without AllowedNumbers set')) {
-              errorMessage = `Phone number conflict: ${errorMessage}. This number may already be registered. Please delete existing trunks or use a different number.`;
+              // Don't offer to reuse - this trunk belongs to another user or system
+              errorMessage = `Phone number conflict: This number "${phoneNumbersArray.join(', ')}" is already registered to another trunk. Please use a different phone number or contact support if you believe this is an error.`;
             } else {
               errorMessage = `Invalid request: ${errorMessage}. Please check your input data.`;
             }
@@ -474,44 +523,117 @@ export default function PhoneSettingsDetailPage() {
     }
   };
 
-  // Inbound Setup - Step 2
-  const handleCreateDispatchRule = async () => {
+  // Inbound Setup - Step 2: Assign agent to phone numbers
+  const handleAssignAgentToPhoneNumbers = async () => {
     if (!inboundTrunkId) {
       toast.error("Trunk ID missing");
       return;
     }
 
+    if (!inboundSelectedAgentId) {
+      toast.error("Please select an agent");
+      return;
+    }
+
     setIsCreatingInbound(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://keplerov1-python-2.onrender.com';
+      const API_URL = process.env.NEXT_PUBLIC_PYTHON_API_URL || 'https://elvenlabs-voiceagent.onrender.com';
+      
+      // Get phone_number_id for each phone number from ElevenLabs API
+      const phoneNumberIds: Array<{ phone_number: string; phone_number_id: string | null }> = [];
+      
+      for (const phone_number of inboundConnectedNumbers) {
+        try {
+          // Fetch phone numbers from ElevenLabs to get phone_number_id
+          const listResponse = await fetch(`${API_URL}/api/v1/phone-numbers`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          });
 
-      const params = new URLSearchParams({
-        sip_trunk_id: inboundTrunkId,
-        name: inboundTrunkName,
-        agent_name: "inbound-agent",
-      });
-
-      const response = await fetch(`${API_URL}/calls/create-dispatch-rule?${params}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || "Failed to create dispatch rule");
+          if (listResponse.ok) {
+            const listData = await listResponse.json();
+            const phoneNumbers = listData?.phone_numbers || [];
+            const matchingNumber = phoneNumbers.find((pn: any) => pn.phone_number === phone_number);
+            
+            if (matchingNumber?.phone_number_id) {
+              phoneNumberIds.push({
+                phone_number,
+                phone_number_id: matchingNumber.phone_number_id
+              });
+            } else {
+              console.warn(`⚠️ Phone number ${phone_number} not found in ElevenLabs`);
+              phoneNumberIds.push({
+                phone_number,
+                phone_number_id: null
+              });
+            }
+          }
+        } catch (error: any) {
+          console.error(`❌ Failed to fetch phone number ID for ${phone_number}:`, error);
+          phoneNumberIds.push({
+            phone_number,
+            phone_number_id: null
+          });
+        }
       }
 
-      const data = await response.json();
+      // Assign agent to each phone number using PATCH endpoint
+      const assignmentResults = [];
+      for (const { phone_number, phone_number_id } of phoneNumberIds) {
+        if (!phone_number_id) {
+          assignmentResults.push({
+            phone_number,
+            success: false,
+            error: 'Phone number ID not found'
+          });
+          continue;
+        }
 
-      const existingNumbers = settings?.inboundPhoneNumbers || [];
-      const newNumbers = inboundConnectedNumbers.filter(n => !existingNumbers.includes(n));
-      const allNumbers = [...existingNumbers, ...newNumbers];
+        try {
+          const response = await fetch(`${API_URL}/api/v1/phone-numbers/${encodeURIComponent(phone_number_id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              agent_id: inboundSelectedAgentId
+            }),
+          });
+
+          if (response.ok) {
+            assignmentResults.push({
+              phone_number,
+              success: true
+            });
+          } else {
+            const err = await response.json();
+            assignmentResults.push({
+              phone_number,
+              success: false,
+              error: err.detail || err.message || 'Failed to assign agent'
+            });
+          }
+        } catch (error: any) {
+          assignmentResults.push({
+            phone_number,
+            success: false,
+            error: error.message || 'Failed to assign agent'
+          });
+        }
+      }
+
+      const successful = assignmentResults.filter(r => r.success);
+      const failed = assignmentResults.filter(r => !r.success);
+
+      if (failed.length > 0) {
+        toast.warning(`Agent assigned to ${successful.length} phone number(s). ${failed.length} failed.`);
+      } else {
+        toast.success(`Agent assigned to ${successful.length} phone number(s) successfully!`);
+      }
 
       // Persist inbound numbers to database
-      if (allNumbers.length > 0 && inboundTrunkId) {
+      if (inboundConnectedNumbers.length > 0 && inboundTrunkId) {
         try {
           await addInboundNumbersMutation.mutateAsync({
-            phoneNumbers: allNumbers,
+            phoneNumbers: inboundConnectedNumbers,
             trunkId: inboundTrunkId,
             provider: 'livekit'
           });
@@ -523,9 +645,7 @@ export default function PhoneSettingsDetailPage() {
       await updateSettings({
         inboundTrunkId,
         inboundTrunkName,
-        inboundDispatchRuleId: data.dispatch_rule_id,
-        inboundDispatchRuleName: data.dispatch_rule_name,
-        inboundPhoneNumbers: allNumbers,
+        inboundPhoneNumbers: inboundConnectedNumbers,
       });
 
       // ✅ IMPORTANT FIX
@@ -544,6 +664,7 @@ const resetInboundSetup = () => {
   setInboundStep(1);
   setInboundName("");
   setInboundPhoneNumbers("");
+  setInboundSelectedAgentId("");
   setInboundKrispEnabled(true);
   setInboundTrunkId("");
   setInboundTrunkName("");
@@ -1148,7 +1269,7 @@ return (
                   Manage your inbound call routing and agent configurations
                 </p>
               </div>
-              {inboundConfigs && inboundConfigs.length > 0 && (
+              {realInboundConfigs && realInboundConfigs.length > 0 && (
                 <button
                   onClick={() => syncConfig.mutate()}
                   disabled={syncConfig.isPending}
@@ -1183,11 +1304,11 @@ return (
           </div>
 
           {/* Current Inbound Agent Configs */}
-          {inboundConfigs && inboundConfigs.length > 0 ? (
+          {realInboundConfigs && realInboundConfigs.length > 0 ? (
             <div className="space-y-4 md:space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <h3 className="text-xl md:text-2xl font-bold text-foreground">
-                  Configured Numbers <span className="text-muted-foreground">({inboundConfigs.length})</span>
+                  Configured Numbers <span className="text-muted-foreground">({realInboundConfigs.length})</span>
                 </h3>
                 <button
                   onClick={async () => {
@@ -1219,7 +1340,7 @@ return (
                 </button>
               </div>
               <div className="grid gap-4 md:gap-6">
-                {inboundConfigs.map((config, index) => (
+                {realInboundConfigs.map((config, index) => (
                   <div key={config._id} className="bg-gradient-to-br from-card via-card/95 to-card/80 border-2 border-border rounded-2xl p-5 md:p-7 shadow-lg hover:shadow-2xl transition-all duration-300">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
                       <div className="flex items-center gap-4">
@@ -1398,7 +1519,7 @@ return (
               </div>
 
               {/* Warning if numbers already exist */}
-              {(inboundConfigs && inboundConfigs.length > 0) && (
+              {(realInboundConfigs && realInboundConfigs.length > 0) && (
                 <div className="p-5 md:p-6 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-2 border-yellow-500/30 rounded-xl md:rounded-2xl mb-6">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
@@ -1407,14 +1528,14 @@ return (
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm md:text-base font-bold text-yellow-400 mb-2">Inbound Numbers Already Configured</h4>
                       <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                        You have {inboundConfigs.length} inbound number(s) configured. Please delete existing numbers above before adding new ones.
+                        You have {realInboundConfigs.length} inbound number(s) configured. Please delete existing numbers above before adding new ones.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {(inboundConfigs && inboundConfigs.length > 0) ? (
+              {(realInboundConfigs && realInboundConfigs.length > 0) ? (
                 <div className="p-8 md:p-12 bg-secondary/30 rounded-xl md:rounded-2xl text-center border-2 border-dashed border-border">
                   <p className="text-sm md:text-base font-semibold text-muted-foreground">
                     Please delete existing inbound numbers before adding new ones.
@@ -1479,7 +1600,7 @@ return (
 
                   <button
                     onClick={handleCreateInboundTrunk}
-                    disabled={isCreatingInbound || !inboundName || !inboundPhoneNumbers || (inboundConfigs && inboundConfigs.length > 0)}
+                    disabled={isCreatingInbound || !inboundName || !inboundPhoneNumbers || (realInboundConfigs && realInboundConfigs.length > 0)}
                     className="w-full h-12 md:h-14 bg-primary text-foreground rounded-xl md:rounded-2xl text-sm md:text-base font-bold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl"
                   >
                     {isCreatingInbound ? (
@@ -1499,13 +1620,13 @@ return (
             </div>
           )}
 
-          {/* Step 2: Create Dispatch Rule */}
+          {/* Step 2: Assign Agent to Phone Numbers */}
           {inboundStep === 2 && (
             <div className="space-y-6 md:space-y-8">
               <div className="text-center mb-6 md:mb-8">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Create Dispatch Rule</h3>
+                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Assign Agent to Phone Numbers</h3>
                 <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
-                  Configure routing for incoming calls to your AI agent
+                  Select which agent should handle incoming calls for these phone numbers
                 </p>
               </div>
 
@@ -1540,15 +1661,41 @@ return (
                 </div>
               </div>
 
-              <div className="p-5 md:p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/20 rounded-xl md:rounded-2xl">
-                <div className="flex items-start gap-3 md:gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-blue-400 text-xl md:text-2xl">ℹ️</span>
+              {/* Agent Selection */}
+              <div className="p-6 md:p-8 bg-card border-2 border-border rounded-xl md:rounded-2xl">
+                <label className="block text-sm md:text-base font-bold text-foreground mb-3">
+                  Select Agent <span className="text-red-500">*</span>
+                </label>
+                {isLoadingAgents ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">Loading agents...</span>
                   </div>
-                  <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    The dispatch rule will route incoming calls to the <span className="font-mono font-bold text-primary">inbound-agent</span> automatically.
+                ) : agents.length === 0 ? (
+                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                    <p className="text-sm text-yellow-400">
+                      No agents found. Please create an agent first in <strong>AI → Agents</strong>.
+                    </p>
+                  </div>
+                ) : (
+                  <select
+                    value={inboundSelectedAgentId}
+                    onChange={(e) => setInboundSelectedAgentId(e.target.value)}
+                    className="w-full h-12 md:h-14 bg-background border-2 border-border rounded-lg px-4 text-sm md:text-base text-foreground focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="">-- Select an agent --</option>
+                    {agents.map((agent) => (
+                      <option key={agent._id} value={agent.agent_id}>
+                        {agent.name} ({agent.agent_id})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {inboundSelectedAgentId && (
+                  <p className="mt-2 text-xs md:text-sm text-muted-foreground">
+                    Selected: <span className="font-mono font-semibold text-primary">{inboundSelectedAgentId}</span>
                   </p>
-                </div>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4 pt-2">
@@ -1559,18 +1706,18 @@ return (
                   ← Back
                 </button>
                 <button
-                  onClick={handleCreateDispatchRule}
-                  disabled={isCreatingInbound}
+                  onClick={handleAssignAgentToPhoneNumbers}
+                  disabled={isCreatingInbound || !inboundSelectedAgentId || isLoadingAgents}
                   className="flex-1 h-12 md:h-14 bg-primary text-foreground rounded-xl md:rounded-2xl text-sm md:text-base font-bold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl"
                 >
                   {isCreatingInbound ? (
                     <>
                       <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                      Creating Rule...
+                      Assigning Agent...
                     </>
                   ) : (
                     <>
-                      <span>Complete Setup</span>
+                      <span>Assign Agent & Complete</span>
                       <Check className="w-4 h-4 md:w-5 md:h-5" />
                     </>
                   )}
