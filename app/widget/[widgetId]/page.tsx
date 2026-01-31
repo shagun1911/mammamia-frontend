@@ -233,16 +233,17 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: userQuery,
-          threadId: threadId
+          threadId: threadId,
+          ...(selectedCollection && { knowledgeBaseId: selectedCollection })
         })
       });
 
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || errorData.message || 'Failed to get response');
+        const errMsg = data.error?.message || data.message || data.error?.detail || 'Failed to get response';
+        throw new Error(errMsg);
       }
 
-      const data = await response.json();
       botResponseText = data.data?.answer || data.answer || "I'm having trouble connecting right now. Please try again later.";
 
       // Check if Python backend returned an error message as the answer
@@ -267,10 +268,11 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
       }
     } catch (error: any) {
       console.error('Chat error:', error);
+      const errorContent = error?.message || "I'm having trouble connecting right now. Please try again later.";
       const errorMessage = {
         id: (Date.now() + 1).toString(),
         sender: "bot" as const,
-        content: "I'm having trouble connecting right now. Please try again later.",
+        content: errorContent,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);

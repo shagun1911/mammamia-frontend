@@ -6,6 +6,7 @@ import { mockChatbotSettings, widgetTranslations } from "@/data/mockSettings";
 import { pythonRagService } from "@/services/pythonRag.service";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useSettings } from "@/hooks/useSettings";
+import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { v4 as uuidv4 } from "uuid";
 
 interface ChatMessage {
@@ -17,8 +18,11 @@ interface ChatMessage {
 }
 
 export function WidgetSimulator() {
-  const { collections, selectedCollection, setSelectedCollection, chatAgentPrompt, loadCollections } = useKnowledgeBase();
+  const { collections, selectedCollection, setSelectedCollection, loadCollections } = useKnowledgeBase();
   const { data: dbSettings } = useSettings();
+  const { aiBehavior } = useAIBehavior();
+  // Use Configuration (AIBehavior) system prompt for chat - same as outer widget
+  const chatAgentPrompt = aiBehavior?.chatAgent?.systemPrompt || 'You are a helpful AI assistant. Be friendly and concise.';
   const [threadId] = useState(uuidv4());
   const [userName, setUserName] = useState("Test User");
 
@@ -111,12 +115,15 @@ export function WidgetSimulator() {
 
     try {
       if (selectedCollection) {
-        // Use Python RAG for response
-        const systemPrompt = `Knowledge base: ${selectedCollection}. Use documents from this collection to answer questions accurately.\n\n${chatAgentPrompt}`;
+        // Resolve collection_name for RAG (Python API expects actual collection name, not document id)
+        const selectedKb = collections.find((c: { id: string }) => c.id === selectedCollection);
+        const collectionNameForRag = selectedKb?.collection_name || selectedCollection;
+
+        const systemPrompt = `Knowledge base: ${collectionNameForRag}. Use documents from this collection to answer questions accurately.\n\n${chatAgentPrompt}`;
 
         const response = await pythonRagService.chat({
           query: userQuery,
-          collection_ids: [selectedCollection],
+          collection_ids: [collectionNameForRag],
           thread_id: threadId,
           system_prompt: systemPrompt,
           top_k: 5

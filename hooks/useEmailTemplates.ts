@@ -11,11 +11,14 @@ export function useEmailTemplates() {
 
 export function useCreateEmailTemplate() {
   const queryClient = useQueryClient();
-  return useMutation<EmailTemplate, Error, CreateEmailTemplateData>({
+  return useMutation<EmailTemplate & { _suggestions?: any }, Error, CreateEmailTemplateData>({
     mutationFn: (newTemplate: CreateEmailTemplateData) => emailTemplateService.create(newTemplate),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['emailTemplates'] });
       toast.success('Email template created successfully!');
+      if (data?._suggestions && (data.name?.includes('booking') || data.name?.includes('confirm'))) {
+        toast.info('Update your agent\'s system prompt in AI → Agents and click "Sync to ElevenLabs" for appointment booking to work.', { duration: 8000 });
+      }
     },
     onError: (error) => {
       toast.error(`Failed to create email template: ${error.message}`);

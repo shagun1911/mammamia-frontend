@@ -95,6 +95,21 @@ class AgentService {
   }
 
   /**
+   * Sync agent to ElevenLabs (enable tool execution)
+   */
+  async syncToElevenLabs(agentId: string): Promise<{ synced: boolean }> {
+    try {
+      const response = await apiClient.post<{ success: boolean; data: { synced: boolean }; message: string }>(
+        `/agents/${agentId}/sync`
+      );
+      return response?.data ?? { synced: true };
+    } catch (error: any) {
+      console.error('[AgentService] syncToElevenLabs() error:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to sync agent');
+    }
+  }
+
+  /**
    * Delete an agent
    */
   async delete(agentId: string): Promise<void> {

@@ -21,10 +21,22 @@ export function EmailTemplateModal({
   const [subjectTemplate, setSubjectTemplate] = useState('');
   const [bodyTemplate, setBodyTemplate] = useState('');
   const [parameters, setParameters] = useState<EmailTemplateParameter[]>([
-    { name: '', description: '', required: false },
+    { name: 'name', description: 'Customer name', required: true },
+    { name: 'email', description: 'Customer email for confirmation', required: true },
   ]);
 
   const createEmailTemplate = useCreateEmailTemplate();
+
+  const useBookingPreset = () => {
+    setName('booking_confirmation');
+    setDescription('Send booking confirmation email after collecting customer name and email');
+    setSubjectTemplate('Your Appointment Has Been Booked - {{name}}');
+    setBodyTemplate('Dear {{name}},\n\nThank you for booking your appointment with us!\n\nWe have successfully scheduled your appointment.\n\nConfirmation sent to: {{email}}\n\nBest regards,\nThe Booking Team');
+    setParameters([
+      { name: 'name', description: 'Customer name', required: true },
+      { name: 'email', description: 'Customer email address', required: true },
+    ]);
+  };
 
   const handleAddParameter = () => {
     setParameters([
@@ -98,7 +110,7 @@ export function EmailTemplateModal({
       setDescription('');
       setSubjectTemplate('');
       setBodyTemplate('');
-      setParameters([{ name: '', description: '', required: false }]);
+      setParameters([{ name: 'name', description: 'Customer name', required: true }, { name: 'email', description: 'Customer email for confirmation', required: true }]);
 
       onSuccess?.();
       onClose();
@@ -115,9 +127,18 @@ export function EmailTemplateModal({
       <div className="bg-card border border-border rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-2xl font-bold text-foreground">
-            Create Email Template
-          </h2>
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">
+              Create Email Template
+            </h2>
+            <button
+              type="button"
+              onClick={useBookingPreset}
+              className="mt-1 text-sm text-primary hover:underline"
+            >
+              Use booking confirmation preset
+            </button>
+          </div>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground transition-colors"

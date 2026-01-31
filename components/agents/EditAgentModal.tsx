@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Loader2, ChevronDown, Check, Eye, Plus, Trash2, Play, Pause } from 'lucide-react';
 import { useUpdateAgentPrompt } from '@/hooks/useAgents';
 import { useKnowledgeBases } from '@/hooks/useKnowledgeBase';
-import { Agent } from '@/services/agent.service';
+import { Agent, agentService } from '@/services/agent.service';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { 
@@ -44,6 +44,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
   // Voice testing state
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
+  const [syncingToElevenLabs, setSyncingToElevenLabs] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // Preview contact data for greeting
@@ -247,6 +248,19 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
     setSelectedKBIds(prev =>
       prev.includes(kbId) ? prev.filter(id => id !== kbId) : [...prev, kbId]
     );
+  };
+
+  const handleSyncToElevenLabs = async () => {
+    if (!agent?.agent_id) return;
+    setSyncingToElevenLabs(true);
+    try {
+      await agentService.syncToElevenLabs(agent.agent_id);
+      toast.success('Agent synced to ElevenLabs. Tools should now execute during calls.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to sync agent');
+    } finally {
+      setSyncingToElevenLabs(false);
+    }
   };
 
   if (!isOpen || !agent) return null;
@@ -619,14 +633,26 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg hover:bg-accent transition-colors"
-              disabled={updateAgentPrompt.isPending}
+              disabled={updateAgentPrompt.isPending || syncingToElevenLabs}
             >
               Cancel
             </button>
+            {(agent.tool_ids?.length ?? 0) > 0 && (
+              <button
+                type="button"
+                onClick={handleSyncToElevenLabs}
+                className="px-4 py-2 text-sm font-medium text-foreground bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg hover:bg-amber-500/30 transition-colors disabled:opacity-50 flex items-center gap-2"
+                disabled={updateAgentPrompt.isPending || syncingToElevenLabs}
+                title="Enable tool execution (fixes 'Unable to execute function')"
+              >
+                {syncingToElevenLabs && <Loader2 className="w-4 h-4 animate-spin" />}
+                Sync to ElevenLabs
+              </button>
+            )}
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              disabled={updateAgentPrompt.isPending}
+              disabled={updateAgentPrompt.isPending || syncingToElevenLabs}
             >
               {updateAgentPrompt.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               Update Agent

@@ -110,7 +110,8 @@ export function KnowledgeBaseProvider({ children }: { children: ReactNode }) {
           id: kb.id,
           _id: kb.id, // For backward compatibility with components expecting _id
           name: kb.name,
-          collection_name: kb.name || kb.id, // For backward compatibility
+          // Use actual RAG collection name when available (for chatbot queries)
+          collection_name: kb.collectionName || kb.collection_name || kb.name || kb.id,
           type: kb.type,
           status: kb.status,
           created_at_unix: kb.created_at_unix,
