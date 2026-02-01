@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
 import { useCreatePhoneNumber, usePhoneNumbersList } from "@/hooks/usePhoneNumber";
 import { useQueryClient } from "@tanstack/react-query";
-import { PhoneNumber } from "@/services/phoneNumber.service";
+import { PhoneNumber, phoneNumberService } from "@/services/phoneNumber.service";
 
 export default function PhoneSettingsDetailPage() {
   const router = useRouter();
@@ -64,6 +64,17 @@ export default function PhoneSettingsDetailPage() {
   const [genericSetupPassword, setGenericSetupPassword] = useState("");
   const [genericSetupTransport, setGenericSetupTransport] = useState("auto");
   const [genericSetupMediaEncryption, setGenericSetupMediaEncryption] = useState("allowed");
+  const [genericSetupSupportsInbound, setGenericSetupSupportsInbound] = useState(false);
+  const [genericSetupSupportsOutbound, setGenericSetupSupportsOutbound] = useState(true);
+  const [genericSetupInboundAddress, setGenericSetupInboundAddress] = useState("");
+  const [genericSetupInboundUsername, setGenericSetupInboundUsername] = useState("");
+  const [genericSetupInboundPassword, setGenericSetupInboundPassword] = useState("");
+  
+  // Agent selection state for inbound setup
+  const [newlyCreatedPhoneNumberId, setNewlyCreatedPhoneNumberId] = useState<string | null>(null);
+  const [showAgentSelection, setShowAgentSelection] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [isAssigningAgent, setIsAssigningAgent] = useState(false);
 
   // Inbound setup state
   const [inboundStep, setInboundStep] = useState(1);
@@ -709,15 +720,26 @@ const handleSaveConfig = async (config: any) => {
   // Generic SIP Trunk Setup (Method 2) - ONLY imports phone number, returns phone_number_id
   // NO agent config, NO phone settings update
   const handleGenericSetup = async () => {
-    if (
-      !genericSetupLabel ||
-      !genericSetupPhone ||
-      !genericSetupProvider ||
-      !genericSetupSipAddress ||
-      !genericSetupUsername ||
-      !genericSetupPassword
-    ) {
+    if (!genericSetupLabel || !genericSetupPhone || !genericSetupProvider) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // At least one support option must be selected
+    if (!genericSetupSupportsInbound && !genericSetupSupportsOutbound) {
+      toast.error("Please select at least one support option (Inbound or Outbound)");
+      return;
+    }
+
+    // Validate outbound config if supports_outbound is true
+    if (genericSetupSupportsOutbound && (!genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword)) {
+      toast.error("Please fill in all outbound trunk configuration fields when outbound support is enabled");
+      return;
+    }
+
+    // Validate inbound config if supports_inbound is true
+    if (genericSetupSupportsInbound && (!genericSetupInboundAddress || !genericSetupInboundUsername || !genericSetupInboundPassword)) {
+      toast.error("Please fill in all inbound trunk configuration fields when inbound support is enabled");
       return;
     }
 
@@ -727,25 +749,31 @@ const handleSaveConfig = async (config: any) => {
       console.log('📋 [SIP Trunk Import] Request data:', {
         label: genericSetupLabel,
         phone_number: genericSetupPhone,
-        sip_address: genericSetupSipAddress,
+        provider: genericSetupProvider,
+        supports_inbound: genericSetupSupportsInbound,
+        supports_outbound: genericSetupSupportsOutbound,
+        outbound_sip_address: genericSetupSipAddress,
         username: genericSetupUsername,
         password: '***hidden***',
-        transport: genericSetupTransport
+        transport: genericSetupTransport,
+        media_encryption: genericSetupMediaEncryption,
+        inbound_address: genericSetupInboundAddress,
+        inbound_username: genericSetupInboundUsername,
+        inbound_password: '***hidden***'
       });
 
-      // 🔴 ONLY CALL THIS ENDPOINT - NO OTHER CALLS
-      // REQUIRED FIELDS (as per Amar Sir's spec):
-      // - label
-      // - phone_number
-      // - provider (user-selected)
-      // - supports_outbound: true (auto-set)
-      // - outbound_trunk_config (address, credentials.username, credentials.password, media_encryption, transport)
-      const requestPayload = {
+      // Build request payload with all fields
+      const requestPayload: any = {
         label: genericSetupLabel,
         phone_number: genericSetupPhone,
-        provider: genericSetupProvider, // REQUIRED - User-selected
-        supports_outbound: true, // REQUIRED - Auto-set
-        outbound_trunk_config: {
+        provider: genericSetupProvider,
+        supports_inbound: genericSetupSupportsInbound,
+        supports_outbound: genericSetupSupportsOutbound
+      };
+
+      // Add outbound_trunk_config only if supports_outbound is true
+      if (genericSetupSupportsOutbound) {
+        requestPayload.outbound_trunk_config = {
           address: genericSetupSipAddress,
           credentials: {
             username: genericSetupUsername,
@@ -753,18 +781,40 @@ const handleSaveConfig = async (config: any) => {
           },
           media_encryption: genericSetupMediaEncryption,
           transport: genericSetupTransport
-        }
-      };
+        };
+      }
+
+      // Add inbound_trunk_config only if supports_inbound is true
+      if (genericSetupSupportsInbound) {
+        requestPayload.inbound_trunk_config = {
+          address: genericSetupInboundAddress,
+          credentials: {
+            username: genericSetupInboundUsername,
+            password: genericSetupInboundPassword
+          }
+        };
+      }
 
       console.log('📤 [SIP Trunk Import] Full request payload:', {
         ...requestPayload,
-        outbound_trunk_config: {
-          ...requestPayload.outbound_trunk_config,
-          credentials: {
-            ...requestPayload.outbound_trunk_config.credentials,
-            password: '***hidden***'
+        ...(requestPayload.outbound_trunk_config && {
+          outbound_trunk_config: {
+            ...requestPayload.outbound_trunk_config,
+            credentials: {
+              ...requestPayload.outbound_trunk_config.credentials,
+              password: '***hidden***'
+            }
           }
-        }
+        }),
+        ...(requestPayload.inbound_trunk_config && {
+          inbound_trunk_config: {
+            ...requestPayload.inbound_trunk_config,
+            credentials: {
+              ...requestPayload.inbound_trunk_config.credentials,
+              password: '***hidden***'
+            }
+          }
+        })
       });
 
       const result = await apiClient.post<{ phone_number_id: string }>('/phone-numbers/sip-trunk', requestPayload);
@@ -772,14 +822,118 @@ const handleSaveConfig = async (config: any) => {
       console.log('✅ [SIP Trunk Import] Phone number imported:', result);
       console.log('📞 [SIP Trunk Import] Phone Number ID:', result.phone_number_id);
 
-      // 🔴 STOP HERE - Just show success, don't call agent config or phone settings
-      toast.success(`SIP trunk phone number imported successfully! ID: ${result.phone_number_id}`);
+      // If supports_inbound is true, show agent selection step
+      if (genericSetupSupportsInbound) {
+        setNewlyCreatedPhoneNumberId(result.phone_number_id);
+        setShowAgentSelection(true);
+        toast.success(`SIP trunk phone number imported successfully! Please select an agent for inbound calls.`);
+      } else {
+        // If no inbound support, just show success and clear form
+        toast.success(`SIP trunk phone number imported successfully! ID: ${result.phone_number_id}`);
+        
+        // Refresh phone numbers list to show the newly imported number
+        queryClient.invalidateQueries({ queryKey: ['phone-numbers'] });
+        await refetchPhoneNumbers();
 
-      // Refresh phone numbers list to show the newly imported number
+        // Clear form
+        setGenericSetupLabel("");
+        setGenericSetupPhone("");
+        setGenericSetupProvider("sip_trunk");
+        setGenericSetupSipAddress("");
+        setGenericSetupUsername("");
+        setGenericSetupPassword("");
+        setGenericSetupTransport("auto");
+        setGenericSetupMediaEncryption("allowed");
+        setGenericSetupSupportsInbound(false);
+        setGenericSetupSupportsOutbound(true);
+        setGenericSetupInboundAddress("");
+        setGenericSetupInboundUsername("");
+        setGenericSetupInboundPassword("");
+      setShowSetupMethods(false);
+      setActiveSetupMethod(null);
+      }
+
+      // 🔴 NO AGENT CONFIG, NO PHONE SETTINGS UPDATE (unless user selects agent)
+    } catch (error: any) {
+      console.error('❌ [SIP Trunk Import] Error:', error);
+      toast.error(error.message || "Failed to import SIP trunk phone number");
+    } finally {
+      setIsSettingUp(false);
+    }
+  };
+
+  // Handle agent assignment for inbound phone number
+  const handleAssignAgentToInbound = async () => {
+    if (!selectedAgentId || !newlyCreatedPhoneNumberId) {
+      toast.error("Please select an agent");
+      return;
+    }
+
+    setIsAssigningAgent(true);
+    try {
+      console.log('📞 [Agent Assignment] Assigning agent to inbound phone number...');
+      console.log('📋 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
+      console.log('📋 [Agent Assignment] Agent ID:', selectedAgentId);
+
+      // Build update payload with agent_id and inbound_trunk_config
+      const updatePayload: any = {
+        agent_id: selectedAgentId,
+        supports_inbound: true
+      };
+
+      // Include inbound_trunk_config if it was provided during setup
+      if (genericSetupInboundAddress && genericSetupInboundUsername && genericSetupInboundPassword) {
+        updatePayload.inbound_trunk_config = {
+          address: genericSetupInboundAddress,
+          credentials: {
+            username: genericSetupInboundUsername,
+            password: genericSetupInboundPassword
+          }
+        };
+      }
+
+      // Include outbound_trunk_config if supports_outbound was true
+      if (genericSetupSupportsOutbound && genericSetupSipAddress && genericSetupUsername && genericSetupPassword) {
+        updatePayload.supports_outbound = true;
+        updatePayload.outbound_trunk_config = {
+          address: genericSetupSipAddress,
+          credentials: {
+            username: genericSetupUsername,
+            password: genericSetupPassword
+          },
+          media_encryption: genericSetupMediaEncryption,
+          transport: genericSetupTransport
+        };
+      }
+
+      console.log('📤 [Agent Assignment] Update payload:', {
+        ...updatePayload,
+        inbound_trunk_config: updatePayload.inbound_trunk_config ? {
+          ...updatePayload.inbound_trunk_config,
+          credentials: {
+            ...updatePayload.inbound_trunk_config.credentials,
+            password: '***hidden***'
+          }
+        } : undefined,
+        outbound_trunk_config: updatePayload.outbound_trunk_config ? {
+          ...updatePayload.outbound_trunk_config,
+          credentials: {
+            ...updatePayload.outbound_trunk_config.credentials,
+            password: '***hidden***'
+          }
+        } : undefined
+      });
+
+      const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, updatePayload);
+
+      console.log('✅ [Agent Assignment] Agent assigned successfully:', result);
+      toast.success(`Agent assigned to phone number successfully!`);
+
+      // Refresh phone numbers list
       queryClient.invalidateQueries({ queryKey: ['phone-numbers'] });
       await refetchPhoneNumbers();
 
-      // Clear form
+      // Clear form and reset state
       setGenericSetupLabel("");
       setGenericSetupPhone("");
       setGenericSetupProvider("sip_trunk");
@@ -788,15 +942,21 @@ const handleSaveConfig = async (config: any) => {
       setGenericSetupPassword("");
       setGenericSetupTransport("auto");
       setGenericSetupMediaEncryption("allowed");
+      setGenericSetupSupportsInbound(false);
+      setGenericSetupSupportsOutbound(true);
+      setGenericSetupInboundAddress("");
+      setGenericSetupInboundUsername("");
+      setGenericSetupInboundPassword("");
+      setNewlyCreatedPhoneNumberId(null);
+      setShowAgentSelection(false);
+      setSelectedAgentId("");
       setShowSetupMethods(false);
       setActiveSetupMethod(null);
-
-      // 🔴 NO AGENT CONFIG, NO PHONE SETTINGS UPDATE
     } catch (error: any) {
-      console.error('❌ [SIP Trunk Import] Error:', error);
-      toast.error(error.message || "Failed to import SIP trunk phone number");
+      console.error('❌ [Agent Assignment] Error:', error);
+      toast.error(error.message || "Failed to assign agent to phone number");
     } finally {
-      setIsSettingUp(false);
+      setIsAssigningAgent(false);
     }
   };
 
@@ -1129,10 +1289,32 @@ return (
                 {/* Generic SIP Trunk Form */}
                 {activeSetupMethod === "generic" && (
                   <div className="mt-4 p-4 bg-secondary/50 rounded-lg space-y-4 border border-border">
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-2">
-                      <p className="text-xs text-blue-400">
-                        ℹ️ Supports Outbound: <strong>true</strong> (automatically configured)
-                      </p>
+                    {/* Supports Inbound/Outbound Toggles */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-border">
+                        <input
+                          type="checkbox"
+                          id="supports-inbound"
+                          checked={genericSetupSupportsInbound}
+                          onChange={(e) => setGenericSetupSupportsInbound(e.target.checked)}
+                          className="w-4 h-4 text-primary rounded focus:ring-primary"
+                        />
+                        <label htmlFor="supports-inbound" className="text-sm font-medium text-foreground cursor-pointer">
+                          Supports Inbound
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 bg-background rounded-lg border border-border">
+                        <input
+                          type="checkbox"
+                          id="supports-outbound"
+                          checked={genericSetupSupportsOutbound}
+                          onChange={(e) => setGenericSetupSupportsOutbound(e.target.checked)}
+                          className="w-4 h-4 text-primary rounded focus:ring-primary"
+                        />
+                        <label htmlFor="supports-outbound" className="text-sm font-medium text-foreground cursor-pointer">
+                          Supports Outbound
+                        </label>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
@@ -1170,74 +1352,133 @@ return (
                         <option value="sip_trunk">SIP Trunk</option>
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Outbound SIP Address <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={genericSetupSipAddress}
-                        onChange={(e) => setGenericSetupSipAddress(e.target.value)}
-                        placeholder="voiceagent.fibrapro.it"
-                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Username <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={genericSetupUsername}
-                        onChange={(e) => setGenericSetupUsername(e.target.value)}
-                        placeholder="+390620199287"
-                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Password <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="password"
-                        value={genericSetupPassword}
-                        onChange={(e) => setGenericSetupPassword(e.target.value)}
-                        placeholder="your_password"
-                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Media Encryption <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={genericSetupMediaEncryption}
-                        onChange={(e) => setGenericSetupMediaEncryption(e.target.value)}
-                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                      >
-                        <option value="allowed">Allowed</option>
-                        <option value="required">Required</option>
-                        <option value="disabled">Disabled</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">
-                        Transport <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={genericSetupTransport}
-                        onChange={(e) => setGenericSetupTransport(e.target.value)}
-                        className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                      >
-                        <option value="auto">Auto</option>
-                        <option value="udp">UDP</option>
-                        <option value="tcp">TCP</option>
-                        <option value="tls">TLS</option>
-                      </select>
-                    </div>
+
+                    {/* Outbound Trunk Config - Only shown when supports_outbound is true */}
+                    {genericSetupSupportsOutbound && (
+                      <div className="mt-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-lg space-y-4">
+                        <h3 className="text-sm font-semibold text-purple-400 mb-2">Outbound Trunk Configuration</h3>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Outbound SIP Address <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={genericSetupSipAddress}
+                            onChange={(e) => setGenericSetupSipAddress(e.target.value)}
+                            placeholder="voiceagent.fibrapro.it"
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Outbound Username <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={genericSetupUsername}
+                            onChange={(e) => setGenericSetupUsername(e.target.value)}
+                            placeholder="+390620199287"
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Outbound Password <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="password"
+                            value={genericSetupPassword}
+                            onChange={(e) => setGenericSetupPassword(e.target.value)}
+                            placeholder="your_password"
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Media Encryption <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={genericSetupMediaEncryption}
+                            onChange={(e) => setGenericSetupMediaEncryption(e.target.value)}
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                          >
+                            <option value="allowed">Allowed</option>
+                            <option value="required">Required</option>
+                            <option value="disabled">Disabled</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Transport <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={genericSetupTransport}
+                            onChange={(e) => setGenericSetupTransport(e.target.value)}
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                          >
+                            <option value="auto">Auto</option>
+                            <option value="udp">UDP</option>
+                            <option value="tcp">TCP</option>
+                            <option value="tls">TLS</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inbound Trunk Config - Only shown when supports_inbound is true */}
+                    {genericSetupSupportsInbound && (
+                      <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg space-y-4">
+                        <h3 className="text-sm font-semibold text-blue-400 mb-2">Inbound Trunk Configuration</h3>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Inbound SIP Address <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={genericSetupInboundAddress}
+                            onChange={(e) => setGenericSetupInboundAddress(e.target.value)}
+                            placeholder="sip.rtc.elevenlabs.io:5060"
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Inbound Username <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={genericSetupInboundUsername}
+                            onChange={(e) => setGenericSetupInboundUsername(e.target.value)}
+                            placeholder="+390620199287"
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Inbound Password <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="password"
+                            value={genericSetupInboundPassword}
+                            onChange={(e) => setGenericSetupInboundPassword(e.target.value)}
+                            placeholder="your_password"
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <button
                       onClick={handleGenericSetup}
-                      disabled={isSettingUp || !genericSetupLabel || !genericSetupPhone || !genericSetupProvider || !genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword}
+                      disabled={
+                        isSettingUp || 
+                        !genericSetupLabel || 
+                        !genericSetupPhone || 
+                        !genericSetupProvider ||
+                        (!genericSetupSupportsInbound && !genericSetupSupportsOutbound) ||
+                        (genericSetupSupportsOutbound && (!genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword)) ||
+                        (genericSetupSupportsInbound && (!genericSetupInboundAddress || !genericSetupInboundUsername || !genericSetupInboundPassword))
+                      }
                       className="w-full h-10 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isSettingUp ? (
@@ -1249,6 +1490,101 @@ return (
                         "Create Generic SIP Trunk"
                       )}
                     </button>
+                  </div>
+                )}
+
+                {/* Agent Selection Step - Shown after successful inbound phone number creation */}
+                {showAgentSelection && newlyCreatedPhoneNumberId && (
+                  <div className="mt-6 p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-2 border-blue-500/20 rounded-xl">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-400 text-xl">🤖</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-foreground mb-1">
+                          Select Agent for Inbound Calls
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Choose an agent to handle inbound calls for this phone number
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Agent <span className="text-red-500">*</span>
+                        </label>
+                        {isLoadingAgents ? (
+                          <div className="w-full h-10 bg-background border border-border rounded-lg flex items-center justify-center">
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : agents.length === 0 ? (
+                          <div className="w-full p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                            <p className="text-sm text-yellow-400">
+                              No agents found. Please create an agent first.
+                            </p>
+                          </div>
+                        ) : (
+                          <select
+                            value={selectedAgentId}
+                            onChange={(e) => setSelectedAgentId(e.target.value)}
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                          >
+                            <option value="">Select an agent...</option>
+                            {agents.map((agent) => (
+                              <option key={agent._id} value={agent.agent_id}>
+                                {agent.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleAssignAgentToInbound}
+                          disabled={isAssigningAgent || !selectedAgentId || isLoadingAgents}
+                          className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isAssigningAgent ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Assigning...
+                            </>
+                          ) : (
+                            "Assign Agent"
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowAgentSelection(false);
+                            setNewlyCreatedPhoneNumberId(null);
+                            setSelectedAgentId("");
+                            // Clear form
+                            setGenericSetupLabel("");
+                            setGenericSetupPhone("");
+                            setGenericSetupProvider("sip_trunk");
+                            setGenericSetupSipAddress("");
+                            setGenericSetupUsername("");
+                            setGenericSetupPassword("");
+                            setGenericSetupTransport("auto");
+                            setGenericSetupMediaEncryption("allowed");
+                            setGenericSetupSupportsInbound(false);
+                            setGenericSetupSupportsOutbound(true);
+                            setGenericSetupInboundAddress("");
+                            setGenericSetupInboundUsername("");
+                            setGenericSetupInboundPassword("");
+                            setShowSetupMethods(false);
+                            setActiveSetupMethod(null);
+                          }}
+                          disabled={isAssigningAgent}
+                          className="h-10 px-4 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

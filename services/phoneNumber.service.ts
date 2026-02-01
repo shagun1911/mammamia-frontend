@@ -98,6 +98,46 @@ class PhoneNumberService {
   }
 
   /**
+   * Update phone number
+   * PATCH /api/v1/phone-numbers/:phone_number_id
+   */
+  async update(
+    phoneNumberId: string,
+    data: {
+      label?: string;
+      agent_id?: string | null;
+      supports_inbound?: boolean;
+      supports_outbound?: boolean;
+      inbound_trunk_config?: {
+        address: string;
+        credentials: {
+          username: string;
+          password: string;
+        };
+        media_encryption?: string;
+        transport?: string;
+      };
+      outbound_trunk_config?: {
+        address: string;
+        credentials: {
+          username: string;
+          password: string;
+        };
+        media_encryption?: string;
+        transport?: string;
+      };
+    }
+  ): Promise<any> {
+    try {
+      const response = await apiClient.patch<any>(`/phone-numbers/${phoneNumberId}`, data);
+      return response;
+    } catch (error: any) {
+      console.error('❌ [PhoneNumberService] update() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.response?.data?.detail || error.message || 'Failed to update phone number');
+    }
+  }
+
+  /**
    * Delete phone number
    * DELETE /api/v1/phone-numbers/:phone_number_id
    */
