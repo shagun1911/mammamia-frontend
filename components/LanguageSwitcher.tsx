@@ -43,6 +43,9 @@ export function LanguageSwitcher({ showLabel = false, className = "" }: Language
           />
           
           {/* Dropdown */}
+           {/* Dropdown */}
+            {/* Dropdown */}
+             {/* Dropdown */}
           <div className="absolute top-full mt-2 right-0 z-50 min-w-[180px] bg-card border border-border rounded-lg shadow-lg overflow-hidden backdrop-blur-sm">
             {(Object.keys(languageNames) as Language[]).map((lang) => (
               <button
