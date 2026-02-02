@@ -112,12 +112,18 @@ export default function AdminAnalyticsPage() {
       <div className="bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Conversations by Channel</h2>
         <div className="space-y-3">
-          {reports.conversationsByChannel && Object.entries(reports.conversationsByChannel).map(([channel, count]: [string, any]) => (
-            <div key={channel} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-              <span className="font-medium capitalize">{channel}</span>
-              <span className="text-lg font-bold">{count.toLocaleString()}</span>
+          {reports.conversationsByChannel && Object.keys(reports.conversationsByChannel).length > 0 ? (
+            Object.entries(reports.conversationsByChannel).map(([channel, count]: [string, any]) => (
+              <div key={channel} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                <span className="font-medium capitalize">{channel}</span>
+                <span className="text-lg font-bold">{count.toLocaleString()}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No conversation data available
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -134,14 +140,22 @@ export default function AdminAnalyticsPage() {
               </tr>
             </thead>
             <tbody>
-              {reports.usageByOrganization?.map((org: any) => (
-                <tr key={org._id || org.name} className="border-b border-border">
-                  <td className="p-3 font-medium">{org.name}</td>
-                  <td className="text-right p-3">{org.totalCallMinutes?.toLocaleString() || 0}</td>
-                  <td className="text-right p-3">{org.totalChatConversations?.toLocaleString() || 0}</td>
-                  <td className="text-right p-3">{org.userCount || 0}</td>
+              {reports.usageByOrganization && reports.usageByOrganization.length > 0 ? (
+                reports.usageByOrganization.map((org: any) => (
+                  <tr key={org._id || org.name} className="border-b border-border">
+                    <td className="p-3 font-medium">{org.name}</td>
+                    <td className="text-right p-3">{org.totalCallMinutes?.toLocaleString() || 0}</td>
+                    <td className="text-right p-3">{org.totalChatConversations?.toLocaleString() || 0}</td>
+                    <td className="text-right p-3">{org.userCount || 0}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No organization data available
+                  </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

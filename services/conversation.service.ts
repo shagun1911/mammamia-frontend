@@ -55,12 +55,21 @@ class ConversationService {
         
         // Get last message text
         let lastMessageText = 'No messages yet';
+        const hasTranscript = conv.transcript && (Array.isArray(conv.transcript) ? conv.transcript.length > 0 : Object.keys(conv.transcript).length > 0);
+        const hasRecording = conv.metadata?.recording_url || conv.metadata?.audio_url;
+        
         if (conv.lastMessage?.text) {
           lastMessageText = conv.lastMessage.text;
         } else if (typeof conv.lastMessage === 'string') {
           lastMessageText = conv.lastMessage;
-        } else if (conv.transcript) {
+        } else if (hasTranscript && hasRecording) {
+          lastMessageText = 'Call transcript and recording available';
+        } else if (hasTranscript) {
           lastMessageText = 'Call transcript available';
+        } else if (hasRecording) {
+          lastMessageText = 'Call recording available';
+        } else if (conv.channel === 'phone' && conv.metadata?.callerId) {
+          lastMessageText = 'Processing call transcript...';
         }
         
         return {
@@ -81,6 +90,7 @@ class ConversationService {
           folder: conv.folderId || null,
           messages: conv.messages || [],
           transcript: conv.transcript || null,
+          metadata: conv.metadata || {},
           isBookmarked: conv.isBookmarked || false,
         };
       });

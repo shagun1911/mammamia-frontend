@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { Plus, List, Trash2, Check, Zap, X, ArrowLeft } from "lucide-react";
+import { Plus, List, Trash2, Check, Zap, X, ArrowLeft, Loader2 } from "lucide-react";
 import { Automation, AutomationNode as NodeType, nodeServices } from "@/data/mockAutomations";
 import { AutomationNode } from "./AutomationNode";
 import { NodeConnector } from "./NodeConnector";
@@ -31,6 +31,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showExecutions, setShowExecutions] = useState(false);
+  const [runningBatch, setRunningBatch] = useState(false);
 
   // Update automations when prop changes
   useEffect(() => {
@@ -129,7 +130,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     // CRITICAL: Ensure Google Sheets config is properly formatted and persisted
     let finalConfig = { ...config };
     const node = selectedAutomation.nodes.find(n => n.id === selectedNodeId);
-    
+
     if (node?.service === "keplero_google_sheet_append_row") {
       // Ensure values array is properly formatted
       if (finalConfig.values && Array.isArray(finalConfig.values)) {
@@ -139,18 +140,18 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
         // Ensure values is always an array
         finalConfig.values = [];
       }
-      
+
       // Ensure sheetName is set
       if (!finalConfig.sheetName || (typeof finalConfig.sheetName === 'string' && finalConfig.sheetName.trim() === "")) {
         finalConfig.sheetName = "Sheet1";
       }
-      
+
       // Ensure range is set
       if (!finalConfig.range || (typeof finalConfig.range === 'string' && finalConfig.range.trim() === "")) {
         const sheetName = finalConfig.sheetName || "Sheet1";
         finalConfig.range = `${sheetName}!A1`;
       }
-      
+
       // CRITICAL: Log to verify config is being written
       console.log('[NodeBasedBuilder] Updating Google Sheets node config:', {
         nodeId: selectedNodeId,
@@ -169,7 +170,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     const updatedAutomations = automations.map((a) =>
       a.id === selectedAutomationId ? { ...a, nodes: updatedNodes } : a
     );
-    
+
     // Update automation state - this ensures config is in the graph
     updateAutomations(updatedAutomations);
   };
@@ -177,7 +178,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
   // Validate automation completeness (non-breaking: only for Google Sheets)
   const isAutomationIncomplete = () => {
     if (!selectedAutomation) return true;
-    
+
     // Check if any Google Sheets node is incomplete
     const incompleteNode = selectedAutomation.nodes.find(node => {
       if (node.service === "keplero_google_sheet_append_row") {
@@ -187,7 +188,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       }
       return false;
     });
-    
+
     return !!incompleteNode;
   };
 
@@ -220,15 +221,15 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
 
       // Get updated automation from response
       const updatedAutomationData = response.data?.data || response.data;
-      
+
       // Update local state
       const updatedAutomations = automations.map((a) =>
         a.id === selectedAutomationId
           ? {
-              ...a,
-              status: (updatedAutomationData?.isActive ? "enabled" : "disabled") as "enabled" | "disabled",
-              isActive: updatedAutomationData?.isActive || false,
-            }
+            ...a,
+            status: (updatedAutomationData?.isActive ? "enabled" : "disabled") as "enabled" | "disabled",
+            isActive: updatedAutomationData?.isActive || false,
+          }
           : a
       );
       updateAutomations(updatedAutomations);
@@ -236,10 +237,10 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       toast.success(`Automation ${isActive ? 'enabled' : 'disabled'} successfully`);
     } catch (error: any) {
       console.error('Toggle error:', error);
-      const errorMessage = error.response?.data?.error?.message || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          'Failed to toggle automation';
+      const errorMessage = error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to toggle automation';
       toast.error(errorMessage);
     }
   };
@@ -257,7 +258,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
 
       // Handle both response formats
       const data = response.data?.data || response.data;
-      
+
       if (data && data._id) {
         const newAutomation: Automation = {
           id: data._id,
@@ -291,12 +292,12 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
 
   const handleSaveAutomation = async () => {
     if (!selectedAutomation || !selectedAutomationId) return;
-  
+
     setSaving(true);
     try {
       const backendNodes = selectedAutomation.nodes.map(node => {
         let config = { ...node.config };
-  
+
         if (node.service === "keplero_google_sheet_append_row") {
           if (config.values && Array.isArray(config.values)) {
             config.values = config.values.filter(
@@ -305,15 +306,15 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
           } else {
             config.values = [];
           }
-  
+
           if (!config.sheetName || config.sheetName.trim() === "") {
             config.sheetName = "Sheet1";
           }
-  
+
           if (!config.range || config.range.trim() === "") {
             config.range = `${config.sheetName}!A1`;
           }
-  
+
           console.log("[NodeBasedBuilder] Sending Google Sheets config:", {
             nodeId: node.id,
             spreadsheetId: config.spreadsheetId,
@@ -322,7 +323,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
             values: config.values,
           });
         }
-  
+
         return {
           id: node.id,
           type: node.type,
@@ -331,7 +332,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
           position: node.position,
         };
       });
-  
+
       const response = await apiClient.patch(
         `/automations/${selectedAutomationId}`,
         {
@@ -340,7 +341,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
           isActive: selectedAutomation.status === "enabled",
         }
       );
-  
+
       toast.success("Automation saved successfully");
     } catch (error: any) {
       console.error("Save error:", error);
@@ -349,11 +350,11 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       setSaving(false);
     }
   };
-  
+
 
   const handleDeleteAutomation = async () => {
     if (!selectedAutomation || !selectedAutomationId) return;
-    
+
     if (!confirm(`Are you sure you want to delete "${selectedAutomation.name}"? This action cannot be undone.`)) {
       return;
     }
@@ -371,13 +372,43 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       toast.success('Automation deleted successfully');
     } catch (error: any) {
       console.error('Delete error:', error);
-      const errorMessage = error.response?.data?.error?.message || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          'Failed to delete automation';
+      const errorMessage = error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to delete automation';
       toast.error(errorMessage);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleRunBatch = async () => {
+    if (!selectedAutomation || !selectedAutomationId) return;
+
+    // Find batch call trigger node
+    const batchNode = selectedAutomation.nodes.find(n => n.service === "batch_call" || n.service === "keplero_mass_sending");
+    if (!batchNode || !batchNode.config.listId) {
+      toast.error("Batch calling node not configured with a list");
+      return;
+    }
+
+    setRunningBatch(true);
+    try {
+      const response = await apiClient.post('/automations/run-batch', {
+        listId: batchNode.config.listId,
+        automationId: selectedAutomationId
+      });
+
+      if (response.data?.success || response.success) {
+        toast.success(`Batch automation started for ${response.data?.contactCount || response.contactCount || 'all'} contacts!`);
+      } else {
+        throw new Error(response.data?.message || response.message || 'Failed to start batch');
+      }
+    } catch (error: any) {
+      console.error('Run batch error:', error);
+      toast.error(error.response?.data?.message || error.message || "Failed to start batch automation");
+    } finally {
+      setRunningBatch(false);
     }
   };
 
@@ -412,8 +443,8 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
                   {selectedAutomation.nodes.length} {selectedAutomation.nodes.length === 1 ? 'step' : 'steps'} configured
                 </p>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => setShowExecutions(true)}
                 className="flex items-center gap-2 px-5 py-2.5 bg-secondary border border-border text-foreground rounded-xl text-sm font-semibold hover:bg-accent hover:border-primary/30 hover:shadow-md transition-all cursor-pointer group"
               >
@@ -427,31 +458,39 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
               </button>
 
               <div className="flex items-center gap-4 px-5 py-2.5 bg-secondary/50 rounded-xl border border-border/50">
-                <span className={`text-sm font-semibold ${
-                  selectedAutomation.status === "enabled"
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-muted-foreground"
-                }`}>
+                <span className={`text-sm font-semibold ${selectedAutomation.status === "enabled"
+                  ? "text-green-600 dark:text-green-400"
+                  : "text-muted-foreground"
+                  }`}>
                   {selectedAutomation.status === "enabled" ? "Active" : "Inactive"}
                 </span>
                 <button
                   onClick={handleToggleStatus}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 ${
-                    selectedAutomation.status === "enabled"
-                      ? "bg-primary"
-                      : "bg-gray-400"
-                  }`}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 ${selectedAutomation.status === "enabled"
+                    ? "bg-primary"
+                    : "bg-gray-400"
+                    }`}
                   title={`${selectedAutomation.status === "enabled" ? "Disable" : "Enable"} automation`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${
-                      selectedAutomation.status === "enabled"
-                        ? "translate-x-6"
-                        : "translate-x-1"
-                    }`}
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-lg ${selectedAutomation.status === "enabled"
+                      ? "translate-x-6"
+                      : "translate-x-1"
+                      }`}
                   />
                 </button>
               </div>
+
+              {selectedAutomation.status === "enabled" && selectedAutomation.nodes.some(n => n.service === "batch_call" || n.service === "keplero_mass_sending") && (
+                <button
+                  onClick={handleRunBatch}
+                  disabled={runningBatch}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {runningBatch ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  <span>Run Batch Now</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -493,26 +532,26 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
                 </div>
               )}
 
-            {selectedAutomation?.nodes.map((node, index) => (
-              <div key={node.id} className="flex flex-col items-center">
-                <AutomationNode
-                  node={node}
-                  isSelected={node.id === selectedNodeId}
-                  isIncomplete={
-                    !node.config.event &&
-                    !node.config.template &&
-                    !node.config.subject &&
-                    node.service !== "delay"
-                  }
-                  onClick={() => handleNodeClick(node.id)}
-                  onDelete={() => handleDeleteNode(node.id)}
-                />
+              {selectedAutomation?.nodes.map((node, index) => (
+                <div key={node.id} className="flex flex-col items-center">
+                  <AutomationNode
+                    node={node}
+                    isSelected={node.id === selectedNodeId}
+                    isIncomplete={
+                      !node.config.event &&
+                      !node.config.template &&
+                      !node.config.subject &&
+                      node.service !== "delay"
+                    }
+                    onClick={() => handleNodeClick(node.id)}
+                    onDelete={() => handleDeleteNode(node.id)}
+                  />
 
-                {index < selectedAutomation.nodes.length - 1 && (
-                  <NodeConnector onAddNode={() => handleAddNode(index + 1)} />
-                )}
-              </div>
-            ))}
+                  {index < selectedAutomation.nodes.length - 1 && (
+                    <NodeConnector onAddNode={() => handleAddNode(index + 1)} />
+                  )}
+                </div>
+              ))}
 
               {selectedAutomation.nodes.length > 0 && (
                 <button
@@ -550,7 +589,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
 
         {/* Enhanced Bottom bar */}
         <div className="bg-gradient-to-r from-card via-card to-background border-t border-border px-6 py-4 flex items-center justify-end gap-3 shadow-lg">
-          <button 
+          <button
             onClick={handleDeleteAutomation}
             disabled={deleting || !selectedAutomation}
             className="flex items-center gap-2 px-5 py-2.5 border-2 border-red-600 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-600/10 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -558,7 +597,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
             <Trash2 className="w-4 h-4" />
             <span>{deleting ? 'Deleting...' : 'Delete'}</span>
           </button>
-          <button 
+          <button
             onClick={handleSaveAutomation}
             disabled={saving || !selectedAutomation || isAutomationIncomplete()}
             className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl text-sm font-semibold hover:brightness-110 hover:shadow-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"

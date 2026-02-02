@@ -1,6 +1,6 @@
 export interface AutomationNode {
   id: string;
-  type: "trigger" | "delay" | "action";
+  type: "trigger" | "delay" | "action" | "condition";
   service: string;
   config: {
     // Trigger config
@@ -11,6 +11,11 @@ export interface AutomationNode {
     // Delay config
     delay?: number;
     delayUnit?: "seconds" | "minutes" | "hours" | "days";
+
+    // Condition config
+    field?: string;
+    operator?: string;
+    value?: any;
 
     // Communication config
     template?: string;
@@ -61,6 +66,7 @@ export const nodeServices = {
     { id: "keplero_contact_created", name: "Aistein-It - Contact Created", icon: "👤", color: "#6366f1" },
     { id: "keplero_contact_deleted", name: "Aistein-It - Contact Deleted", icon: "🗑️", color: "#ef4444" },
     { id: "keplero_contact_moved", name: "Aistein-It - Contact Moved", icon: "📋", color: "#8b5cf6" },
+    { id: "conversation_created", name: "Aistein-It - Call Finished (AI Agent)", icon: "📞", color: "#10b981" },
     { id: "batch_call", name: "Aistein-It - Batch Call (CSV/List)", icon: "📤", color: "#f59e0b" },
     { id: "facebook_leads", name: "Facebook Leads", icon: "📘", color: "#1877f2" },
     { id: "shopify_order", name: "Shopify Order", icon: "🛍️", color: "#96bf48" },
@@ -68,6 +74,8 @@ export const nodeServices = {
     { id: "webhook", name: "Webhook", icon: "🔗", color: "#a855f7" },
   ],
   actions: [
+    { id: "keplero_batch_calling", name: "Aistein-It - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },
+    { id: "keplero_extract_data", name: "Aistein-It - Extract Conversation Data", icon: "🧠", color: "#8b5cf6" },
     { id: "keplero_outbound_call", name: "Aistein-It - Outbound Call", icon: "📞", color: "#8b5cf6" },
     { id: "keplero_send_sms", name: "Aistein-It - Send SMS", icon: "💬", color: "#10b981" },
     { id: "keplero_send_email", name: "Aistein – Send Email", icon: "📧", color: "#3b82f6" },

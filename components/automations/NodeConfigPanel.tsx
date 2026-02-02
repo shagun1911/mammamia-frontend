@@ -129,7 +129,7 @@ export function NodeConfigPanel({
   // Extract spreadsheetId from Google Sheets URL
   const extractSpreadsheetIdFromUrl = (url: string): string | null => {
     if (!url || typeof url !== 'string') return null;
-    
+
     // Match pattern: /spreadsheets/d/[SPREADSHEET_ID]/
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     return match ? match[1] : null;
@@ -137,10 +137,10 @@ export function NodeConfigPanel({
 
   const handleSpreadsheetLinkChange = (link: string) => {
     setSpreadsheetLink(link);
-    
+
     // Extract spreadsheetId from URL
     const extractedId = extractSpreadsheetIdFromUrl(link);
-    
+
     if (extractedId) {
       setSelectedSpreadsheetId(extractedId);
       // Clear dropdown selection when using link
@@ -197,7 +197,7 @@ export function NodeConfigPanel({
       // This ensures the dropdown selection or link extraction is captured even if node.config wasn't updated yet
       // Priority: extracted from link > selectedSpreadsheetId > existing config
       let formSpreadsheetId = "";
-      
+
       // First, try to extract from link if present
       if (spreadsheetLink && spreadsheetLink.trim() !== "") {
         const extractedId = extractSpreadsheetIdFromUrl(spreadsheetLink);
@@ -205,12 +205,12 @@ export function NodeConfigPanel({
           formSpreadsheetId = extractedId;
         }
       }
-      
+
       // Fallback to selectedSpreadsheetId if no link or extraction failed
       if (!formSpreadsheetId && selectedSpreadsheetId && selectedSpreadsheetId.trim() !== "") {
         formSpreadsheetId = selectedSpreadsheetId;
       }
-      
+
       // Final fallback to existing config
       if (!formSpreadsheetId) {
         formSpreadsheetId = config.spreadsheetId || "";
@@ -255,12 +255,12 @@ export function NodeConfigPanel({
   const validateGoogleSheetsConfig = (config: AutomationNode["config"]): { valid: boolean; error?: string } => {
     if (node.service === "keplero_google_sheet_append_row") {
       // Check if spreadsheetId is set (either from link or dropdown)
-      const hasSpreadsheetId = config.spreadsheetId && 
+      const hasSpreadsheetId = config.spreadsheetId &&
         (typeof config.spreadsheetId === 'string' && config.spreadsheetId.trim() !== "");
-      
+
       // Also check if link is being used (even if extraction hasn't happened yet)
       const hasValidLink = spreadsheetLink && extractSpreadsheetIdFromUrl(spreadsheetLink);
-      
+
       if (!hasSpreadsheetId && !hasValidLink) {
         return { valid: false, error: "Please paste a Google Sheet link or select a spreadsheet from the list" };
       }
@@ -458,6 +458,48 @@ export function NodeConfigPanel({
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Agent *
+                </label>
+                <select
+                  value={node.config.agent_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, agent_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isLoadingAgents}
+                >
+                  <option value="">Select agent</option>
+                  {(agents as { _id: string; name?: string; agent_id?: string }[]).map((agent) => (
+                    <option key={agent._id} value={agent.agent_id || agent._id}>
+                      {agent.name || agent.agent_id || agent._id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Phone Number *
+                </label>
+                <select
+                  value={node.config.phone_number_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, phone_number_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isLoadingPhoneNumbers}
+                >
+                  <option value="">Select phone number</option>
+                  {outboundPhoneNumbers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label || p.phone_number || p.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {node.config.source === "list" && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                   <div>
@@ -481,36 +523,144 @@ export function NodeConfigPanel({
                     </select>
                   </div>
 
-                  {node.config.listId && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          setSaving(true);
-                          const response = await apiClient.post('/automations/run-batch', {
-                            listId: node.config.listId
-                          });
-                          if (response.success || response.data?.success) {
-                            toast.success(`Batch automation started for ${response.contactCount || 'all'} contacts!`);
-                          } else {
-                            throw new Error(response.message || 'Failed to start batch');
-                          }
-                        } catch (err: any) {
-                          toast.error(err.message || "Failed to start batch automation");
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                      disabled={saving}
-                      className="w-full h-10 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "🚀 Run Batch Automation Now"}
-                    </button>
-                  )}
                 </div>
               )}
 
               <p className="text-xs text-muted-foreground mt-2">
                 This automation will trigger when bulk contacts are ready (CSV import) or specifically triggered for a list.
+              </p>
+            </div>
+          )}
+
+          {/* AISTEIN-IT - BATCH CALLING ACTION */}
+          {node.service === "keplero_batch_calling" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Agent *
+                </label>
+                <select
+                  value={node.config.agent_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, agent_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isLoadingAgents}
+                >
+                  <option value="">Select agent</option>
+                  {(agents as { _id: string; name?: string; agent_id?: string }[]).map((agent) => (
+                    <option key={agent._id} value={agent.agent_id || agent._id}>
+                      {agent.name || agent.agent_id || agent._id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Phone Number *
+                </label>
+                <select
+                  value={node.config.phone_number_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, phone_number_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={isLoadingPhoneNumbers}
+                >
+                  <option value="">Select phone number</option>
+                  {outboundPhoneNumbers.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label || p.phone_number || p.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Target List (Optional)
+                </label>
+                <select
+                  value={node.config.listId || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, listId: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  disabled={loading}
+                >
+                  <option value="">Select a list...</option>
+                  {lists.map((list) => (
+                    <option key={list._id} value={list._id}>
+                      {list.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  If provided, calls will be made to all contacts in this list. If not, it will use contacts from the previous node.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Call Batch Name
+                </label>
+                <input
+                  type="text"
+                  value={node.config.call_name || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, call_name: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. Follow-up Batch"
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                This will initiate a batch of outbound calls. Ensure you have configured the agent and phone number correctly.
+              </p>
+            </div>
+          )}
+
+          {/* AISTEIN-IT - EXTRACT DATA ACTION */}
+          {node.service === "keplero_extract_data" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Extraction Type
+                </label>
+                <select
+                  value={node.config.extraction_type || "appointment"}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, extraction_type: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="appointment">Appointment Details</option>
+                  <option value="lead">Lead Information</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Conversation ID (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={node.config.conversation_id || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, conversation_id: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  placeholder="{{trigger.conversation_id}}"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  If empty, it will use the conversation from the trigger.
+                </p>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Uses AI to analyze the conversation transcript and extract structured data.
               </p>
             </div>
           )}
@@ -862,7 +1012,11 @@ export function NodeConfigPanel({
           )}
 
           {/* LEGACY TRIGGERS */}
-          {(node.type === "trigger" && !node.service.startsWith("keplero_")) && (
+          {(node.type === "trigger" && 
+            !node.service.startsWith("keplero_") && 
+            node.service !== "batch_call_completed" &&
+            node.service !== "conversation_created" &&
+            node.service !== "batch_call") && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -1143,7 +1297,7 @@ export function NodeConfigPanel({
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Select Spreadsheet *
                 </label>
-                
+
                 {/* Option 1: Paste Google Sheet Link */}
                 <div>
                   <label className="block text-xs text-muted-foreground mb-1.5">
@@ -1215,7 +1369,7 @@ export function NodeConfigPanel({
                   ) : (
                     <div className="p-3 bg-secondary/50 rounded-lg border border-border">
                       <p className="text-xs text-muted-foreground text-center">
-                        {googleIntegrationStatus?.connected 
+                        {googleIntegrationStatus?.connected
                           ? 'Click "Load my spreadsheets" to see your Google Sheets'
                           : 'Connect Google Workspace to load your spreadsheets'}
                       </p>
@@ -1533,6 +1687,6 @@ export function NodeConfigPanel({
           <span>Delete Action</span>
         </button>
       </div>
-    </div>
+    </div >
   );
 }

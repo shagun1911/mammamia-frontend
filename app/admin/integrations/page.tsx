@@ -10,49 +10,60 @@ import Link from "next/link";
 
 export default function AdminIntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const { data, isLoading, error } = useQuery<IntegrationStatus[]>({
     queryKey: ['admin', 'integrations', 'status'],
     queryFn: () => adminService.getIntegrationsStatus(),
     refetchInterval: 60000, // Refresh every minute
   });
-  
+
   // Sort by latest (most recent update/creation) and filter by search
   const sortedAndFilteredIntegrations = useMemo(() => {
     if (!data) return [];
-    
+
     let filtered = [...data];
-    
+
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(integration => 
+      filtered = filtered.filter(integration =>
         integration.organization.name.toLowerCase().includes(query) ||
         integration.organization.slug.toLowerCase().includes(query)
       );
     }
-    
+
     // Sort by latest - organizations with most recent activity first
     filtered.sort((a, b) => {
       // Get most recent timestamp from any integration
       const getLatestTimestamp = (int: IntegrationStatus) => {
         const timestamps = [
-          int.google.lastSyncedAt,
-          int.whatsapp.lastSyncedAt,
-          int.instagram.lastSyncedAt,
-          int.facebook.lastSyncedAt,
-          int.ecommerce.lastSyncedAt
+          int.google?.lastSyncedAt,
+          int.whatsapp?.lastSyncedAt,
+          int.instagram?.lastSyncedAt,
+          int.facebook?.lastSyncedAt,
+          int.ecommerce?.lastSyncedAt
         ].filter(Boolean);
-        
+
         if (timestamps.length === 0) return 0;
         return Math.max(...timestamps.map(t => new Date(t!).getTime()));
       };
-      
+
       return getLatestTimestamp(b) - getLatestTimestamp(a);
     });
-    
+
     return filtered;
   }, [data, searchQuery]);
+
+  // Defensive: Ensure all integration objects exist to avoid undefined errors
+  const safeIntegrations = sortedAndFilteredIntegrations.map((integration) => ({
+    ...integration,
+    google: integration.google || {},
+    whatsapp: integration.whatsapp || {},
+    instagram: integration.instagram || {},
+    facebook: integration.facebook || {},
+    ecommerce: integration.ecommerce || {},
+    organization: integration.organization || { name: '', slug: '', id: '' },
+  }));
 
   if (isLoading) {
     return (
@@ -65,8 +76,19 @@ export default function AdminIntegrationsPage() {
   if (error) {
     toast.error('Failed to load integrations status');
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <div className="text-destructive">Failed to load integrations</div>
+        {error instanceof Error && (
+          <div className="text-xs text-muted-foreground max-w-md text-center">
+            {error.message}
+          </div>
+        )}
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/80 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -84,7 +106,7 @@ export default function AdminIntegrationsPage() {
         </Link>
         <h1 className="text-3xl font-bold text-foreground mb-2">Integrations Status</h1>
         <p className="text-muted-foreground mb-6">Monitor integration status across all organizations</p>
-        
+
         {/* Search Bar */}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -99,7 +121,7 @@ export default function AdminIntegrationsPage() {
       </div>
 
       {/* Integrations List */}
-      {sortedAndFilteredIntegrations.length === 0 ? (
+      {safeIntegrations.length === 0 ? (
         <div className="text-center py-12 bg-card border border-border rounded-xl">
           <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-muted-foreground">
@@ -108,7 +130,7 @@ export default function AdminIntegrationsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {sortedAndFilteredIntegrations.map((integration) => (
+          {safeIntegrations.map((integration) => (
             <div
               key={integration.organization.id}
               className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-shadow"
@@ -123,14 +145,14 @@ export default function AdminIntegrationsPage() {
                 <div className="flex items-center gap-2">
                   <div className={cn(
                     "px-3 py-1 rounded-full text-xs font-medium",
-                    (integration.google.connected || integration.whatsapp.connected || 
-                     integration.instagram.connected || integration.facebook.connected || 
-                     integration.ecommerce?.connected)
+                    (integration.google.connected || integration.whatsapp.connected ||
+                      integration.instagram.connected || integration.facebook.connected ||
+                      integration.ecommerce?.connected)
                       ? "bg-green-500/10 text-green-500"
                       : "bg-gray-500/10 text-gray-500"
                   )}>
-                    {(integration.google.connected || integration.whatsapp.connected || 
-                      integration.instagram.connected || integration.facebook.connected || 
+                    {(integration.google.connected || integration.whatsapp.connected ||
+                      integration.instagram.connected || integration.facebook.connected ||
                       integration.ecommerce?.connected)
                       ? "Active Integrations"
                       : "No Integrations"}

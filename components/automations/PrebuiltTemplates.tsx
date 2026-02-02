@@ -161,8 +161,14 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
       keplero_outbound_call: "📞",
       keplero_mass_sending: "📤",
       batch_call: "📤",
+      batch_call_completed: "📤",
       webhook: "🔗",
       delay: "⏱️",
+      keplero_extract_appointment: "🧠",
+      keplero_google_calendar_check_availability: "📅",
+      keplero_google_calendar_create_event: "📅",
+      keplero_google_sheet_append_row: "📊",
+      condition: "🔍",
     };
     return serviceMap[service] || "⚙️";
   };
@@ -177,9 +183,15 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
       keplero_outbound_call: "Outbound Call",
       keplero_mass_sending: "Mass Sending",
       batch_call: "Batch Call (CSV/List)",
+      batch_call_completed: "Batch Call Completed",
       webhook: "Webhook",
       delay: "Delay",
       keplero_google_gmail_send: "Gmail – Send Email",
+      keplero_extract_appointment: "Extract Appointment",
+      keplero_google_calendar_check_availability: "Check Calendar Availability",
+      keplero_google_calendar_create_event: "Create Calendar Event",
+      keplero_google_sheet_append_row: "Add to Google Sheets",
+      condition: "Condition",
     };
     return nameMap[service] || service;
   };
