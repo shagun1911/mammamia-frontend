@@ -30,6 +30,7 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
   });
   const [loading, setLoading] = useState(true);
   const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -313,8 +314,9 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {automationTemplates.map((template) => {
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(showAll ? automationTemplates : automationTemplates.slice(0, 2)).map((template) => {
                 const missingIntegrations = template.requiredIntegrations?.filter(
                   (integration) => !isIntegrationConnected(integration)
                 ) || [];
@@ -471,7 +473,21 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
                     </button>
                   </div>
                 );
-              })}
+                })}
+              </div>
+              
+              {/* View More Button */}
+              {!showAll && automationTemplates.length > 2 && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setShowAll(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border border-primary/30 rounded-lg text-sm font-semibold text-primary transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg"
+                  >
+                    <span>View More Templates</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
