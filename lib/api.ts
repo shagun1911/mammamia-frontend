@@ -143,6 +143,17 @@ class ApiClient {
    */
   private handleLogout() {
     if (typeof window !== 'undefined') {
+      // Check if we're returning from an OAuth callback
+      // In this case, don't automatically log out - preserve the session
+      const isOAuthCallback = window.location.search.includes('success=true') || 
+                             window.location.search.includes('error=') ||
+                             window.location.search.includes('platform=');
+      
+      if (isOAuthCallback) {
+        console.log('🔐 OAuth callback detected - skipping automatic logout to preserve session');
+        return;
+      }
+      
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');

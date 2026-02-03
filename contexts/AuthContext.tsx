@@ -41,6 +41,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const isAuth = authService.isAuthenticated();
         console.log('🔐 Has token:', isAuth);
 
+        // Check if we're returning from an OAuth callback (Gmail, Meta, etc.)
+        // In this case, preserve the user session even if getCurrentUser fails
+        const isOAuthCallback = typeof window !== 'undefined' && 
+          (window.location.search.includes('success=true') || 
+           window.location.search.includes('error=') ||
+           window.location.search.includes('platform='));
+
         if (isAuth) {
           const storedUser = authService.getStoredUser();
           console.log('🔐 Stored user:', storedUser ? 'Found' : 'Not found');
@@ -64,8 +71,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (error: any) {
             console.error('❌ Failed to fetch current user:', error);
 
-            if (!storedUser) {
+            // If we're returning from OAuth callback, preserve the session
+            // The user is still authenticated, just the API call might have failed temporarily
+            if (isOAuthCallback && storedUser) {
+              console.log('🔐 OAuth callback detected - preserving user session');
+              // Keep the stored user, don't log out
+            } else if (!storedUser) {
+              // Only log out if we don't have a stored user AND it's not an OAuth callback
               if (error.status === 401 || error.message?.includes('401')) {
+                console.log('🔐 No stored user and 401 error - logging out');
                 authService.logout();
                 setUser(null);
               }

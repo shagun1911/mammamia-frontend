@@ -66,7 +66,7 @@ export default function PhoneSettingsDetailPage() {
   const [genericSetupMediaEncryption, setGenericSetupMediaEncryption] = useState("allowed");
   const [genericSetupSupportsInbound, setGenericSetupSupportsInbound] = useState(false);
   const [genericSetupSupportsOutbound, setGenericSetupSupportsOutbound] = useState(true);
-  const [genericSetupInboundAddress, setGenericSetupInboundAddress] = useState("");
+  const [genericSetupInboundAddress, setGenericSetupInboundAddress] = useState("sip.rtc.elevenlabs.io:5060");
   const [genericSetupInboundUsername, setGenericSetupInboundUsername] = useState("");
   const [genericSetupInboundPassword, setGenericSetupInboundPassword] = useState("");
   
@@ -796,9 +796,12 @@ const handleSaveConfig = async (config: any) => {
       }
 
       // Add inbound_trunk_config only if supports_inbound is true
+      // Use default address if not provided
       if (genericSetupSupportsInbound) {
         requestPayload.inbound_trunk_config = {
-          address: genericSetupInboundAddress,
+          address: genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060",
+          transport: "auto",
+          media_encryption: "allowed",
           credentials: {
             username: genericSetupInboundUsername,
             password: genericSetupInboundPassword
@@ -857,7 +860,7 @@ const handleSaveConfig = async (config: any) => {
         setGenericSetupMediaEncryption("allowed");
         setGenericSetupSupportsInbound(false);
         setGenericSetupSupportsOutbound(true);
-        setGenericSetupInboundAddress("");
+        setGenericSetupInboundAddress("sip.rtc.elevenlabs.io:5060");
         setGenericSetupInboundUsername("");
         setGenericSetupInboundPassword("");
       setShowSetupMethods(false);
@@ -886,54 +889,12 @@ const handleSaveConfig = async (config: any) => {
       console.log('📋 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
       console.log('📋 [Agent Assignment] Agent ID:', selectedAgentId);
 
-      // Build update payload with agent_id and inbound_trunk_config
+      // Build update payload with ONLY agent_id (as per user requirements)
       const updatePayload: any = {
-        agent_id: selectedAgentId,
-        supports_inbound: true
+        agent_id: selectedAgentId
       };
 
-      // Include inbound_trunk_config if it was provided during setup
-      if (genericSetupInboundAddress && genericSetupInboundUsername && genericSetupInboundPassword) {
-        updatePayload.inbound_trunk_config = {
-          address: genericSetupInboundAddress,
-          credentials: {
-            username: genericSetupInboundUsername,
-            password: genericSetupInboundPassword
-          }
-        };
-      }
-
-      // Include outbound_trunk_config if supports_outbound was true
-      if (genericSetupSupportsOutbound && genericSetupSipAddress && genericSetupUsername && genericSetupPassword) {
-        updatePayload.supports_outbound = true;
-        updatePayload.outbound_trunk_config = {
-          address: genericSetupSipAddress,
-          credentials: {
-            username: genericSetupUsername,
-            password: genericSetupPassword
-          },
-          media_encryption: genericSetupMediaEncryption,
-          transport: genericSetupTransport
-        };
-      }
-
-      console.log('📤 [Agent Assignment] Update payload:', {
-        ...updatePayload,
-        inbound_trunk_config: updatePayload.inbound_trunk_config ? {
-          ...updatePayload.inbound_trunk_config,
-          credentials: {
-            ...updatePayload.inbound_trunk_config.credentials,
-            password: '***hidden***'
-          }
-        } : undefined,
-        outbound_trunk_config: updatePayload.outbound_trunk_config ? {
-          ...updatePayload.outbound_trunk_config,
-          credentials: {
-            ...updatePayload.outbound_trunk_config.credentials,
-            password: '***hidden***'
-          }
-        } : undefined
-      });
+      console.log('📤 [Agent Assignment] Update payload:', updatePayload);
 
       const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, updatePayload);
 
@@ -1491,6 +1452,9 @@ return (
                             placeholder="sip.rtc.elevenlabs.io:5060"
                             className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                           />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Default: sip.rtc.elevenlabs.io:5060
+                          </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-foreground mb-2">
@@ -1623,7 +1587,7 @@ return (
                             setGenericSetupMediaEncryption("allowed");
                             setGenericSetupSupportsInbound(false);
                             setGenericSetupSupportsOutbound(true);
-                            setGenericSetupInboundAddress("");
+                            setGenericSetupInboundAddress("sip.rtc.elevenlabs.io:5060");
                             setGenericSetupInboundUsername("");
                             setGenericSetupInboundPassword("");
                             setShowSetupMethods(false);
