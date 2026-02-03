@@ -1005,6 +1005,7 @@ export default function IntegrationsPage() {
                 category="E-commerce"
                 connected={isConnected('shopify')}
                 onSetup={() => openSetupModal('shopify')}
+                onEdit={() => openSetupModal('shopify')}
                 onTest={() => testConnection('shopify')}
                 onDisconnect={() => disconnectIntegration('shopify')}
               />
@@ -1016,6 +1017,7 @@ export default function IntegrationsPage() {
                 category="E-commerce"
                 connected={isConnected('woocommerce')}
                 onSetup={() => openSetupModal('woocommerce')}
+                onEdit={() => openSetupModal('woocommerce')}
                 onTest={() => testConnection('woocommerce')}
                 onDisconnect={() => disconnectIntegration('woocommerce')}
               />
@@ -1085,6 +1087,7 @@ export default function IntegrationsPage() {
                 category="E-commerce"
                 connected={isConnected('magento2')}
                 onSetup={() => openSetupModal('magento2')}
+                onEdit={() => openSetupModal('magento2')}
                 onTest={() => testConnection('magento2')}
                 onDisconnect={() => disconnectIntegration('magento2')}
               />
@@ -1096,6 +1099,7 @@ export default function IntegrationsPage() {
                 category="E-commerce"
                 connected={isConnected('prestashop')}
                 onSetup={() => openSetupModal('prestashop')}
+                onEdit={() => openSetupModal('prestashop')}
                 onTest={() => testConnection('prestashop')}
                 onDisconnect={() => disconnectIntegration('prestashop')}
               />
@@ -1107,6 +1111,7 @@ export default function IntegrationsPage() {
                 category="E-commerce"
                 connected={isConnected('qapla')}
                 onSetup={() => openSetupModal('qapla')}
+                onEdit={() => openSetupModal('qapla')}
                 onTest={() => testConnection('qapla')}
                 onDisconnect={() => disconnectIntegration('qapla')}
               />
@@ -1124,6 +1129,7 @@ export default function IntegrationsPage() {
                 category="Booking"
                 connected={isConnected('vertical-booking')}
                 onSetup={() => openSetupModal('vertical-booking')}
+                onEdit={() => openSetupModal('vertical-booking')}
                 onTest={() => testConnection('vertical-booking')}
                 onDisconnect={() => disconnectIntegration('vertical-booking')}
               />
@@ -1135,6 +1141,7 @@ export default function IntegrationsPage() {
                 category="Booking"
                 connected={isConnected('booking-expert')}
                 onSetup={() => openSetupModal('booking-expert')}
+                onEdit={() => openSetupModal('booking-expert')}
                 onTest={() => testConnection('booking-expert')}
                 onDisconnect={() => disconnectIntegration('booking-expert')}
               />
@@ -1152,6 +1159,7 @@ export default function IntegrationsPage() {
                 category="Custom"
                 connected={isConnected('mcp')}
                 onSetup={() => openSetupModal('mcp')}
+                onEdit={() => openSetupModal('mcp')}
                 onDisconnect={() => disconnectIntegration('mcp')}
               />
             </div>
@@ -1167,6 +1175,7 @@ export default function IntegrationsPage() {
               category="E-commerce"
               connected={isConnected('shopify')}
               onSetup={() => openSetupModal('shopify')}
+              onEdit={() => openSetupModal('shopify')}
               onTest={() => testConnection('shopify')}
               onDisconnect={() => disconnectIntegration('shopify')}
             />
@@ -1178,6 +1187,7 @@ export default function IntegrationsPage() {
               category="E-commerce"
               connected={isConnected('woocommerce')}
               onSetup={() => openSetupModal('woocommerce')}
+              onEdit={() => openSetupModal('woocommerce')}
               onTest={() => testConnection('woocommerce')}
               onDisconnect={() => disconnectIntegration('woocommerce')}
             />
@@ -1189,6 +1199,7 @@ export default function IntegrationsPage() {
               category="E-commerce"
               connected={isConnected('magento2')}
               onSetup={() => openSetupModal('magento2')}
+              onEdit={() => openSetupModal('magento2')}
               onTest={() => testConnection('magento2')}
               onDisconnect={() => disconnectIntegration('magento2')}
             />
@@ -1200,6 +1211,7 @@ export default function IntegrationsPage() {
               category="E-commerce"
               connected={isConnected('prestashop')}
               onSetup={() => openSetupModal('prestashop')}
+              onEdit={() => openSetupModal('prestashop')}
               onTest={() => testConnection('prestashop')}
               onDisconnect={() => disconnectIntegration('prestashop')}
             />
@@ -1211,6 +1223,7 @@ export default function IntegrationsPage() {
               category="E-commerce"
               connected={isConnected('qapla')}
               onSetup={() => openSetupModal('qapla')}
+              onEdit={() => openSetupModal('qapla')}
               onTest={() => testConnection('qapla')}
               onDisconnect={() => disconnectIntegration('qapla')}
             />
@@ -1226,6 +1239,7 @@ export default function IntegrationsPage() {
               category="Booking"
               connected={isConnected('vertical-booking')}
               onSetup={() => openSetupModal('vertical-booking')}
+              onEdit={() => openSetupModal('vertical-booking')}
               onTest={() => testConnection('vertical-booking')}
               onDisconnect={() => disconnectIntegration('vertical-booking')}
             />
@@ -1237,6 +1251,7 @@ export default function IntegrationsPage() {
               category="Booking"
               connected={isConnected('booking-expert')}
               onSetup={() => openSetupModal('booking-expert')}
+              onEdit={() => openSetupModal('booking-expert')}
               onTest={() => testConnection('booking-expert')}
               onDisconnect={() => disconnectIntegration('booking-expert')}
             />

@@ -85,16 +85,16 @@ export function IntegrationList({
         return (
           <div
             key={tool.tool_id}
-            className="bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all group"
+            className="bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all group flex flex-col"
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 ${bg} rounded-lg flex items-center justify-center`}>
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={`w-12 h-12 ${bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
                   <IconComponent className={`w-6 h-6 ${color}`} />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-lg font-semibold text-foreground break-words">
                     {tool.tool_name}
                   </h3>
                   <span className="text-xs text-muted-foreground capitalize">
@@ -105,17 +105,17 @@ export function IntegrationList({
             </div>
 
             {/* Description */}
-            <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[40px]">
+            <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[40px] break-words">
               {tool.description}
             </p>
 
             {/* Properties Count */}
-            <div className="flex items-center gap-2 mb-4 text-xs text-muted-foreground">
-              <span className="px-2 py-1 bg-secondary rounded-md">
+            <div className="flex items-center gap-2 mb-4 text-xs text-muted-foreground flex-wrap">
+              <span className="px-2 py-1 bg-secondary rounded-md whitespace-nowrap">
                 {tool.properties.length} {tool.properties.length === 1 ? 'property' : 'properties'}
               </span>
               {tool.properties.filter(p => p.required).length > 0 && (
-                <span className="px-2 py-1 bg-red-500/10 text-red-500 rounded-md">
+                <span className="px-2 py-1 bg-red-500/10 text-red-500 rounded-md whitespace-nowrap">
                   {tool.properties.filter(p => p.required).length} required
                 </span>
               )}
@@ -123,27 +123,41 @@ export function IntegrationList({
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {!(tool as any).isEmailTemplate && (
+              {!(tool as any).isEmailTemplate ? (
+                <>
+                  <button
+                    onClick={() => onEdit(tool)}
+                    className="flex-1 h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete "${tool.tool_name}"?`)) {
+                        onDelete(tool.tool_id, tool);
+                      }
+                    }}
+                    className="h-9 w-9 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="sr-only">Delete</span>
+                  </button>
+                </>
+              ) : (
                 <button
-                  onClick={() => onEdit(tool)}
-                  className="flex-1 h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete "${tool.tool_name}"?`)) {
+                      onDelete(tool.tool_id, tool);
+                    }
+                  }}
+                  className="w-full h-9 px-4 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-colors"
                 >
-                  <Edit2 className="w-4 h-4" />
-                  Edit
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
                 </button>
               )}
-              <button
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete "${tool.tool_name}"?`)) {
-                    onDelete(tool.tool_id, tool);
-                  }
-                }}
-                className={`${!(tool as any).isEmailTemplate ? 'h-9 w-9' : 'flex-1 h-9 px-4'} flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors`}
-              >
-                <Trash2 className="w-4 h-4" />
-                {!(tool as any).isEmailTemplate && <span className="sr-only">Delete</span>}
-                {(tool as any).isEmailTemplate && <span className="ml-2">Delete</span>}
-              </button>
             </div>
           </div>
         );

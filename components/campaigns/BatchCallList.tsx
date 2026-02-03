@@ -33,9 +33,10 @@ interface BatchCall {
 
 interface BatchCallListProps {
   onClose?: () => void;
+  onCreateNew?: () => void;
 }
 
-export function BatchCallList({ onClose }: BatchCallListProps) {
+export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
   const { data: batchCalls = [], isLoading, refetch } = useBatchCalls();
   const cancelBatchJob = useCancelBatchJob();
   const queryClient = useQueryClient();
@@ -129,6 +130,15 @@ export function BatchCallList({ onClose }: BatchCallListProps) {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-foreground">Batch Calls</h3>
         <div className="flex items-center gap-2">
+          {onCreateNew && (
+            <button
+              onClick={onCreateNew}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 transition-all flex items-center gap-2"
+            >
+              <Phone className="w-4 h-4" />
+              <span>Create Batch Call</span>
+            </button>
+          )}
           <button
             onClick={() => refetch()}
             className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
@@ -136,14 +146,6 @@ export function BatchCallList({ onClose }: BatchCallListProps) {
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
 

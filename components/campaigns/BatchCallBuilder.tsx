@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, Download, X, Phone, FileText } from "lucide-react";
+import { Upload, Download, Phone, FileText } from "lucide-react";
 import { usePhoneNumbersList } from "@/hooks/usePhoneNumber";
 import { useAgents } from "@/hooks/useAgents";
 import { useSubmitBatchCall } from "@/hooks/useBatchCalling";
@@ -490,12 +490,6 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-foreground">Create a batch call</h2>
-              <button
-                onClick={onClose}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Batch Name */}

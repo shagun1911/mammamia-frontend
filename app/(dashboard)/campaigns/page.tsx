@@ -18,7 +18,7 @@ import { LoadingLogo } from "@/components/LoadingLogo";
 export default function CampaignsPage() {
   const { getSidebarWidth } = useSidebar();
   const [showBuilder, setShowBuilder] = useState(false);
-  const [showBatchCallBuilder, setShowBatchCallBuilder] = useState(false);
+  const [showBatchCallBuilder, setShowBatchCallBuilder] = useState(true);
   const [showBatchCallList, setShowBatchCallList] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<any | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -78,6 +78,16 @@ export default function CampaignsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setShowBatchCallBuilder(false);
+                setShowBatchCallList(true);
+              }}
+              className="px-6 py-3 bg-secondary text-secondary-foreground rounded-xl text-sm font-bold hover:bg-secondary/80 transition-all duration-200 flex items-center gap-2 cursor-pointer"
+            >
+              <Activity className="w-4 h-4" />
+              <span>View Batch Calls</span>
+            </button>
             <LanguageSwitcher />
             <ThemeToggle />
             <UserMenu />
@@ -163,25 +173,21 @@ export default function CampaignsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowBatchCallList(true)}
-            className="px-6 py-3 bg-secondary text-secondary-foreground rounded-xl text-sm font-bold hover:bg-secondary/80 transition-all duration-200 flex items-center gap-2 cursor-pointer"
-          >
-            <Activity className="w-4 h-4" />
-            <span>View Batch Calls</span>
-          </button>
-          <button
-            onClick={() => setShowBatchCallBuilder(true)}
+            onClick={() => {
+              setShowBatchCallList(false);
+              setShowBatchCallBuilder(true);
+            }}
             className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl text-sm font-bold hover:from-blue-700 hover:to-blue-600 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
           >
             <Plus className="w-4 h-4" />
             <span>Batch Call</span>
           </button>
           <button
-            onClick={() => setShowBuilder(true)}
-            className="px-6 py-3 bg-gradient-to-r from-primary to-primary/90 text-white rounded-xl text-sm font-bold hover:from-primary/90 hover:to-primary/80 hover:shadow-xl hover:shadow-primary/30 transition-all duration-200 flex items-center gap-2 cursor-pointer shadow-lg shadow-primary/20"
+            onClick={() => setShowBatchCallList(true)}
+            className="px-6 py-3 bg-secondary text-secondary-foreground rounded-xl text-sm font-bold hover:bg-secondary/80 transition-all duration-200 flex items-center gap-2 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>Create Campaign</span>
+            <Activity className="w-4 h-4" />
+            <span>View Batch Calls</span>
           </button>
           <LanguageSwitcher />
           <ThemeToggle />
@@ -193,7 +199,13 @@ export default function CampaignsPage() {
       <div className="flex-1 overflow-auto p-8 bg-gradient-to-br from-background via-background to-primary/[0.01]">
         {showBatchCallList ? (
           <div className="max-w-6xl mx-auto">
-            <BatchCallList onClose={() => setShowBatchCallList(false)} />
+            <BatchCallList 
+              onClose={() => setShowBatchCallList(false)}
+              onCreateNew={() => {
+                setShowBatchCallList(false);
+                setShowBatchCallBuilder(true);
+              }}
+            />
           </div>
         ) : isLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -222,15 +234,8 @@ export default function CampaignsPage() {
               No campaigns yet
             </h3>
             <p className="text-sm text-muted-foreground/80 mb-8 font-medium">
-              Create your first campaign to get started
+              Use batch calls to reach your contacts
             </p>
-            <button
-              onClick={() => setShowBuilder(true)}
-              className="px-8 py-4 bg-gradient-to-r from-primary to-primary/90 text-white rounded-xl text-sm font-bold hover:from-primary/90 hover:to-primary/80 hover:shadow-xl hover:shadow-primary/30 transition-all duration-200 flex items-center gap-2 shadow-lg shadow-primary/20"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create Campaign</span>
-            </button>
           </div>
         ) : (
           <CampaignList
