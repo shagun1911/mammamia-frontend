@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios"; // Import axios directly
-import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Check, ChevronDown, ChevronUp, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { usePhoneSettings } from "@/hooks/usePhoneSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
@@ -14,7 +14,7 @@ import { phoneSettingsService } from "@/services/phoneSettings.service";
 import { inboundNumbersService } from "@/services/inboundNumbers.service";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api";
-import { useCreatePhoneNumber, usePhoneNumbersList } from "@/hooks/usePhoneNumber";
+import { useCreatePhoneNumber, usePhoneNumbersList, useDeletePhoneNumber } from "@/hooks/usePhoneNumber";
 import { useQueryClient } from "@tanstack/react-query";
 import { PhoneNumber, phoneNumberService } from "@/services/phoneNumber.service";
 
@@ -29,10 +29,12 @@ export default function PhoneSettingsDetailPage() {
   const { configs: outboundConfigs, getConfigByNumber, createOrUpdateConfig } = useOutboundAgentConfig();
   const { inboundNumbers: persistedInboundNumbers, isLoading: isLoadingInboundNumbers, addNumbers: addInboundNumbersMutation, removeNumber: removeInboundNumberMutation, clearAll: clearAllInboundMutation } = useInboundNumbers();
   const { data: phoneNumbersList, refetch: refetchPhoneNumbers } = usePhoneNumbersList();
+  const deletePhoneNumberMutation = useDeletePhoneNumber();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<"outbound" | "inbound">("outbound");
   const [isDeletingInbound, setIsDeletingInbound] = useState<string | null>(null);
+  const [isDeletingPhoneNumber, setIsDeletingPhoneNumber] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [selectedOutboundNumber, setSelectedOutboundNumber] = useState<string | null>(null);
 
@@ -238,6 +240,59 @@ export default function PhoneSettingsDetailPage() {
      
     } catch (error: any) {
       toast.error(error.message || "Failed to delete outbound number");
+    }
+  };
+
+  // Delete phone number by ID (removes from PhoneNumber collection and all related data)
+  const handleDeletePhoneNumber = async (phoneNumberId: string, phoneNumber: string, isInbound: boolean) => {
+    if (isDeletingPhoneNumber === phoneNumberId) {
+      console.warn('⚠️ [Delete Phone Number] Delete already in progress for', phoneNumberId);
+      return;
+    }
+
+    const confirmMessage = isInbound
+      ? `Are you sure you want to delete ${phoneNumber}? This will permanently remove ALL data including:\n- Phone number record\n- Inbound configuration\n- Agent assignments\n- Trunk configurations\n\nThis action cannot be undone.`
+      : `Are you sure you want to delete ${phoneNumber}? This will permanently remove ALL data including:\n- Phone number record\n- Outbound configuration\n- Trunk configurations\n\nThis action cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsDeletingPhoneNumber(phoneNumberId);
+    try {
+      console.log('🗑️ [Delete Phone Number] Deleting:', { phoneNumberId, phoneNumber, isInbound });
+      
+      // Delete from PhoneNumber collection (backend will handle related data cleanup)
+      await deletePhoneNumberMutation.mutateAsync(phoneNumberId);
+      
+      // If it's an inbound number, also clean up frontend state
+      if (isInbound) {
+        // Remove from PhoneSettings.inboundPhoneNumbers
+        try {
+          const currentInboundNumbers = settings?.inboundPhoneNumbers || [];
+          const updatedInboundNumbers = currentInboundNumbers.filter(num => num !== phoneNumber);
+          
+          if (updatedInboundNumbers.length !== currentInboundNumbers.length) {
+            await updateSettings({
+              inboundPhoneNumbers: updatedInboundNumbers
+            });
+            console.log('✅ [Delete Phone Number] Removed from PhoneSettings');
+          }
+        } catch (settingsError: any) {
+          console.warn('⚠️ [Delete Phone Number] Failed to update PhoneSettings:', settingsError);
+        }
+      }
+      
+      // Refresh phone numbers list
+      await refetchPhoneNumbers();
+      
+      toast.success(`Phone number ${phoneNumber} and all related data deleted successfully`);
+    } catch (error: any) {
+      console.error('❌ [Delete Phone Number] Error:', error);
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || "Failed to delete phone number";
+      toast.error(errorMessage);
+    } finally {
+      setIsDeletingPhoneNumber(null);
     }
   };
 
@@ -809,7 +864,8 @@ const handleSaveConfig = async (config: any) => {
         };
       }
 
-      console.log('📤 [SIP Trunk Import] Full request payload:', {
+      // Log full payload (with passwords masked for security)
+      const payloadForLogging = {
         ...requestPayload,
         ...(requestPayload.outbound_trunk_config && {
           outbound_trunk_config: {
@@ -829,12 +885,32 @@ const handleSaveConfig = async (config: any) => {
             }
           }
         })
-      });
+      };
+      
+      console.log('📤 [SIP Trunk Import] ========== REQUEST PAYLOAD ==========');
+      console.log('📤 [SIP Trunk Import] Endpoint: POST /phone-numbers/sip-trunk');
+      console.log('📤 [SIP Trunk Import] Full payload (passwords masked):', JSON.stringify(payloadForLogging, null, 2));
+      console.log('📤 [SIP Trunk Import] Supports Inbound:', genericSetupSupportsInbound);
+      console.log('📤 [SIP Trunk Import] Supports Outbound:', genericSetupSupportsOutbound);
+      if (genericSetupSupportsInbound) {
+        console.log('📤 [SIP Trunk Import] Inbound Config:', {
+          address: requestPayload.inbound_trunk_config.address,
+          transport: requestPayload.inbound_trunk_config.transport,
+          media_encryption: requestPayload.inbound_trunk_config.media_encryption,
+          username: requestPayload.inbound_trunk_config.credentials.username,
+          password: '***hidden***'
+        });
+      }
+      console.log('📤 [SIP Trunk Import] ====================================');
 
       const result = await apiClient.post<{ phone_number_id: string }>('/phone-numbers/sip-trunk', requestPayload);
 
-      console.log('✅ [SIP Trunk Import] Phone number imported:', result);
-      console.log('📞 [SIP Trunk Import] Phone Number ID:', result.phone_number_id);
+      console.log('✅ [SIP Trunk Import] ========== RESPONSE ==========');
+      console.log('✅ [SIP Trunk Import] Status: Success');
+      console.log('✅ [SIP Trunk Import] Full response:', JSON.stringify(result, null, 2));
+      console.log('✅ [SIP Trunk Import] Phone Number ID:', result.phone_number_id);
+      console.log('✅ [SIP Trunk Import] Response type:', typeof result);
+      console.log('✅ [SIP Trunk Import] ===============================');
 
       // If supports_inbound is true, show agent selection step
       if (genericSetupSupportsInbound) {
@@ -869,7 +945,18 @@ const handleSaveConfig = async (config: any) => {
 
       // 🔴 NO AGENT CONFIG, NO PHONE SETTINGS UPDATE (unless user selects agent)
     } catch (error: any) {
-      console.error('❌ [SIP Trunk Import] Error:', error);
+      console.error('❌ [SIP Trunk Import] ========== ERROR ==========');
+      console.error('❌ [SIP Trunk Import] Error message:', error.message);
+      console.error('❌ [SIP Trunk Import] Error status:', error.status || error.response?.status);
+      console.error('❌ [SIP Trunk Import] Full error object:', JSON.stringify(error, null, 2));
+      if (error.response) {
+        console.error('❌ [SIP Trunk Import] Error response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('❌ [SIP Trunk Import] Error response headers:', error.response.headers);
+      }
+      if (error.request) {
+        console.error('❌ [SIP Trunk Import] Error request:', error.request);
+      }
+      console.error('❌ [SIP Trunk Import] ============================');
       toast.error(error.message || "Failed to import SIP trunk phone number");
     } finally {
       setIsSettingUp(false);
@@ -885,20 +972,31 @@ const handleSaveConfig = async (config: any) => {
 
     setIsAssigningAgent(true);
     try {
-      console.log('📞 [Agent Assignment] Assigning agent to inbound phone number...');
-      console.log('📋 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
-      console.log('📋 [Agent Assignment] Agent ID:', selectedAgentId);
+      console.log('📞 [Agent Assignment] ========== ASSIGNING AGENT ==========');
+      console.log('📞 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
+      console.log('📞 [Agent Assignment] Agent ID:', selectedAgentId);
 
       // Build update payload with ONLY agent_id (as per user requirements)
       const updatePayload: any = {
         agent_id: selectedAgentId
       };
 
-      console.log('📤 [Agent Assignment] Update payload:', updatePayload);
+      console.log('📤 [Agent Assignment] ========== REQUEST PAYLOAD ==========');
+      console.log('📤 [Agent Assignment] Endpoint: PATCH /phone-numbers/' + newlyCreatedPhoneNumberId);
+      console.log('📤 [Agent Assignment] Full payload:', JSON.stringify(updatePayload, null, 2));
+      console.log('📤 [Agent Assignment] ====================================');
 
       const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, updatePayload);
 
-      console.log('✅ [Agent Assignment] Agent assigned successfully:', result);
+      console.log('✅ [Agent Assignment] ========== RESPONSE ==========');
+      console.log('✅ [Agent Assignment] Status: Success');
+      console.log('✅ [Agent Assignment] Full response:', JSON.stringify(result, null, 2));
+      console.log('✅ [Agent Assignment] Response type:', typeof result);
+      if (result && typeof result === 'object') {
+        console.log('✅ [Agent Assignment] Response keys:', Object.keys(result));
+      }
+      console.log('✅ [Agent Assignment] ===============================');
+      
       toast.success(`Agent assigned to phone number successfully!`);
 
       // Refresh phone numbers list
@@ -925,7 +1023,18 @@ const handleSaveConfig = async (config: any) => {
       setShowSetupMethods(false);
       setActiveSetupMethod(null);
     } catch (error: any) {
-      console.error('❌ [Agent Assignment] Error:', error);
+      console.error('❌ [Agent Assignment] ========== ERROR ==========');
+      console.error('❌ [Agent Assignment] Error message:', error.message);
+      console.error('❌ [Agent Assignment] Error status:', error.status || error.response?.status);
+      console.error('❌ [Agent Assignment] Full error object:', JSON.stringify(error, null, 2));
+      if (error.response) {
+        console.error('❌ [Agent Assignment] Error response data:', JSON.stringify(error.response.data, null, 2));
+        console.error('❌ [Agent Assignment] Error response headers:', error.response.headers);
+      }
+      if (error.request) {
+        console.error('❌ [Agent Assignment] Error request:', error.request);
+      }
+      console.error('❌ [Agent Assignment] ============================');
       toast.error(error.message || "Failed to assign agent to phone number");
     } finally {
       setIsAssigningAgent(false);
@@ -1058,6 +1167,18 @@ return (
                           Provider: {phoneNumber.provider}
                         </p>
                       </div>
+                      <button
+                        onClick={() => handleDeletePhoneNumber(phoneNumber.id, phoneNumber.phone_number, false)}
+                        disabled={isDeletingPhoneNumber === phoneNumber.id}
+                        className="ml-auto p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete phone number"
+                      >
+                        {isDeletingPhoneNumber === phoneNumber.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   ))}
               </div>
@@ -1143,6 +1264,18 @@ return (
                           Provider: {phoneNumber.provider}
                         </p>
                       </div>
+                      <button
+                        onClick={() => handleDeletePhoneNumber(phoneNumber.id, phoneNumber.phone_number, true)}
+                        disabled={isDeletingPhoneNumber === phoneNumber.id}
+                        className="ml-auto p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete phone number"
+                      >
+                        {isDeletingPhoneNumber === phoneNumber.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
                   ))}
               </div>
