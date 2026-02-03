@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Phone, ChevronDown, ChevronUp, TestTube2 } from "lucide-react";
+import { Phone, TestTube2 } from "lucide-react";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
@@ -34,11 +34,11 @@ export function VoiceAgentAnswering() {
   
   const [improvements, setImprovements] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("en");
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [showTestModal, setShowTestModal] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>("");
+  const [callerProvider, setCallerProvider] = useState<'sip' | 'twilio'>('sip');
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [isTesting, setIsTesting] = useState(false);
@@ -184,6 +184,8 @@ export function VoiceAgentAnswering() {
 
     setIsTesting(true);
     try {
+      console.log(`[Outbound Call] Using provider: ${callerProvider}`);
+      
       const result = await outboundCallMutation.mutateAsync({
         agent_id: agentId,
         agent_phone_number_id: selectedPhoneNumberId,
@@ -192,6 +194,7 @@ export function VoiceAgentAnswering() {
           name: customerName,
           ...(customerEmail.trim() && { email: customerEmail })
         },
+        provider: callerProvider, // Pass the selected provider
         ...(senderEmail && { sender_email: senderEmail })
       });
 
@@ -213,6 +216,7 @@ export function VoiceAgentAnswering() {
         setCustomerEmail("");
         setSelectedAgentId("");
         setSelectedPhoneNumberId("");
+        setCallerProvider('sip');
       } else {
         toast.error(result.message || 'Outbound call failed');
       }
@@ -252,37 +256,6 @@ export function VoiceAgentAnswering() {
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Advanced Section */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full px-6 py-4 flex items-center justify-between hover:bg-accent transition-colors cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="text-sm font-medium text-foreground">Advanced Settings</div>
-            <span className="text-xs text-muted-foreground">
-              View the current system prompt
-            </span>
-          </div>
-          {showAdvanced ? (
-            <ChevronUp className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          )}
-        </button>
-
-        {showAdvanced && (
-          <div className="px-6 pb-6 pt-2 border-t border-border">
-            <p className="text-sm text-muted-foreground mb-4">
-              This is the current system prompt that will be used for your AI voice agent
-            </p>
-            <div className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground font-mono whitespace-pre-wrap min-h-[200px]">
-              {voiceAgentPrompt}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Test Modal */}
@@ -349,6 +322,24 @@ export function VoiceAgentAnswering() {
                 )}
               </div>
 
+              {/* Caller Provider Selection */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Caller Provider <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={callerProvider}
+                  onChange={(e) => setCallerProvider(e.target.value as 'sip' | 'twilio')}
+                  className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="sip">SIP</option>
+                  <option value="twilio">Twilio</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose the provider to use for this call. Default: SIP
+                </p>
+              </div>
+
               {/* Customer Phone Number */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -380,7 +371,7 @@ export function VoiceAgentAnswering() {
               {/* Customer Email (Optional) */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Customer Email <span className="text-muted-foreground text-xs">(Optional)</span>
+                  Customer Email <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="email"
@@ -401,6 +392,7 @@ export function VoiceAgentAnswering() {
                   setCustomerEmail("");
                   setSelectedAgentId("");
                   setSelectedPhoneNumberId("");
+                  setCallerProvider('sip');
                 }}
                 disabled={isTesting}
                 className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
