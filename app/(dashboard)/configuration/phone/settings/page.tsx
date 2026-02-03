@@ -95,41 +95,52 @@ export default function PhoneSettingsDetailPage() {
   const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-  // Get available outbound numbers
-  const getAvailableOutboundNumbers = (): string[] => {
-    const numbers = new Set<string>();
-    
-    // Add phone numbers from the new phone-numbers endpoint
-    console.log('📞 [getAvailableOutboundNumbers] phoneNumbersList:', phoneNumbersList);
+  // Get all phone numbers with their capabilities
+  const getPhoneNumbersWithCapabilities = (): PhoneNumber[] => {
+    console.log('📞 [getPhoneNumbersWithCapabilities] phoneNumbersList:', phoneNumbersList);
     if (phoneNumbersList && phoneNumbersList.length > 0) {
-      phoneNumbersList.forEach((phoneNumber: PhoneNumber) => {
-        console.log('📞 [getAvailableOutboundNumbers] Processing phone number:', phoneNumber);
-        if (phoneNumber.phone_number) {
-          numbers.add(phoneNumber.phone_number);
-        }
-      });
-    } else {
-      console.log('⚠️ [getAvailableOutboundNumbers] No phone numbers found in list');
+      return phoneNumbersList;
     }
     
-    // Legacy: Add from phone settings (for backward compatibility)
+    // Legacy: Add from phone settings and outbound configs (for backward compatibility)
+    const legacyNumbers: PhoneNumber[] = [];
+    
     if (settings?.twilioPhoneNumber) {
-      numbers.add(settings.twilioPhoneNumber);
+      legacyNumbers.push({
+        id: 'legacy-' + settings.twilioPhoneNumber,
+        label: 'Legacy Number',
+        phone_number: settings.twilioPhoneNumber,
+        provider: 'twilio',
+        supports_outbound: true,
+        supports_inbound: false,
+        created_at_unix: Date.now()
+      });
     }
     
-    // Legacy: Add from outbound configs (for backward compatibility)
     if (outboundConfigs && outboundConfigs.length > 0) {
       outboundConfigs.forEach(config => {
-        if (config.outboundNumber) {
-          numbers.add(config.outboundNumber);
+        if (config.outboundNumber && !legacyNumbers.find(n => n.phone_number === config.outboundNumber)) {
+          legacyNumbers.push({
+            id: 'legacy-' + config.outboundNumber,
+            label: 'Legacy Number',
+            phone_number: config.outboundNumber,
+            provider: 'sip',
+            supports_outbound: true,
+            supports_inbound: false,
+            created_at_unix: Date.now()
+          });
         }
       });
     }
     
-    return Array.from(numbers).sort();
+    return legacyNumbers;
   };
 
-  const availableOutboundNumbers = getAvailableOutboundNumbers();
+  const phoneNumbers = getPhoneNumbersWithCapabilities();
+  const availableOutboundNumbers = phoneNumbers
+    .filter(pn => pn.supports_outbound)
+    .map(pn => pn.phone_number)
+    .sort();
 
   // Auto-select first outbound number
   useEffect(() => {
@@ -1006,148 +1017,188 @@ return (
         </div>
       </div>
 
-      {/* Connected Numbers Display - Removed as requested */}
-
-      {/* Outbound Number Selector */}
-      {activeTab === "outbound" && (
-        <div className="mb-6 max-w-2xl">
-          <div className="bg-gradient-to-br from-card to-card/80 border border-border rounded-xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <label className="block text-base font-bold text-foreground mb-1">
-                  Select Outbound Number <span className="text-red-500">*</span>
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Choose which number to configure. Each number has independent settings.
-                </p>
+      {/* Active Phone Numbers */}
+      <div className="mb-8 space-y-6 max-w-4xl">
+        {/* Outbound Numbers Card */}
+        <div className="bg-gradient-to-br from-blue-500/5 via-card to-card border-2 border-blue-500/20 rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-r from-blue-500/10 to-blue-500/5 border-b border-blue-500/20 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center shadow-lg">
+                  <svg className="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 3l5 5m0 0l-5 5m5-5H9" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    Outbound Phone Numbers
+                    <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-bold">
+                      {phoneNumbers.filter(pn => pn.supports_outbound).length}
+                    </span>
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Numbers configured for making outbound calls
+                  </p>
+                </div>
               </div>
-              {availableOutboundNumbers.length > 0 && (
-                <div className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
-                  {availableOutboundNumbers.length} {availableOutboundNumbers.length === 1 ? 'Number' : 'Numbers'}
-                </div>
-              )}
             </div>
-            {availableOutboundNumbers.length === 0 ? (
-              <div className="p-6 bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border-2 border-yellow-500/20 rounded-xl">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-yellow-400 text-xl">📞</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-yellow-400 mb-1">
-                      No outbound numbers configured yet
-                    </p>
-                    <p className="text-xs text-yellow-300/80 leading-relaxed">
-                      Configure a phone number using the setup methods below. Once added, it will appear here for per-number configuration.
-                    </p>
-                  </div>
+          </div>
+          <div className="p-6">
+            {phoneNumbers.filter(pn => pn.supports_outbound).length === 0 ? (
+              <div className="p-8 text-center bg-blue-500/5 border-2 border-dashed border-blue-500/20 rounded-xl">
+                <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">📞</span>
                 </div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">
+                  No outbound numbers configured
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Configure a phone number with "Supports Outbound" enabled below
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {availableOutboundNumbers.map((number, index) => (
-                  <label
-                    key={number}
-                    className={`group flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                      selectedOutboundNumber === number
-                        ? 'border-primary bg-gradient-to-r from-primary/20 to-primary/10 shadow-lg shadow-primary/20'
-                        : 'border-border bg-background hover:border-primary/50 hover:bg-secondary/50 hover:shadow-md'
-                    }`}
-                  >
-                    <div className={`flex items-center justify-center w-5 h-5 rounded-full border-2 transition-all ${
-                      selectedOutboundNumber === number
-                        ? 'border-primary bg-primary'
-                        : 'border-border group-hover:border-primary/50'
-                    }`}>
-                      {selectedOutboundNumber === number && (
-                        <div className="w-2 h-2 rounded-full bg-foreground"></div>
-                      )}
-                    </div>
-                    <input
-                      type="radio"
-                      name="outboundNumber"
-                      value={number}
-                      checked={selectedOutboundNumber === number}
-                      onChange={() => setSelectedOutboundNumber(number)}
-                      className="sr-only"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className={`text-base font-semibold font-mono ${
-                          selectedOutboundNumber === number ? 'text-primary' : 'text-foreground'
-                        }`}>
-                          {number}
-                        </span>
-                        {selectedOutboundNumber === number && (
-                          <span className="px-2.5 py-1 bg-primary text-foreground rounded-full text-xs font-bold shadow-sm">
-                            ACTIVE
+                {phoneNumbers
+                  .filter(pn => pn.supports_outbound)
+                  .map((phoneNumber) => (
+                    <div
+                      key={phoneNumber.id}
+                      className="group flex items-center gap-4 p-4 rounded-xl border-2 border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent hover:border-blue-500/40 hover:shadow-md transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-lg font-bold font-mono text-foreground">
+                            {phoneNumber.phone_number}
                           </span>
+                          {phoneNumber.supports_outbound && (
+                            <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-bold shadow-sm">
+                              OUTBOUND
+                            </span>
+                          )}
+                          {phoneNumber.supports_inbound && (
+                            <span className="px-2.5 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-bold shadow-sm">
+                              INBOUND
+                            </span>
+                          )}
+                          <span className="px-2.5 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-bold shadow-sm">
+                            ✓ ACTIVE
+                          </span>
+                        </div>
+                        {phoneNumber.label && (
+                          <p className="text-sm text-muted-foreground">{phoneNumber.label}</p>
                         )}
+                        <p className="text-xs text-muted-foreground mt-1 capitalize">
+                          Provider: {phoneNumber.provider}
+                        </p>
                       </div>
                     </div>
-                    {selectedOutboundNumber === number && (
-                      <div className="flex-shrink-0">
-                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                      </div>
-                    )}
-                  </label>
-                ))}
-                {selectedOutboundNumber && (
-                  <div className="mt-4 p-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-primary flex-shrink-0" />
-                      <p className="text-sm font-semibold text-primary">
-                        Configuring settings for <span className="font-mono font-bold">{selectedOutboundNumber}</span>
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  ))}
               </div>
             )}
           </div>
         </div>
-      )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-secondary rounded-lg p-1 mb-6 max-w-2xl">
-        <button
-          onClick={() => setActiveTab("outbound")}
-          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "outbound"
-              ? "bg-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Outbound Setup
-        </button>
-        <button
-          onClick={() => setActiveTab("inbound")}
-          className={`flex-1 py-2.5 px-4 rounded-md text-sm font-medium transition-all cursor-pointer ${
-            activeTab === "inbound"
-              ? "bg-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Inbound Numbers
-        </button>
-      </div>
-
-      {/* Outbound Setup Tab */}
-      {activeTab === "outbound" && (
-        <div className="space-y-6 max-w-2xl">
-          {/* Info Banner */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-            <div className="flex gap-3">
-              <div className="text-blue-400 mt-0.5">ℹ️</div>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-blue-400 mb-1">Voice, Language & Greeting Configuration</h4>
-                <p className="text-xs text-muted-foreground">
-                  Voice, language, greeting message, and escalation rules are now configured per Agent. 
-                  Please configure these settings in <strong>AI → Agents</strong> when creating or editing an agent.
-                </p>
+        {/* Inbound Numbers Card */}
+        <div className="bg-gradient-to-br from-green-500/5 via-card to-card border-2 border-green-500/20 rounded-2xl overflow-hidden shadow-lg">
+          <div className="bg-gradient-to-r from-green-500/10 to-green-500/5 border-b border-green-500/20 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl bg-green-500/20 flex items-center justify-center shadow-lg">
+                  <svg className="w-7 h-7 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    Inbound Phone Numbers
+                    <span className="px-2.5 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-bold">
+                      {phoneNumbers.filter(pn => pn.supports_inbound).length}
+                    </span>
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Numbers configured for receiving inbound calls
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+          <div className="p-6">
+            {phoneNumbers.filter(pn => pn.supports_inbound).length === 0 ? (
+              <div className="p-8 text-center bg-green-500/5 border-2 border-dashed border-green-500/20 rounded-xl">
+                <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">📱</span>
+                </div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">
+                  No inbound numbers configured
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Configure a phone number with "Supports Inbound" enabled below
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {phoneNumbers
+                  .filter(pn => pn.supports_inbound)
+                  .map((phoneNumber) => (
+                    <div
+                      key={phoneNumber.id}
+                      className="group flex items-center gap-4 p-4 rounded-xl border-2 border-green-500/20 bg-gradient-to-r from-green-500/5 to-transparent hover:border-green-500/40 hover:shadow-md transition-all"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-lg font-bold font-mono text-foreground">
+                            {phoneNumber.phone_number}
+                          </span>
+                          {phoneNumber.supports_outbound && (
+                            <span className="px-2.5 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-bold shadow-sm">
+                              OUTBOUND
+                            </span>
+                          )}
+                          {phoneNumber.supports_inbound && (
+                            <span className="px-2.5 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-bold shadow-sm">
+                              INBOUND
+                            </span>
+                          )}
+                          <span className="px-2.5 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-bold shadow-sm">
+                            ✓ ACTIVE
+                          </span>
+                        </div>
+                        {phoneNumber.label && (
+                          <p className="text-sm text-muted-foreground">{phoneNumber.label}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1 capitalize">
+                          Provider: {phoneNumber.provider}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Add New Phone Numbers Section */}
+      <div className="mb-8 max-w-4xl">
+        <div className="border-t border-border pt-8">
+          <h3 className="text-xl font-bold text-foreground mb-2">Add New Phone Numbers</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Use the setup methods below to configure new phone numbers for your system
+          </p>
+        </div>
+        <div className="space-y-6">
           {/* Auto Setup Methods Section */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
@@ -1591,534 +1642,18 @@ return (
             )}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Inbound Tab */}
-      {activeTab === "inbound" && (
-        <div className="space-y-6 max-w-5xl">
-          {/* Header Section */}
-          <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 border-2 border-border rounded-2xl p-6 md:p-8 shadow-lg">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Inbound Phone Numbers</h2>
-                <p className="text-sm md:text-base text-muted-foreground">
-                  Manage your inbound call routing and agent configurations
-                </p>
-              </div>
-              {realInboundConfigs && realInboundConfigs.length > 0 && (
-                <button
-                  onClick={() => syncConfig.mutate()}
-                  disabled={syncConfig.isPending}
-                  className="h-10 md:h-11 px-5 bg-primary text-foreground rounded-lg text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md w-full md:w-auto"
-                >
-                  {syncConfig.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      Sync All Configs
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-            {persistedInboundNumbers && persistedInboundNumbers.length > 0 && (
-              <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Active Numbers:</span>
-                <div className="flex flex-wrap gap-2">
-                  {persistedInboundNumbers.map((num, idx) => (
-                    <span key={idx} className="px-3 py-1.5 bg-primary/20 text-primary rounded-lg text-xs font-mono font-semibold border border-primary/30 shadow-sm">
-                      {num}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Current Inbound Agent Configs */}
-          {realInboundConfigs && realInboundConfigs.length > 0 ? (
-            <div className="space-y-4 md:space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <h3 className="text-xl md:text-2xl font-bold text-foreground">
-                  Configured Numbers <span className="text-muted-foreground">({realInboundConfigs.length})</span>
-                </h3>
-                <button
-                  onClick={async () => {
-                    if (!confirm('⚠️ WARNING: This will delete ALL inbound numbers, configurations, and trunk settings. This action cannot be undone. Are you sure?')) {
-                      return;
-                    }
-                    try {
-                      await clearAllInboundMutation.mutateAsync();
-                      if (typeof syncConfig.mutateAsync === 'function') {
-                        await syncConfig.mutateAsync();
-                      }
-                    } catch (error: any) {
-                      console.error('Failed to clear all inbound data:', error);
-                    }
-                  }}
-                  disabled={clearAllInboundMutation.isPending}
-                  className="h-10 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
-                >
-                  {clearAllInboundMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Clearing...
-                    </>
-                  ) : (
-                    <>
-                      🗑️ Clear All Inbound Data
-                    </>
-                  )}
-                </button>
-              </div>
-              <div className="grid gap-4 md:gap-6">
-                {realInboundConfigs.map((config, index) => (
-                  <div key={config._id} className="bg-gradient-to-br from-card via-card/95 to-card/80 border-2 border-border rounded-2xl p-5 md:p-7 shadow-lg hover:shadow-2xl transition-all duration-300">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center border-2 border-primary/40 shadow-md flex-shrink-0">
-                          <span className="text-2xl md:text-3xl font-bold text-primary">{index + 1}</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h4 className="text-xl md:text-2xl font-bold text-foreground font-mono mb-1 break-all">
-                            {config.calledNumber}
-                          </h4>
-                          <p className="text-xs md:text-sm text-muted-foreground">Inbound Call Configuration</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                        {editingConfigId === config._id ? (
-                          <>
-                            <button
-                              onClick={() => handleSaveConfig(config)}
-                              disabled={isSavingConfig}
-                              className="h-10 md:h-11 px-5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md"
-                            >
-                              {isSavingConfig ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Saving...
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="w-4 h-4" />
-                                  Save Changes
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              disabled={isSavingConfig}
-                              className="h-10 md:h-11 px-5 bg-secondary text-foreground rounded-lg text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleEditConfig(config)}
-                              className="h-10 md:h-11 px-5 bg-primary text-foreground rounded-lg text-sm font-bold hover:brightness-110 transition-all cursor-pointer shadow-md"
-                            >
-                              Edit Configuration
-                            </button>
-                            <button
-                              onClick={() => handleDeleteInboundNumber(config.calledNumber)}
-                              disabled={isDeletingInbound === config.calledNumber}
-                              className="h-10 md:h-11 px-5 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-sm font-bold transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 border-2 border-red-500/20"
-                            >
-                              {isDeletingInbound === config.calledNumber ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                                  Deleting...
-                                </>
-                              ) : (
-                                'Delete'
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {editingConfigId === config._id ? (
-                      <div className="pt-5 border-t-2 border-border">
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                          <div className="flex gap-3">
-                            <div className="text-blue-400 mt-0.5">ℹ️</div>
-                            <div className="flex-1">
-                              <h4 className="text-sm font-medium text-blue-400 mb-1">Voice & Language Configuration</h4>
-                              <p className="text-xs text-muted-foreground">
-                                Voice, language, greeting message, and escalation rules are now configured per Agent. 
-                                Please configure these settings in <strong>AI → Agents</strong> when creating or editing an agent.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="pt-5 border-t-2 border-border">
-                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 mb-4">
-                          <div className="flex gap-3">
-                            <div className="text-blue-400 mt-0.5">ℹ️</div>
-                            <div className="flex-1">
-                              <h4 className="text-sm font-medium text-blue-400 mb-1">Voice & Language Configuration</h4>
-                              <p className="text-xs text-muted-foreground">
-                                Voice, language, greeting message, and escalation rules are now configured per Agent. 
-                                Please configure these settings in <strong>AI → Agents</strong> when creating or editing an agent.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        {config.collections && config.collections.length > 0 && (
-                          <div className="p-4 md:p-5 bg-background/60 rounded-xl border-2 border-border hover:border-primary/30 transition-colors">
-                            <div className="text-xs md:text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">Knowledge Base Collections</div>
-                            <div className="flex flex-wrap gap-2">
-                              {config.collections.map((col, idx) => (
-                                <span key={idx} className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs md:text-sm font-semibold border border-primary/20">
-                                  {col}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-card border-2 border-dashed border-border rounded-2xl p-12 md:p-16 text-center">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-muted/20 flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl md:text-5xl">📞</span>
-              </div>
-              <h3 className="text-xl md:text-2xl font-bold text-foreground mb-3">No Inbound Configurations</h3>
-              <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
-                Add inbound phone numbers below and configurations will be created automatically.
-              </p>
-            </div>
-          )}
-          
-          {/* Setup Inbound Trunk */}
-          <div className="bg-gradient-to-br from-card to-card/80 border-2 border-border rounded-2xl p-6 md:p-8 lg:p-10 shadow-xl">
-            {/* Step Indicator */}
-            <div className="flex items-center justify-center mb-8 md:mb-10 overflow-x-auto">
-              <div className="flex items-center gap-3 md:gap-6 min-w-max">
-                <div className="flex flex-col items-center">
-                  <div className={`flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full font-bold text-lg md:text-xl shadow-lg transition-all ${
-                    inboundStep >= 1 ? 'bg-primary text-foreground scale-110 ring-4 ring-primary/20' : 'bg-secondary text-muted-foreground'
-                  }`}>
-                    {inboundStep > 1 ? <Check className="w-7 h-7 md:w-8 md:h-8" /> : '1'}
-                  </div>
-                  <span className={`text-xs md:text-sm font-bold mt-3 ${inboundStep >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
-                    Create Trunk
-                  </span>
-                </div>
-                <div className={`w-16 md:w-24 h-1.5 rounded-full transition-all ${inboundStep >= 2 ? 'bg-primary' : 'bg-secondary'}`}></div>
-                <div className="flex flex-col items-center">
-                  <div className={`flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full font-bold text-lg md:text-xl shadow-lg transition-all ${
-                    inboundStep >= 2 ? 'bg-primary text-foreground scale-110 ring-4 ring-primary/20' : 'bg-secondary text-muted-foreground'
-                  }`}>
-                    {inboundStep > 2 ? <Check className="w-7 h-7 md:w-8 md:h-8" /> : '2'}
-                  </div>
-                  <span className={`text-xs md:text-sm font-bold mt-3 ${inboundStep >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
-                    Dispatch Rule
-                  </span>
-                </div>
-                <div className={`w-16 md:w-24 h-1.5 rounded-full transition-all ${inboundStep >= 3 ? 'bg-primary' : 'bg-secondary'}`}></div>
-                <div className="flex flex-col items-center">
-                  <div className={`flex items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-full font-bold text-lg md:text-xl shadow-lg transition-all ${
-                    inboundStep >= 3 ? 'bg-primary text-foreground scale-110 ring-4 ring-primary/20' : 'bg-secondary text-muted-foreground'
-                  }`}>
-                    <Check className="w-7 h-7 md:w-8 md:h-8" />
-                  </div>
-                  <span className={`text-xs md:text-sm font-bold mt-3 ${inboundStep >= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-                    Complete
-                  </span>
-                </div>
-              </div>
-            </div>
-
-          {/* Step 1: Create Inbound Trunk */}
-          {inboundStep === 1 && (
-            <div className="space-y-6 md:space-y-8">
-              <div className="text-center mb-6 md:mb-8">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Setup Inbound Trunk</h3>
-                <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
-                  Create an inbound SIP trunk to receive calls from your phone numbers
-                </p>
-              </div>
-
-              {/* Warning if numbers already exist */}
-              {(realInboundConfigs && realInboundConfigs.length > 0) && (
-                <div className="p-5 md:p-6 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-2 border-yellow-500/30 rounded-xl md:rounded-2xl mb-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-                      <span className="text-yellow-400 text-2xl md:text-3xl">⚠️</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm md:text-base font-bold text-yellow-400 mb-2">Inbound Numbers Already Configured</h4>
-                      <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                        You have {realInboundConfigs.length} inbound number(s) configured. Please delete existing numbers above before adding new ones.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(realInboundConfigs && realInboundConfigs.length > 0) ? (
-                <div className="p-8 md:p-12 bg-secondary/30 rounded-xl md:rounded-2xl text-center border-2 border-dashed border-border">
-                  <p className="text-sm md:text-base font-semibold text-muted-foreground">
-                    Please delete existing inbound numbers before adding new ones.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6 md:space-y-8">
-                  <div>
-                    <label className="block text-sm md:text-base font-bold text-foreground mb-3 md:mb-4">
-                      Trunk Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={inboundName}
-                      onChange={(e) => setInboundName(e.target.value)}
-                      placeholder="e.g., My Inbound Trunk"
-                      className="w-full h-12 md:h-14 bg-secondary border-2 border-border rounded-xl px-4 md:px-5 text-sm md:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm md:text-base font-bold text-foreground mb-3 md:mb-4">
-                      Phone Numbers <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={inboundPhoneNumbers || ''}
-                      onChange={(e) => setInboundPhoneNumbers(e.target.value)}
-                      placeholder="+1234567890, +0987654321"
-                      className="w-full h-12 md:h-14 bg-secondary border-2 border-border rounded-xl px-4 md:px-5 text-sm md:text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                    />
-                    {/* Show persisted inbound numbers */}
-                    {persistedInboundNumbers && persistedInboundNumbers.length > 0 && (
-                      <div className="mt-4 p-4 md:p-5 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/20 rounded-xl md:rounded-2xl">
-                        <p className="text-xs md:text-sm font-bold text-blue-400 uppercase tracking-wide mb-3">Saved Inbound Numbers</p>
-                        <div className="flex flex-wrap gap-2 md:gap-3">
-                          {persistedInboundNumbers.map((num, idx) => (
-                            <span key={idx} className="px-3 md:px-4 py-1.5 md:py-2 bg-background/80 text-blue-300 font-mono text-xs md:text-sm font-semibold rounded-lg border border-blue-500/30">
-                              {num}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <p className="text-xs md:text-sm text-muted-foreground mt-3">
-                      Enter phone numbers in E.164 format, separated by commas
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-3 md:gap-4 p-4 md:p-5 bg-background/50 rounded-xl border-2 border-border">
-                    <input
-                      type="checkbox"
-                      id="krispEnabled"
-                      checked={inboundKrispEnabled}
-                      onChange={(e) => setInboundKrispEnabled(e.target.checked)}
-                      className="w-5 h-5 md:w-6 md:h-6 rounded border-border text-primary focus:ring-primary cursor-pointer"
-                    />
-                    <label htmlFor="krispEnabled" className="text-sm md:text-base font-bold text-foreground cursor-pointer flex-1">
-                      Enable Krisp noise cancellation
-                    </label>
-                  </div>
-
-                  <button
-                    onClick={handleCreateInboundTrunk}
-                    disabled={isCreatingInbound || !inboundName || !inboundPhoneNumbers || (realInboundConfigs && realInboundConfigs.length > 0)}
-                    className="w-full h-12 md:h-14 bg-primary text-foreground rounded-xl md:rounded-2xl text-sm md:text-base font-bold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl"
-                  >
-                    {isCreatingInbound ? (
-                      <>
-                        <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                        Creating Trunk...
-                      </>
-                    ) : (
-                      <>
-                        <span>Continue to Next Step</span>
-                        <ChevronDown className="w-4 h-4 md:w-5 md:h-5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 2: Assign Agent to Phone Numbers */}
-          {inboundStep === 2 && (
-            <div className="space-y-6 md:space-y-8">
-              <div className="text-center mb-6 md:mb-8">
-                <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Assign Agent to Phone Numbers</h3>
-                <p className="text-sm md:text-base text-muted-foreground max-w-2xl mx-auto">
-                  Select which agent should handle incoming calls for these phone numbers
-                </p>
-              </div>
-
-              <div className="p-6 md:p-8 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-2 border-green-500/30 rounded-xl md:rounded-2xl">
-                <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-6">
-                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-7 h-7 md:w-8 md:h-8 text-green-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-base md:text-lg font-bold text-green-400 mb-4">Trunk Created Successfully!</h4>
-                    <div className="space-y-3 md:space-y-4 text-sm md:text-base">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                        <span className="font-bold text-muted-foreground min-w-[120px]">Trunk ID:</span>
-                        <span className="font-mono text-foreground font-semibold break-all">{inboundTrunkId}</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                        <span className="font-bold text-muted-foreground min-w-[120px]">Trunk Name:</span>
-                        <span className="text-foreground font-semibold">{inboundTrunkName}</span>
-                      </div>
-                      <div className="mt-4">
-                        <span className="font-bold text-muted-foreground block mb-3">Phone Numbers:</span>
-                        <div className="flex flex-wrap gap-2 md:gap-3">
-                          {inboundConnectedNumbers.map((num, idx) => (
-                            <span key={idx} className="px-3 md:px-4 py-1.5 md:py-2 bg-background/80 text-green-300 font-mono text-xs md:text-sm font-semibold rounded-lg border border-green-500/30">
-                              {num}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Agent Selection */}
-              <div className="p-6 md:p-8 bg-card border-2 border-border rounded-xl md:rounded-2xl">
-                <label className="block text-sm md:text-base font-bold text-foreground mb-3">
-                  Select Agent <span className="text-red-500">*</span>
-                </label>
-                {isLoadingAgents ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    <span className="ml-2 text-muted-foreground">Loading agents...</span>
-                  </div>
-                ) : agents.length === 0 ? (
-                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                    <p className="text-sm text-yellow-400">
-                      No agents found. Please create an agent first in <strong>AI → Agents</strong>.
-                    </p>
-                  </div>
-                ) : (
-                  <select
-                    value={inboundSelectedAgentId}
-                    onChange={(e) => setInboundSelectedAgentId(e.target.value)}
-                    className="w-full h-12 md:h-14 bg-background border-2 border-border rounded-lg px-4 text-sm md:text-base text-foreground focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value="">-- Select an agent --</option>
-                    {agents.map((agent) => (
-                      <option key={agent._id} value={agent.agent_id}>
-                        {agent.name} ({agent.agent_id})
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {inboundSelectedAgentId && (
-                  <p className="mt-2 text-xs md:text-sm text-muted-foreground">
-                    Selected: <span className="font-mono font-semibold text-primary">{inboundSelectedAgentId}</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 pt-2">
-                <button
-                  onClick={() => setInboundStep(1)}
-                  className="flex-1 h-12 md:h-14 bg-secondary text-foreground rounded-xl md:rounded-2xl text-sm md:text-base font-bold hover:brightness-110 transition-all cursor-pointer"
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={handleAssignAgentToPhoneNumbers}
-                  disabled={isCreatingInbound || !inboundSelectedAgentId || isLoadingAgents}
-                  className="flex-1 h-12 md:h-14 bg-primary text-foreground rounded-xl md:rounded-2xl text-sm md:text-base font-bold hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl"
-                >
-                  {isCreatingInbound ? (
-                    <>
-                      <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
-                      Assigning Agent...
-                    </>
-                  ) : (
-                    <>
-                      <span>Assign Agent & Complete</span>
-                      <Check className="w-4 h-4 md:w-5 md:h-5" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Success */}
-          {inboundStep === 3 && (
-            <div className="space-y-6 md:space-y-8">
-              <div className="text-center">
-                <div className="w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 md:mb-8 border-4 border-green-500/30 shadow-xl">
-                  <Check className="w-12 h-12 md:w-16 md:h-16 text-green-500" />
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-3">Setup Complete! 🎉</h3>
-                <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
-                  Your inbound trunk and dispatch rule have been configured successfully
-                </p>
-              </div>
-
-              <div className="p-6 md:p-8 bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-green-500/5 border-2 border-green-500/30 rounded-xl md:rounded-2xl space-y-6">
-                <div>
-                  <h4 className="text-sm md:text-base font-bold text-green-400 uppercase tracking-wide mb-5 flex items-center gap-2">
-                    <div className="w-2 h-2 md:w-3 md:h-3 rounded-full bg-green-500 animate-pulse"></div>
-                    Connected Phone Numbers
-                  </h4>
-                  <div className="grid gap-3 md:gap-4">
-                    {inboundConnectedNumbers.map((num, idx) => (
-                      <div key={idx} className="flex items-center gap-3 md:gap-4 p-4 md:p-5 bg-background/80 rounded-xl border-2 border-green-500/20 shadow-md">
-                        <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-green-500"></div>
-                        <span className="font-mono text-base md:text-lg text-foreground font-bold flex-1 break-all">{num}</span>
-                        <Check className="w-5 h-5 md:w-6 md:h-6 text-green-500 flex-shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="pt-5 md:pt-6 border-t-2 border-green-500/20">
-                  <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    ✨ All incoming calls to these numbers will be automatically routed to your <span className="font-bold text-foreground">inbound agent</span>.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setInboundStep(1);
-                  setInboundName("");
-                  setInboundPhoneNumbers("");
-                  setInboundTrunkId("");
-                  setInboundTrunkName("");
-                  setInboundConnectedNumbers([]);
-                }}
-                className="w-full h-12 md:h-14 bg-primary text-foreground rounded-xl md:rounded-2xl text-sm md:text-base font-bold hover:brightness-110 transition-all cursor-pointer shadow-xl flex items-center justify-center gap-2"
-              >
-                <span>Setup Another Inbound Trunk</span>
-                <ChevronUp className="w-4 h-4 md:w-5 md:h-5" />
-              </button>
-            </div>
-          )}
+      {/* Inbound Numbers - Configured in Generic Setup */}
+      <div className="space-y-6 max-w-5xl">
+          <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Inbound Phone Numbers</h3>
+            <p className="text-sm text-muted-foreground">
+              Inbound phone numbers are configured through the Generic SIP Trunk setup above. Use the "Supports Inbound" option when creating a phone number.
+            </p>
           </div>
         </div>
-      )}
     </div>
   </div>
 );
 }
-
