@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api';
+import axios from 'axios';
 
 export interface PhoneNumber {
   id: string; // phone_number_id
@@ -74,19 +75,24 @@ class PhoneNumberService {
    * Get phone number by ID
    * GET /api/v1/phone-numbers/:phone_number_id
    */
-  async getById(phoneNumberId: string): Promise<PhoneNumber | null> {
+  async getById(phoneNumberId: string): Promise<any> {
     try {
       const response = await apiClient.get<any>(`/phone-numbers/${phoneNumberId}`);
-      // Map backend response to frontend format
+      // Map backend response to frontend format, including trunk configs
       return {
         id: response.phone_number_id || response.id,
+        phone_number_id: response.phone_number_id || response.id,
         label: response.label,
         phone_number: response.phone_number,
         provider: response.provider,
         supports_outbound: response.supports_outbound,
         supports_inbound: response.supports_inbound,
         elevenlabs_phone_number_id: response.elevenlabs_phone_number_id,
-        created_at_unix: response.created_at_unix
+        created_at_unix: response.created_at_unix,
+        // Include trunk configs if present (needed for PATCH payload)
+        inbound_trunk_config: response.inbound_trunk_config,
+        outbound_trunk_config: response.outbound_trunk_config,
+        agent_id: response.agent_id
       };
     } catch (error: any) {
       console.error('❌ [PhoneNumberService] getById() error:', error);
@@ -129,10 +135,61 @@ class PhoneNumberService {
     }
   ): Promise<any> {
     try {
-      const response = await apiClient.patch<any>(`/phone-numbers/${phoneNumberId}`, data);
-      return response;
+      // ============================================================================
+      // STEP 4: ENFORCE CONTENT-TYPE AND METHOD
+      // Ensure PATCH method, Content-Type header, and payload object (not string)
+      // ============================================================================
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      
+      // ============================================================================
+      // STEP 5: PRE-SEND ASSERTIONS (Service Level)
+      // Final validation before axios sends request
+      // ============================================================================
+      // Ensure data is an object, not a string
+      if (typeof data === 'string') {
+        throw new Error('Payload must be an object, not a JSON string. Use plain JS object.');
+      }
+
+      // Ensure data is not null or undefined
+      if (data === null || data === undefined) {
+        throw new Error('Payload cannot be null or undefined');
+      }
+
+      // Test JSON serialization one more time (axios will do this, but we validate first)
+      try {
+        JSON.stringify(data);
+      } catch (stringifyError: any) {
+        throw new Error(`Payload is not JSON-serializable: ${stringifyError.message}`);
+      }
+
+      // ============================================================================
+      // STEP 4: Send PATCH request with proper headers
+      // Axios automatically serializes the object to JSON
+      // ============================================================================
+      const response = await axios.patch<any>(
+        `${API_URL}/phone-numbers/${phoneNumberId}`,
+        data, // Plain JS object - axios will serialize to JSON
+        {
+          headers: {
+            'Content-Type': 'application/json', // Explicit Content-Type
+            ...(token && { Authorization: `Bearer ${token}` })
+          },
+          // Ensure axios uses PATCH method (not POST with method override)
+          method: 'PATCH'
+        }
+      );
+      
+      // STEP 5: Ensure HTTP status is 200 before returning success
+      if (response.status !== 200) {
+        console.error('❌ [PhoneNumberService] update() - Non-200 status:', response.status);
+        throw new Error(`Update failed with status ${response.status}`);
+      }
+      
+      return response.data;
     } catch (error: any) {
       console.error('❌ [PhoneNumberService] update() error:', error);
+      // STEP 5: Do NOT swallow errors - always throw
       throw new Error(error.response?.data?.error?.message || error.response?.data?.detail || error.message || 'Failed to update phone number');
     }
   }
@@ -143,10 +200,38 @@ class PhoneNumberService {
    */
   async delete(phoneNumberId: string): Promise<void> {
     try {
-      await apiClient.delete(`/phone-numbers/${phoneNumberId}`);
+      // ============================================================================
+      // STEP 5: FRONTEND-BACKEND CONTRACT SAFETY
+      // Use raw axios call to access response status (apiClient.delete returns only data)
+      // ============================================================================
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      
+      const response = await axios.delete(
+        `${API_URL}/phone-numbers/${phoneNumberId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { Authorization: `Bearer ${token}` })
+          }
+        }
+      );
+      
+      // STEP 5: Ensure HTTP status is 200 before returning success
+      if (response.status !== 200) {
+        console.error('❌ [PhoneNumberService] delete() - Non-200 status:', response.status);
+        throw new Error(`Delete failed with status ${response.status}`);
+      }
+      
+      // Verify response matches API spec
+      if (!response.data || !response.data.success) {
+        console.error('❌ [PhoneNumberService] delete() - Invalid response format:', response.data);
+        throw new Error('Delete response does not match expected format');
+      }
     } catch (error: any) {
       console.error('❌ [PhoneNumberService] delete() error:', error);
-      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to delete phone number');
+      // STEP 5: Do NOT swallow errors - always throw
+      throw new Error(error.response?.data?.error?.message || error.response?.data?.detail || error.message || 'Failed to delete phone number');
     }
   }
 }

@@ -965,8 +965,18 @@ const handleSaveConfig = async (config: any) => {
 
   // Handle agent assignment for inbound phone number
   const handleAssignAgentToInbound = async () => {
-    if (!selectedAgentId || !newlyCreatedPhoneNumberId) {
+    // ============================================================================
+    // STEP 2: VERIFY URL & METHOD - Fail loudly if phone_number_id is missing
+    // ============================================================================
+    if (!selectedAgentId) {
       toast.error("Please select an agent");
+      return;
+    }
+
+    if (!newlyCreatedPhoneNumberId) {
+      const error = "Phone number ID is missing. Cannot assign agent.";
+      console.error('❌ [Agent Assignment]', error);
+      toast.error(error);
       return;
     }
 
@@ -976,20 +986,285 @@ const handleSaveConfig = async (config: any) => {
       console.log('📞 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
       console.log('📞 [Agent Assignment] Agent ID:', selectedAgentId);
 
-      // Build update payload with ONLY agent_id (as per user requirements)
-      const updatePayload: any = {
-        agent_id: selectedAgentId
+      // ============================================================================
+      // STEP 3: ENFORCE PAYLOAD SHAPE - Fetch phone number to get trunk config
+      // ============================================================================
+      // Fetch phone number details to get existing trunk config
+      let phoneNumberDetails: any = null;
+      try {
+        phoneNumberDetails = await phoneNumberService.getById(newlyCreatedPhoneNumberId);
+        if (!phoneNumberDetails) {
+          throw new Error(`Phone number ${newlyCreatedPhoneNumberId} not found`);
+        }
+        console.log('📋 [Agent Assignment] Phone number details fetched:', {
+          phone_number_id: phoneNumberDetails.id,
+          supports_inbound: phoneNumberDetails.supports_inbound,
+          supports_outbound: phoneNumberDetails.supports_outbound,
+          has_inbound_config: !!phoneNumberDetails.inbound_trunk_config,
+          has_outbound_config: !!phoneNumberDetails.outbound_trunk_config
+        });
+      } catch (fetchError: any) {
+        console.error('❌ [Agent Assignment] Failed to fetch phone number details:', fetchError);
+        toast.error(`Failed to fetch phone number: ${fetchError.message}`);
+        setIsAssigningAgent(false);
+        return;
+      }
+
+      // ============================================================================
+      // STEP 3: STRICT PAYLOAD BUILDER FUNCTION
+      // Builds payload as plain JS object (not JSON string)
+      // Ensures ASCII-only, no undefined fields, normalized strings
+      // ============================================================================
+      const buildInboundAgentAssignmentPayload = (
+        agentId: string,
+        phoneNumber: any,
+        label?: string
+      ): Record<string, any> => {
+        // ============================================================================
+        // STEP 3: Normalize and validate inputs (ASCII-only, trimmed)
+        // ============================================================================
+        const normalizeString = (value: any, fieldName: string): string => {
+          if (value === undefined || value === null) {
+            throw new Error(`${fieldName} is required but was ${value === undefined ? 'undefined' : 'null'}`);
+          }
+          const str = String(value).trim();
+          if (str.length === 0) {
+            throw new Error(`${fieldName} cannot be empty`);
+          }
+          // Ensure ASCII-only (reject non-ASCII characters)
+          if (!/^[\x00-\x7F]*$/.test(str)) {
+            throw new Error(`${fieldName} contains non-ASCII characters. Only ASCII characters are allowed.`);
+          }
+          return str;
+        };
+
+        // Normalize agent_id
+        const normalizedAgentId = normalizeString(agentId, 'agent_id');
+
+        // Normalize label if provided
+        const normalizedLabel = label ? normalizeString(label, 'label') : undefined;
+
+        // Validate and normalize inbound_trunk_config
+        if (!phoneNumber.inbound_trunk_config) {
+          throw new Error('Phone number is missing inbound_trunk_config. Cannot assign inbound agent.');
+        }
+
+        const trunkConfig = phoneNumber.inbound_trunk_config;
+        
+        // Normalize address
+        const normalizedAddress = normalizeString(trunkConfig.address, 'inbound_trunk_config.address');
+
+        // Normalize transport (if provided)
+        const normalizedTransport = trunkConfig.transport 
+          ? normalizeString(trunkConfig.transport, 'inbound_trunk_config.transport')
+          : 'auto';
+
+        // Normalize media_encryption (if provided)
+        const normalizedMediaEncryption = trunkConfig.media_encryption
+          ? normalizeString(trunkConfig.media_encryption, 'inbound_trunk_config.media_encryption')
+          : 'allowed';
+
+        // Validate and normalize credentials
+        if (!trunkConfig.credentials) {
+          throw new Error('inbound_trunk_config.credentials is required');
+        }
+
+        const normalizedUsername = normalizeString(
+          trunkConfig.credentials.username,
+          'inbound_trunk_config.credentials.username'
+        );
+        const normalizedPassword = normalizeString(
+          trunkConfig.credentials.password,
+          'inbound_trunk_config.credentials.password'
+        );
+
+        // ============================================================================
+        // STEP 3: Build payload object (plain JS object, not JSON string)
+        // Explicitly set all fields, omit undefined
+        // ============================================================================
+        const payload: Record<string, any> = {
+          agent_id: normalizedAgentId,
+          supports_inbound: true,  // Explicit boolean, not string
+          supports_outbound: false, // Explicit boolean, not string
+          inbound_trunk_config: {
+            address: normalizedAddress,
+            transport: normalizedTransport,
+            media_encryption: normalizedMediaEncryption,
+            credentials: {
+              username: normalizedUsername,
+              password: normalizedPassword
+            }
+          }
+        };
+
+        // Add label only if provided (omit undefined)
+        if (normalizedLabel !== undefined) {
+          payload.label = normalizedLabel;
+        }
+
+        // Explicitly omit outbound_trunk_config (do not include in payload)
+
+        return payload;
       };
 
+      // Build payload using the builder function
+      let updatePayload: Record<string, any>;
+      try {
+        updatePayload = buildInboundAgentAssignmentPayload(
+          selectedAgentId,
+          phoneNumberDetails,
+          phoneNumberDetails.label // Include label if available
+        );
+      } catch (payloadError: any) {
+        console.error('❌ [Agent Assignment] Payload build failed:', payloadError);
+        toast.error(payloadError.message);
+        setIsAssigningAgent(false);
+        return;
+      }
+
+      // ============================================================================
+      // STEP 4: HARD FRONTEND ASSERTIONS - Validate payload before sending
+      // ============================================================================
+      console.log('🔍 [Agent Assignment] ========== VALIDATING PAYLOAD ==========');
+      
+      // Validate agent_id
+      if (!updatePayload.agent_id || typeof updatePayload.agent_id !== 'string') {
+        const error = 'Validation failed: agent_id is required and must be a string';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      // Validate supports_inbound
+      if (updatePayload.supports_inbound !== true) {
+        const error = 'Validation failed: supports_inbound must be true for inbound agent assignment';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      // Validate supports_outbound
+      if (updatePayload.supports_outbound !== false) {
+        const error = 'Validation failed: supports_outbound must be false for inbound-only assignment';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      // Validate inbound_trunk_config
+      if (!updatePayload.inbound_trunk_config) {
+        const error = 'Validation failed: inbound_trunk_config is required';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      if (!updatePayload.inbound_trunk_config.address) {
+        const error = 'Validation failed: inbound_trunk_config.address is required';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      if (!updatePayload.inbound_trunk_config.credentials) {
+        const error = 'Validation failed: inbound_trunk_config.credentials is required';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      if (!updatePayload.inbound_trunk_config.credentials.username || !updatePayload.inbound_trunk_config.credentials.password) {
+        const error = 'Validation failed: inbound_trunk_config.credentials.username and password are required';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      console.log('✅ [Agent Assignment] Payload validation passed');
+      console.log('🔍 [Agent Assignment] ====================================');
+
+      // ============================================================================
+      // STEP 5: PRE-SEND ASSERTIONS - Validate JSON serialization
+      // ============================================================================
+      console.log('🔍 [Agent Assignment] ========== PRE-SEND VALIDATION ==========');
+      
+      // Remove undefined fields (shouldn't exist, but double-check)
+      const cleanPayload = Object.fromEntries(
+        Object.entries(updatePayload).filter(([_, value]) => value !== undefined)
+      );
+
+      // Assert no undefined or null in nested objects
+      const hasUndefined = (obj: any, path: string = ''): string | null => {
+        for (const [key, value] of Object.entries(obj)) {
+          const currentPath = path ? `${path}.${key}` : key;
+          if (value === undefined) {
+            return currentPath;
+          }
+          if (value === null && (key === 'agent_id' || key === 'address' || key === 'username' || key === 'password')) {
+            return currentPath; // null not allowed for required fields
+          }
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            const nested = hasUndefined(value, currentPath);
+            if (nested) return nested;
+          }
+        }
+        return null;
+      };
+
+      const undefinedPath = hasUndefined(cleanPayload);
+      if (undefinedPath) {
+        const error = `Validation failed: Found undefined at ${undefinedPath}`;
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      // Test JSON serialization (must succeed)
+      let serializedPayload: string;
+      try {
+        serializedPayload = JSON.stringify(cleanPayload);
+        console.log('✅ [Agent Assignment] JSON serialization successful');
+        console.log('✅ [Agent Assignment] Payload size:', serializedPayload.length, 'bytes');
+      } catch (stringifyError: any) {
+        const error = `JSON serialization failed: ${stringifyError.message}`;
+        console.error('❌ [Agent Assignment]', error);
+        console.error('❌ [Agent Assignment] Payload that failed:', cleanPayload);
+        throw new Error(error);
+      }
+
+      // Verify ASCII-only (safety check)
+      if (!/^[\x00-\x7F]*$/.test(serializedPayload)) {
+        const error = 'Payload contains non-ASCII characters after serialization';
+        console.error('❌ [Agent Assignment]', error);
+        throw new Error(error);
+      }
+
+      console.log('✅ [Agent Assignment] ASCII validation passed');
+      console.log('🔍 [Agent Assignment] ====================================');
+
+      // ============================================================================
+      // STEP 2 & 4: VERIFY URL, METHOD, AND HEADERS - Log final request details
+      // ============================================================================
       console.log('📤 [Agent Assignment] ========== REQUEST PAYLOAD ==========');
-      console.log('📤 [Agent Assignment] Endpoint: PATCH /phone-numbers/' + newlyCreatedPhoneNumberId);
-      console.log('📤 [Agent Assignment] Full payload:', JSON.stringify(updatePayload, null, 2));
+      console.log('📤 [Agent Assignment] Method: PATCH');
+      console.log('📤 [Agent Assignment] Endpoint: /api/v1/phone-numbers/' + newlyCreatedPhoneNumberId);
+      console.log('📤 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
+      console.log('📤 [Agent Assignment] Content-Type: application/json');
+      console.log('📤 [Agent Assignment] Full payload (passwords masked):', JSON.stringify({
+        ...cleanPayload,
+        inbound_trunk_config: {
+          ...cleanPayload.inbound_trunk_config,
+          credentials: {
+            ...cleanPayload.inbound_trunk_config.credentials,
+            password: '***hidden***'
+          }
+        }
+      }, null, 2));
       console.log('📤 [Agent Assignment] ====================================');
 
-      const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, updatePayload);
+      // ============================================================================
+      // STEP 4 & 6: SEND REQUEST - Use clean payload, await response, verify status
+      // ============================================================================
+      // Send cleanPayload (not updatePayload) to ensure no undefined fields
+      const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, cleanPayload);
 
+      // ============================================================================
+      // STEP 6: VERIFY RESPONSE HANDLING - Only show success after HTTP 200
+      // ============================================================================
       console.log('✅ [Agent Assignment] ========== RESPONSE ==========');
-      console.log('✅ [Agent Assignment] Status: Success');
+      console.log('✅ [Agent Assignment] Status: Success (HTTP 200)');
       console.log('✅ [Agent Assignment] Full response:', JSON.stringify(result, null, 2));
       console.log('✅ [Agent Assignment] Response type:', typeof result);
       if (result && typeof result === 'object') {
@@ -997,6 +1272,7 @@ const handleSaveConfig = async (config: any) => {
       }
       console.log('✅ [Agent Assignment] ===============================');
       
+      // Only show success UI after confirmed HTTP 200 response
       toast.success(`Agent assigned to phone number successfully!`);
 
       // Refresh phone numbers list

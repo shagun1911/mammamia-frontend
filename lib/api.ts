@@ -1,10 +1,26 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-// API URL Configuration
-// IMPORTANT: Set NEXT_PUBLIC_API_URL in Vercel environment variables
-// Development: http://localhost:5001/api/v1
-// Production: https://aistein-backend-v1.onrender.com/api/v1
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+// ============================================================================
+// STEP 3: SINGLE SOURCE OF TRUTH FOR API URL (FIX)
+// Enforce NEXT_PUBLIC_API_URL - crash build if missing
+// ============================================================================
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  const error = '❌ [FATAL] NEXT_PUBLIC_API_URL environment variable is REQUIRED';
+  console.error(error);
+  console.error('❌ [FATAL] Set NEXT_PUBLIC_API_URL in .env.local or environment');
+  console.error('❌ [FATAL] Example: NEXT_PUBLIC_API_URL=http://localhost:5001/api/v1');
+  
+  // In Next.js, we can't use process.exit() during build, but we can throw
+  // This will cause the build to fail
+  if (typeof window === 'undefined') {
+    throw new Error(error);
+  }
+  
+  // In browser, show error in console
+  console.error('❌ [FATAL] Frontend cannot connect to backend - NEXT_PUBLIC_API_URL is missing');
+}
 
 console.log('🔧 API Client initialized with URL:', API_URL);
 
