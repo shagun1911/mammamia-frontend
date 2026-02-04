@@ -828,41 +828,48 @@ const handleSaveConfig = async (config: any) => {
         inbound_password: '***hidden***'
       });
 
-      // Build request payload with all fields
-      const requestPayload: any = {
-        label: genericSetupLabel,
-        phone_number: genericSetupPhone,
+      // ============================================================================
+      // BUILD REQUEST PAYLOAD - Match API contract exactly
+      // For inbound-only: supports_outbound=false, outbound_trunk_config omitted
+      // ============================================================================
+      
+      // Determine if this is inbound-only configuration
+      const isInboundOnly = genericSetupSupportsInbound && !genericSetupSupportsOutbound;
+      
+      const requestPayload: Record<string, any> = {
+        label: genericSetupLabel.trim(),
+        phone_number: genericSetupPhone.trim(),
         provider: genericSetupProvider,
         supports_inbound: genericSetupSupportsInbound,
-        supports_outbound: genericSetupSupportsOutbound
+        // For inbound-only: explicitly set supports_outbound to false
+        supports_outbound: isInboundOnly ? false : genericSetupSupportsOutbound
       };
 
-      // Add outbound_trunk_config only if supports_outbound is true
-      if (genericSetupSupportsOutbound) {
-        requestPayload.outbound_trunk_config = {
-          address: genericSetupSipAddress,
+      // Add inbound_trunk_config if supports_inbound is true
+      if (genericSetupSupportsInbound) {
+        requestPayload.inbound_trunk_config = {
+          address: (genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060").trim(),
           credentials: {
-            username: genericSetupUsername,
-            password: genericSetupPassword
+            username: genericSetupInboundUsername.trim(),
+            password: genericSetupInboundPassword.trim()
+          }
+        };
+      }
+
+      // Add outbound_trunk_config ONLY if supports_outbound is true
+      // For inbound-only configuration, this must NOT be included (explicitly omitted)
+      if (genericSetupSupportsOutbound && !isInboundOnly) {
+        requestPayload.outbound_trunk_config = {
+          address: genericSetupSipAddress.trim(),
+          credentials: {
+            username: genericSetupUsername.trim(),
+            password: genericSetupPassword.trim()
           },
           media_encryption: genericSetupMediaEncryption,
           transport: genericSetupTransport
         };
       }
-
-      // Add inbound_trunk_config only if supports_inbound is true
-      // Use default address if not provided
-      if (genericSetupSupportsInbound) {
-        requestPayload.inbound_trunk_config = {
-          address: genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060",
-          transport: "auto",
-          media_encryption: "allowed",
-          credentials: {
-            username: genericSetupInboundUsername,
-            password: genericSetupInboundPassword
-          }
-        };
-      }
+      // Explicitly omit outbound_trunk_config if supports_outbound is false (inbound-only case)
 
       // Log full payload (with passwords masked for security)
       const payloadForLogging = {
@@ -903,6 +910,49 @@ const handleSaveConfig = async (config: any) => {
       }
       console.log('📤 [SIP Trunk Import] ====================================');
 
+      // ============================================================================
+      // PRE-SEND VALIDATION - Ensure payload matches API contract for inbound-only
+      // ============================================================================
+      if (isInboundOnly) {
+        console.log('🔍 [SIP Trunk Import] Validating inbound-only configuration...');
+        
+        // For inbound-only: verify outbound_trunk_config is NOT included
+        if (requestPayload.outbound_trunk_config) {
+          const error = 'Validation failed: outbound_trunk_config must not be included for inbound-only configuration';
+          console.error('❌ [SIP Trunk Import]', error);
+          throw new Error(error);
+        }
+
+        // For inbound-only: verify supports_outbound is false
+        if (requestPayload.supports_outbound !== false) {
+          const error = 'Validation failed: supports_outbound must be false for inbound-only configuration';
+          console.error('❌ [SIP Trunk Import]', error);
+          throw new Error(error);
+        }
+
+        // Verify inbound_trunk_config is included
+        if (!requestPayload.inbound_trunk_config) {
+          const error = 'Validation failed: inbound_trunk_config is required for inbound-only configuration';
+          console.error('❌ [SIP Trunk Import]', error);
+          throw new Error(error);
+        }
+
+        // Verify inbound_trunk_config has required fields
+        if (!requestPayload.inbound_trunk_config.address || 
+            !requestPayload.inbound_trunk_config.credentials?.username ||
+            !requestPayload.inbound_trunk_config.credentials?.password) {
+          const error = 'Validation failed: inbound_trunk_config must have address and credentials (username, password)';
+          console.error('❌ [SIP Trunk Import]', error);
+          throw new Error(error);
+        }
+
+        console.log('✅ [SIP Trunk Import] Inbound-only validation passed');
+        console.log('📋 [SIP Trunk Import] Configuration: Inbound-only');
+        console.log('📋 [SIP Trunk Import] - supports_outbound: false');
+        console.log('📋 [SIP Trunk Import] - outbound_trunk_config: omitted');
+        console.log('📋 [SIP Trunk Import] - inbound_trunk_config: included');
+      }
+
       const result = await apiClient.post<{ phone_number_id: string }>('/phone-numbers/sip-trunk', requestPayload);
 
       console.log('✅ [SIP Trunk Import] ========== RESPONSE ==========');
@@ -910,6 +960,19 @@ const handleSaveConfig = async (config: any) => {
       console.log('✅ [SIP Trunk Import] Full response:', JSON.stringify(result, null, 2));
       console.log('✅ [SIP Trunk Import] Phone Number ID:', result.phone_number_id);
       console.log('✅ [SIP Trunk Import] Response type:', typeof result);
+      
+      // ============================================================================
+      // VERIFY phone_number_id is returned
+      // Backend automatically stores phone_number_id with userId (see backend controller line 299)
+      // ============================================================================
+      if (!result.phone_number_id) {
+        const error = 'Response missing phone_number_id';
+        console.error('❌ [SIP Trunk Import]', error);
+        throw new Error(error);
+      }
+      
+      console.log('✅ [SIP Trunk Import] Phone number ID received:', result.phone_number_id);
+      console.log('✅ [SIP Trunk Import] Backend stores phone_number_id with userId automatically');
       console.log('✅ [SIP Trunk Import] ===============================');
 
       // If supports_inbound is true, show agent selection step
