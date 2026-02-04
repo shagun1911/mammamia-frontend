@@ -69,8 +69,6 @@ export default function PhoneSettingsDetailPage() {
   const [genericSetupSupportsInbound, setGenericSetupSupportsInbound] = useState(false);
   const [genericSetupSupportsOutbound, setGenericSetupSupportsOutbound] = useState(true);
   const [genericSetupInboundAddress, setGenericSetupInboundAddress] = useState("sip.rtc.elevenlabs.io:5060");
-  const [genericSetupInboundUsername, setGenericSetupInboundUsername] = useState("");
-  const [genericSetupInboundPassword, setGenericSetupInboundPassword] = useState("");
   
   // Agent selection state for inbound setup
   const [newlyCreatedPhoneNumberId, setNewlyCreatedPhoneNumberId] = useState<string | null>(null);
@@ -804,8 +802,8 @@ const handleSaveConfig = async (config: any) => {
     }
 
     // Validate inbound config if supports_inbound is true
-    if (genericSetupSupportsInbound && (!genericSetupInboundAddress || !genericSetupInboundUsername || !genericSetupInboundPassword)) {
-      toast.error("Please fill in all inbound trunk configuration fields when inbound support is enabled");
+    if (genericSetupSupportsInbound && !genericSetupInboundAddress) {
+      toast.error("Please fill in inbound trunk address when inbound support is enabled");
       return;
     }
 
@@ -823,9 +821,7 @@ const handleSaveConfig = async (config: any) => {
         password: '***hidden***',
         transport: genericSetupTransport,
         media_encryption: genericSetupMediaEncryption,
-        inbound_address: genericSetupInboundAddress,
-        inbound_username: genericSetupInboundUsername,
-        inbound_password: '***hidden***'
+        inbound_address: genericSetupInboundAddress
       });
 
       // ============================================================================
@@ -846,13 +842,10 @@ const handleSaveConfig = async (config: any) => {
       };
 
       // Add inbound_trunk_config if supports_inbound is true
+      // For inbound-only: only include address, no credentials
       if (genericSetupSupportsInbound) {
         requestPayload.inbound_trunk_config = {
-          address: (genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060").trim(),
-          credentials: {
-            username: genericSetupInboundUsername.trim(),
-            password: genericSetupInboundPassword.trim()
-          }
+          address: (genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060").trim()
         };
       }
 
@@ -885,11 +878,7 @@ const handleSaveConfig = async (config: any) => {
         }),
         ...(requestPayload.inbound_trunk_config && {
           inbound_trunk_config: {
-            ...requestPayload.inbound_trunk_config,
-            credentials: {
-              ...requestPayload.inbound_trunk_config.credentials,
-              password: '***hidden***'
-            }
+            ...requestPayload.inbound_trunk_config
           }
         })
       };
@@ -901,11 +890,7 @@ const handleSaveConfig = async (config: any) => {
       console.log('📤 [SIP Trunk Import] Supports Outbound:', genericSetupSupportsOutbound);
       if (genericSetupSupportsInbound) {
         console.log('📤 [SIP Trunk Import] Inbound Config:', {
-          address: requestPayload.inbound_trunk_config.address,
-          transport: requestPayload.inbound_trunk_config.transport,
-          media_encryption: requestPayload.inbound_trunk_config.media_encryption,
-          username: requestPayload.inbound_trunk_config.credentials.username,
-          password: '***hidden***'
+          address: requestPayload.inbound_trunk_config.address
         });
       }
       console.log('📤 [SIP Trunk Import] ====================================');
@@ -937,11 +922,9 @@ const handleSaveConfig = async (config: any) => {
           throw new Error(error);
         }
 
-        // Verify inbound_trunk_config has required fields
-        if (!requestPayload.inbound_trunk_config.address || 
-            !requestPayload.inbound_trunk_config.credentials?.username ||
-            !requestPayload.inbound_trunk_config.credentials?.password) {
-          const error = 'Validation failed: inbound_trunk_config must have address and credentials (username, password)';
+        // Verify inbound_trunk_config has required fields (address only, no credentials)
+        if (!requestPayload.inbound_trunk_config.address) {
+          const error = 'Validation failed: inbound_trunk_config must have address';
           console.error('❌ [SIP Trunk Import]', error);
           throw new Error(error);
         }
@@ -1000,8 +983,6 @@ const handleSaveConfig = async (config: any) => {
         setGenericSetupSupportsInbound(false);
         setGenericSetupSupportsOutbound(true);
         setGenericSetupInboundAddress("sip.rtc.elevenlabs.io:5060");
-        setGenericSetupInboundUsername("");
-        setGenericSetupInboundPassword("");
       setShowSetupMethods(false);
       setActiveSetupMethod(null);
       }
@@ -1029,7 +1010,7 @@ const handleSaveConfig = async (config: any) => {
   // Handle agent assignment for inbound phone number
   const handleAssignAgentToInbound = async () => {
     // ============================================================================
-    // STEP 2: VERIFY URL & METHOD - Fail loudly if phone_number_id is missing
+    // VALIDATION - Ensure agent_id and phone_number_id are present
     // ============================================================================
     if (!selectedAgentId) {
       toast.error("Please select an agent");
@@ -1050,278 +1031,36 @@ const handleSaveConfig = async (config: any) => {
       console.log('📞 [Agent Assignment] Agent ID:', selectedAgentId);
 
       // ============================================================================
-      // STEP 3: ENFORCE PAYLOAD SHAPE - Fetch phone number to get trunk config
+      // BUILD REQUEST PAYLOAD - Only send agent_id in request body
+      // phone_number_id is sent in URL params via phoneNumberService.update()
       // ============================================================================
-      // Fetch phone number details to get existing trunk config
-      let phoneNumberDetails: any = null;
-      try {
-        phoneNumberDetails = await phoneNumberService.getById(newlyCreatedPhoneNumberId);
-        if (!phoneNumberDetails) {
-          throw new Error(`Phone number ${newlyCreatedPhoneNumberId} not found`);
-        }
-        console.log('📋 [Agent Assignment] Phone number details fetched:', {
-          phone_number_id: phoneNumberDetails.id,
-          supports_inbound: phoneNumberDetails.supports_inbound,
-          supports_outbound: phoneNumberDetails.supports_outbound,
-          has_inbound_config: !!phoneNumberDetails.inbound_trunk_config,
-          has_outbound_config: !!phoneNumberDetails.outbound_trunk_config
-        });
-      } catch (fetchError: any) {
-        console.error('❌ [Agent Assignment] Failed to fetch phone number details:', fetchError);
-        toast.error(`Failed to fetch phone number: ${fetchError.message}`);
+      const requestPayload = {
+        agent_id: selectedAgentId.trim()
+      };
+
+      // Validate agent_id is not empty after trim
+      if (!requestPayload.agent_id) {
+        const error = 'Agent ID cannot be empty';
+        console.error('❌ [Agent Assignment]', error);
+        toast.error(error);
         setIsAssigningAgent(false);
         return;
       }
 
-      // ============================================================================
-      // STEP 3: STRICT PAYLOAD BUILDER FUNCTION
-      // Builds payload as plain JS object (not JSON string)
-      // Ensures ASCII-only, no undefined fields, normalized strings
-      // ============================================================================
-      const buildInboundAgentAssignmentPayload = (
-        agentId: string,
-        phoneNumber: any,
-        label?: string
-      ): Record<string, any> => {
-        // ============================================================================
-        // STEP 3: Normalize and validate inputs (ASCII-only, trimmed)
-        // ============================================================================
-        const normalizeString = (value: any, fieldName: string): string => {
-          if (value === undefined || value === null) {
-            throw new Error(`${fieldName} is required but was ${value === undefined ? 'undefined' : 'null'}`);
-          }
-          const str = String(value).trim();
-          if (str.length === 0) {
-            throw new Error(`${fieldName} cannot be empty`);
-          }
-          // Ensure ASCII-only (reject non-ASCII characters)
-          if (!/^[\x00-\x7F]*$/.test(str)) {
-            throw new Error(`${fieldName} contains non-ASCII characters. Only ASCII characters are allowed.`);
-          }
-          return str;
-        };
-
-        // Normalize agent_id
-        const normalizedAgentId = normalizeString(agentId, 'agent_id');
-
-        // Normalize label if provided
-        const normalizedLabel = label ? normalizeString(label, 'label') : undefined;
-
-        // Validate and normalize inbound_trunk_config
-        if (!phoneNumber.inbound_trunk_config) {
-          throw new Error('Phone number is missing inbound_trunk_config. Cannot assign inbound agent.');
-        }
-
-        const trunkConfig = phoneNumber.inbound_trunk_config;
-        
-        // Normalize address
-        const normalizedAddress = normalizeString(trunkConfig.address, 'inbound_trunk_config.address');
-
-        // Normalize transport (if provided)
-        const normalizedTransport = trunkConfig.transport 
-          ? normalizeString(trunkConfig.transport, 'inbound_trunk_config.transport')
-          : 'auto';
-
-        // Normalize media_encryption (if provided)
-        const normalizedMediaEncryption = trunkConfig.media_encryption
-          ? normalizeString(trunkConfig.media_encryption, 'inbound_trunk_config.media_encryption')
-          : 'allowed';
-
-        // Validate and normalize credentials
-        if (!trunkConfig.credentials) {
-          throw new Error('inbound_trunk_config.credentials is required');
-        }
-
-        const normalizedUsername = normalizeString(
-          trunkConfig.credentials.username,
-          'inbound_trunk_config.credentials.username'
-        );
-        const normalizedPassword = normalizeString(
-          trunkConfig.credentials.password,
-          'inbound_trunk_config.credentials.password'
-        );
-
-        // ============================================================================
-        // STEP 3: Build payload object (plain JS object, not JSON string)
-        // Explicitly set all fields, omit undefined
-        // ============================================================================
-        const payload: Record<string, any> = {
-          agent_id: normalizedAgentId,
-          supports_inbound: true,  // Explicit boolean, not string
-          supports_outbound: false, // Explicit boolean, not string
-          inbound_trunk_config: {
-            address: normalizedAddress,
-            transport: normalizedTransport,
-            media_encryption: normalizedMediaEncryption,
-            credentials: {
-              username: normalizedUsername,
-              password: normalizedPassword
-            }
-          }
-        };
-
-        // Add label only if provided (omit undefined)
-        if (normalizedLabel !== undefined) {
-          payload.label = normalizedLabel;
-        }
-
-        // Explicitly omit outbound_trunk_config (do not include in payload)
-
-        return payload;
-      };
-
-      // Build payload using the builder function
-      let updatePayload: Record<string, any>;
-      try {
-        updatePayload = buildInboundAgentAssignmentPayload(
-          selectedAgentId,
-          phoneNumberDetails,
-          phoneNumberDetails.label // Include label if available
-        );
-      } catch (payloadError: any) {
-        console.error('❌ [Agent Assignment] Payload build failed:', payloadError);
-        toast.error(payloadError.message);
-        setIsAssigningAgent(false);
-        return;
-      }
-
-      // ============================================================================
-      // STEP 4: HARD FRONTEND ASSERTIONS - Validate payload before sending
-      // ============================================================================
-      console.log('🔍 [Agent Assignment] ========== VALIDATING PAYLOAD ==========');
-      
-      // Validate agent_id
-      if (!updatePayload.agent_id || typeof updatePayload.agent_id !== 'string') {
-        const error = 'Validation failed: agent_id is required and must be a string';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      // Validate supports_inbound
-      if (updatePayload.supports_inbound !== true) {
-        const error = 'Validation failed: supports_inbound must be true for inbound agent assignment';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      // Validate supports_outbound
-      if (updatePayload.supports_outbound !== false) {
-        const error = 'Validation failed: supports_outbound must be false for inbound-only assignment';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      // Validate inbound_trunk_config
-      if (!updatePayload.inbound_trunk_config) {
-        const error = 'Validation failed: inbound_trunk_config is required';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      if (!updatePayload.inbound_trunk_config.address) {
-        const error = 'Validation failed: inbound_trunk_config.address is required';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      if (!updatePayload.inbound_trunk_config.credentials) {
-        const error = 'Validation failed: inbound_trunk_config.credentials is required';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      if (!updatePayload.inbound_trunk_config.credentials.username || !updatePayload.inbound_trunk_config.credentials.password) {
-        const error = 'Validation failed: inbound_trunk_config.credentials.username and password are required';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      console.log('✅ [Agent Assignment] Payload validation passed');
-      console.log('🔍 [Agent Assignment] ====================================');
-
-      // ============================================================================
-      // STEP 5: PRE-SEND ASSERTIONS - Validate JSON serialization
-      // ============================================================================
-      console.log('🔍 [Agent Assignment] ========== PRE-SEND VALIDATION ==========');
-      
-      // Remove undefined fields (shouldn't exist, but double-check)
-      const cleanPayload = Object.fromEntries(
-        Object.entries(updatePayload).filter(([_, value]) => value !== undefined)
-      );
-
-      // Assert no undefined or null in nested objects
-      const hasUndefined = (obj: any, path: string = ''): string | null => {
-        for (const [key, value] of Object.entries(obj)) {
-          const currentPath = path ? `${path}.${key}` : key;
-          if (value === undefined) {
-            return currentPath;
-          }
-          if (value === null && (key === 'agent_id' || key === 'address' || key === 'username' || key === 'password')) {
-            return currentPath; // null not allowed for required fields
-          }
-          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-            const nested = hasUndefined(value, currentPath);
-            if (nested) return nested;
-          }
-        }
-        return null;
-      };
-
-      const undefinedPath = hasUndefined(cleanPayload);
-      if (undefinedPath) {
-        const error = `Validation failed: Found undefined at ${undefinedPath}`;
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      // Test JSON serialization (must succeed)
-      let serializedPayload: string;
-      try {
-        serializedPayload = JSON.stringify(cleanPayload);
-        console.log('✅ [Agent Assignment] JSON serialization successful');
-        console.log('✅ [Agent Assignment] Payload size:', serializedPayload.length, 'bytes');
-      } catch (stringifyError: any) {
-        const error = `JSON serialization failed: ${stringifyError.message}`;
-        console.error('❌ [Agent Assignment]', error);
-        console.error('❌ [Agent Assignment] Payload that failed:', cleanPayload);
-        throw new Error(error);
-      }
-
-      // Verify ASCII-only (safety check)
-      if (!/^[\x00-\x7F]*$/.test(serializedPayload)) {
-        const error = 'Payload contains non-ASCII characters after serialization';
-        console.error('❌ [Agent Assignment]', error);
-        throw new Error(error);
-      }
-
-      console.log('✅ [Agent Assignment] ASCII validation passed');
-      console.log('🔍 [Agent Assignment] ====================================');
-
-      // ============================================================================
-      // STEP 2 & 4: VERIFY URL, METHOD, AND HEADERS - Log final request details
-      // ============================================================================
-      console.log('📤 [Agent Assignment] ========== REQUEST PAYLOAD ==========');
+      console.log('📤 [Agent Assignment] ========== REQUEST DETAILS ==========');
       console.log('📤 [Agent Assignment] Method: PATCH');
       console.log('📤 [Agent Assignment] Endpoint: /api/v1/phone-numbers/' + newlyCreatedPhoneNumberId);
-      console.log('📤 [Agent Assignment] Phone Number ID:', newlyCreatedPhoneNumberId);
-      console.log('📤 [Agent Assignment] Content-Type: application/json');
-      console.log('📤 [Agent Assignment] Full payload (passwords masked):', JSON.stringify({
-        ...cleanPayload,
-        inbound_trunk_config: {
-          ...cleanPayload.inbound_trunk_config,
-          credentials: {
-            ...cleanPayload.inbound_trunk_config.credentials,
-            password: '***hidden***'
-          }
-        }
-      }, null, 2));
+      console.log('📤 [Agent Assignment] Phone Number ID (URL param):', newlyCreatedPhoneNumberId);
+      console.log('📤 [Agent Assignment] Request Body:', JSON.stringify(requestPayload, null, 2));
       console.log('📤 [Agent Assignment] ====================================');
 
       // ============================================================================
-      // STEP 4 & 6: SEND REQUEST - Use clean payload, await response, verify status
+      // SEND PATCH REQUEST
+      // phoneNumberService.update() sends:
+      // - PATCH /api/v1/phone-numbers/{phone_number_id}
+      // - Body: { agent_id: "agent_abc123" }
       // ============================================================================
-      // Send cleanPayload (not updatePayload) to ensure no undefined fields
-      const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, cleanPayload);
+      const result = await phoneNumberService.update(newlyCreatedPhoneNumberId, requestPayload);
 
       // ============================================================================
       // STEP 6: VERIFY RESPONSE HANDLING - Only show success after HTTP 200
@@ -1354,8 +1093,6 @@ const handleSaveConfig = async (config: any) => {
       setGenericSetupSupportsInbound(false);
       setGenericSetupSupportsOutbound(true);
       setGenericSetupInboundAddress("");
-      setGenericSetupInboundUsername("");
-      setGenericSetupInboundPassword("");
       setNewlyCreatedPhoneNumberId(null);
       setShowAgentSelection(false);
       setSelectedAgentId("");
@@ -1928,30 +1665,6 @@ return (
                             Default: sip.rtc.elevenlabs.io:5060
                           </p>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            Inbound Username <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={genericSetupInboundUsername}
-                            onChange={(e) => setGenericSetupInboundUsername(e.target.value)}
-                            placeholder="+390620199287"
-                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            Inbound Password <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="password"
-                            value={genericSetupInboundPassword}
-                            onChange={(e) => setGenericSetupInboundPassword(e.target.value)}
-                            placeholder="your_password"
-                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          />
-                        </div>
                       </div>
                     )}
 
@@ -1964,7 +1677,7 @@ return (
                         !genericSetupProvider ||
                         (!genericSetupSupportsInbound && !genericSetupSupportsOutbound) ||
                         (genericSetupSupportsOutbound && (!genericSetupSipAddress || !genericSetupUsername || !genericSetupPassword)) ||
-                        (genericSetupSupportsInbound && (!genericSetupInboundAddress || !genericSetupInboundUsername || !genericSetupInboundPassword))
+                        (genericSetupSupportsInbound && !genericSetupInboundAddress)
                       }
                       className="w-full h-10 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
@@ -2060,8 +1773,6 @@ return (
                             setGenericSetupSupportsInbound(false);
                             setGenericSetupSupportsOutbound(true);
                             setGenericSetupInboundAddress("sip.rtc.elevenlabs.io:5060");
-                            setGenericSetupInboundUsername("");
-                            setGenericSetupInboundPassword("");
                             setShowSetupMethods(false);
                             setActiveSetupMethod(null);
                           }}
