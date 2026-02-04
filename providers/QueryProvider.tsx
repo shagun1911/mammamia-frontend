@@ -8,6 +8,10 @@ import { queryClient } from '@/lib/queryClient';
  * React Query Provider
  * Wraps app with QueryClientProvider
  */
+/**
+ * React Query Provider
+ * Wraps app with QueryClientProvider
+ */
 
 /**
  * React Query Provider
