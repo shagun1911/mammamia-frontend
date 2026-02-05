@@ -330,6 +330,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
 
   // Helper function to map CSV/XLS columns to dynamic_variables
   // Includes ALL non-standard columns as dynamic_variables (not just those in first_message)
+  // CRITICAL FIX: Always includes BOTH formats (e.g., "name" AND "customer_name") to support any variable format in agent greeting
   const mapColumnsToDynamicVariables = (recipient: Recipient, greetingVariables: string[]): Record<string, any> => {
     const dynamicVars: Record<string, any> = {};
     
@@ -362,6 +363,48 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         dynamicVars[key] = String(recipient[key]).trim();
       }
     });
+    
+    // 🔥 CRITICAL FIX: Add BOTH variable formats to support ANY greeting variable format
+    // This prevents calls from dropping when using {{name}} vs {{customer_name}}
+    
+    // If we have "name" from recipient, add standard aliases
+    if (recipient.name && recipient.name !== '') {
+      dynamicVars.name = String(recipient.name).trim();
+      dynamicVars.customer_name = String(recipient.name).trim();
+      dynamicVars['contact.name'] = String(recipient.name).trim();
+    }
+    
+    // If we have "email" from recipient, add standard aliases
+    if (recipient.email && recipient.email !== '') {
+      dynamicVars.email = String(recipient.email).trim();
+      dynamicVars.customer_email = String(recipient.email).trim();
+      dynamicVars['contact.email'] = String(recipient.email).trim();
+    }
+    
+    // If we have "phone_number" from recipient, add standard aliases
+    if (recipient.phone_number && recipient.phone_number !== '') {
+      dynamicVars.phone = String(recipient.phone_number).trim();
+      dynamicVars.phone_number = String(recipient.phone_number).trim();
+      dynamicVars.customer_phone_number = String(recipient.phone_number).trim();
+      dynamicVars['contact.phone_number'] = String(recipient.phone_number).trim();
+    }
+    
+    // Also check if CSV has customer_* or contact.* columns and normalize them
+    if (dynamicVars.customer_name && !dynamicVars.name) {
+      dynamicVars.name = dynamicVars.customer_name;
+      dynamicVars['contact.name'] = dynamicVars.customer_name;
+    }
+    if (dynamicVars.customer_email && !dynamicVars.email) {
+      dynamicVars.email = dynamicVars.customer_email;
+      dynamicVars['contact.email'] = dynamicVars.customer_email;
+    }
+    if (dynamicVars.customer_phone_number && !dynamicVars.phone) {
+      dynamicVars.phone = dynamicVars.customer_phone_number;
+      dynamicVars.phone_number = dynamicVars.customer_phone_number;
+      dynamicVars['contact.phone_number'] = dynamicVars.customer_phone_number;
+    }
+    
+    console.log('[BatchCallBuilder] 🔥 Final dynamic_variables (with all formats):', dynamicVars);
     
     return dynamicVars;
   };
