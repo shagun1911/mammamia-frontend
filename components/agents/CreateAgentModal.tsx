@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, ChevronDown, Eye, Plus, Trash2, Play, Pause, Check } from 'lucide-react';
+import { X, Loader2, ChevronDown, Eye, Plus, Trash2, Play, Pause, Check, Sparkles } from 'lucide-react';
 import { useCreateAgent } from '@/hooks/useAgents';
 import { useKnowledgeBases } from '@/hooks/useKnowledgeBase';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ import {
   preloadVoicePreview,
   VoiceOption
 } from '@/utils/voiceUtils';
+import { AGENT_TEMPLATES, getTemplateById, type AgentTemplate } from '@/constants/agentTemplates';
 
 interface CreateAgentModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ interface CreateAgentModalProps {
 }
 
 export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('blank');
   const [name, setName] = useState('');
   const [firstMessage, setFirstMessage] = useState('Hello! How can I help you today?');
   const [systemPrompt, setSystemPrompt] = useState('');
@@ -61,6 +63,28 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
     acc[voice.gender].push(voice);
     return acc;
   }, {} as Record<string, VoiceOption[]>);
+
+  // Handle template selection
+  useEffect(() => {
+    if (selectedTemplate && selectedTemplate !== 'blank') {
+      const template = getTemplateById(selectedTemplate);
+      if (template) {
+        setFirstMessage(template.firstMessage);
+        setSystemPrompt(template.systemPrompt);
+        setLanguage(template.language);
+        setHasCustomizedFirstMessage(false);
+        setHasCustomizedSystemPrompt(false);
+        
+        // Auto-select recommended voice if available
+        if (template.recommendedVoice) {
+          setVoiceType('predefined');
+          setSelectedVoice(template.recommendedVoice);
+        }
+        
+        toast.success(`${template.icon} ${template.name} template applied!`);
+      }
+    }
+  }, [selectedTemplate]);
 
   // Initialize defaults when component mounts
   useEffect(() => {
@@ -276,6 +300,49 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Template Selector */}
+          <div className="bg-primary/5 border-2 border-primary/20 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <label className="block text-sm font-semibold text-foreground">
+                Quick Start Template
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Choose a prebuilt template to auto-fill settings, or start from scratch
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {AGENT_TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => setSelectedTemplate(template.id)}
+                  className={cn(
+                    "p-3 rounded-lg border-2 text-left transition-all hover:scale-105",
+                    selectedTemplate === template.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-card hover:border-primary/50"
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-2xl">{template.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm text-foreground truncate">
+                        {template.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                        {template.description}
+                      </div>
+                    </div>
+                    {selectedTemplate === template.id && (
+                      <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Agent Name */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
