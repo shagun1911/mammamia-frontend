@@ -1331,6 +1331,7 @@ export function NodeConfigPanel({
                       Option 2: Select from My Spreadsheets
                     </label>
                     <button
+                      type="button"
                       onClick={loadSpreadsheets}
                       disabled={loadingSpreadsheets}
                       className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
@@ -1418,8 +1419,9 @@ export function NodeConfigPanel({
                     Column Mapping *
                   </label>
                   <button
+                    type="button"
                     onClick={addColumnMapping}
-                    className="text-xs text-primary hover:text-primary/80 font-medium"
+                    className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                   >
                     + Add Column
                   </button>
@@ -1444,8 +1446,10 @@ export function NodeConfigPanel({
                         placeholder={`Column ${index + 1} (e.g., {{contact.name}})`}
                       />
                       <button
+                        type="button"
                         onClick={() => removeColumnMapping(index)}
                         className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                        title="Remove column"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1463,8 +1467,9 @@ export function NodeConfigPanel({
                 <div className="mt-3 p-2 bg-secondary/50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{contact.createdAt}}', '{{now}}'].map((varName) => (
+                    {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{appointment.date}}', '{{appointment.time}}', '{{now}}'].map((varName) => (
                       <button
+                        type="button"
                         key={varName}
                         onClick={() => {
                           const currentValues = node.config.values || [];
@@ -1476,6 +1481,9 @@ export function NodeConfigPanel({
                       </button>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    💡 Tip: Click a variable to add it as a new column, or type custom text like "Booked"
+                  </p>
                 </div>
               </div>
             </div>

@@ -72,13 +72,11 @@ export const automationTemplates: AutomationTemplate[] = [
           range: "Sheet1!A1",
           values: [
             "{{contact.name}}",
-            "{{contact.phone}}",
             "{{contact.email}}",
+            "{{contact.phone}}",
             "{{appointment.date}}",
             "{{appointment.time}}",
             "Booked",
-            "{{batch_id}}",
-            "{{conversation_id}}",
             "{{now}}"
           ],
         },
