@@ -27,9 +27,12 @@ export interface User {
   // Onboarding fields
   phone?: string;
   companyName?: string;
-  companyUrl?: string;
+  companyWebsite?: string;
   vat?: string;
-  address?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   onboardingCompleted?: boolean;
 }
 

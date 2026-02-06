@@ -20,9 +20,12 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
     email: "",
     phone: "",
     companyName: "",
-    companyUrl: "",
+    companyWebsite: "",
     vat: "",
-    address: "",
+    street: "",
+    city: "",
+    state: "",
+    country: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -34,9 +37,12 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
         email: user.email || "",
         phone: user.phone || "",
         companyName: user.companyName || "",
-        companyUrl: user.companyUrl || "",
+        companyWebsite: user.companyWebsite || "",
         vat: user.vat || "",
-        address: user.address || "",
+        street: user.street || "",
+        city: user.city || "",
+        state: user.state || "",
+        country: user.country || "",
       });
     }
   }, [user]);
@@ -58,8 +64,20 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
       newErrors.phone = "Phone is required";
     }
 
-    if (!formData.address.trim()) {
-      newErrors.address = "Address is required";
+    if (!formData.street.trim()) {
+      newErrors.street = "Street address is required";
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = "City is required";
+    }
+
+    if (!formData.state.trim()) {
+      newErrors.state = "State is required";
+    }
+
+    if (!formData.country.trim()) {
+      newErrors.country = "Country is required";
     }
 
     setErrors(newErrors);
@@ -210,15 +228,15 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
               />
             </div>
 
-            {/* Company URL */}
+            {/* Company Website */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Company URL <span className="text-muted-foreground text-xs">(Optional)</span>
+                Company Website <span className="text-muted-foreground text-xs">(Optional)</span>
               </label>
               <input
                 type="url"
-                value={formData.companyUrl}
-                onChange={(e) => handleChange("companyUrl", e.target.value)}
+                value={formData.companyWebsite}
+                onChange={(e) => handleChange("companyWebsite", e.target.value)}
                 className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="https://example.com"
                 disabled={isSubmitting}
@@ -240,23 +258,85 @@ export function OnboardingModal({ isOpen, onClose, onComplete }: OnboardingModal
               />
             </div>
 
-            {/* Address */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Address <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                value={formData.address}
-                onChange={(e) => handleChange("address", e.target.value)}
-                className={`w-full min-h-[100px] bg-secondary border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none ${
-                  errors.address ? "border-destructive" : "border-border"
-                }`}
-                placeholder="Enter your address"
-                disabled={isSubmitting}
-              />
-              {errors.address && (
-                <p className="text-xs text-destructive mt-1">{errors.address}</p>
-              )}
+            {/* Address Fields */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Street Address <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.street}
+                  onChange={(e) => handleChange("street", e.target.value)}
+                  className={`w-full h-11 bg-secondary border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors ${
+                    errors.street ? "border-destructive" : "border-border"
+                  }`}
+                  placeholder="Enter street address"
+                  disabled={isSubmitting}
+                />
+                {errors.street && (
+                  <p className="text-xs text-destructive mt-1">{errors.street}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    City <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => handleChange("city", e.target.value)}
+                    className={`w-full h-11 bg-secondary border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors ${
+                      errors.city ? "border-destructive" : "border-border"
+                    }`}
+                    placeholder="Enter city"
+                    disabled={isSubmitting}
+                  />
+                  {errors.city && (
+                    <p className="text-xs text-destructive mt-1">{errors.city}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    State <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => handleChange("state", e.target.value)}
+                    className={`w-full h-11 bg-secondary border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors ${
+                      errors.state ? "border-destructive" : "border-border"
+                    }`}
+                    placeholder="Enter state"
+                    disabled={isSubmitting}
+                  />
+                  {errors.state && (
+                    <p className="text-xs text-destructive mt-1">{errors.state}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Country <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.country}
+                  onChange={(e) => handleChange("country", e.target.value)}
+                  className={`w-full h-11 bg-secondary border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors ${
+                    errors.country ? "border-destructive" : "border-border"
+                  }`}
+                  placeholder="Enter country"
+                  disabled={isSubmitting}
+                />
+                {errors.country && (
+                  <p className="text-xs text-destructive mt-1">{errors.country}</p>
+                )}
+              </div>
             </div>
           </div>
 

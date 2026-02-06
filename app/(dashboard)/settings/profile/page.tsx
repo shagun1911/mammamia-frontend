@@ -65,9 +65,12 @@ export default function ProfilePage() {
     email: "",
     phone: "",
     companyName: "",
-    companyUrl: "",
+    companyWebsite: "",
     vat: "",
-    address: "",
+    street: "",
+    city: "",
+    state: "",
+    country: "",
   });
 
   const getProfileIcon = (slug: string) => {
@@ -127,9 +130,12 @@ export default function ProfilePage() {
         email: user.email || "",
         phone: user.phone || "",
         companyName: user.companyName || "",
-        companyUrl: user.companyUrl || "",
+        companyWebsite: user.companyWebsite || "",
         vat: user.vat || "",
-        address: user.address || "",
+        street: user.street || "",
+        city: user.city || "",
+        state: user.state || "",
+        country: user.country || "",
       });
     }
   }, [user]);
@@ -350,15 +356,15 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Company URL */}
+            {/* Company Website */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Company URL <span className="text-muted-foreground text-xs">(Optional)</span>
+                Company Website <span className="text-muted-foreground text-xs">(Optional)</span>
               </label>
               <input
                 type="url"
-                value={accountFormData.companyUrl}
-                onChange={(e) => setAccountFormData({ ...accountFormData, companyUrl: e.target.value })}
+                value={accountFormData.companyWebsite}
+                onChange={(e) => setAccountFormData({ ...accountFormData, companyWebsite: e.target.value })}
                 className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 placeholder="https://example.com"
                 disabled={isSavingAccount}
@@ -380,16 +386,62 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Address */}
+            {/* Street Address */}
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-foreground mb-2">
-                Address <span className="text-destructive">*</span>
+                Street Address <span className="text-destructive">*</span>
               </label>
-              <textarea
-                value={accountFormData.address}
-                onChange={(e) => setAccountFormData({ ...accountFormData, address: e.target.value })}
-                className="w-full min-h-[100px] bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-                placeholder="Enter your address"
+              <input
+                type="text"
+                value={accountFormData.street}
+                onChange={(e) => setAccountFormData({ ...accountFormData, street: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter street address"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* City */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                City <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={accountFormData.city}
+                onChange={(e) => setAccountFormData({ ...accountFormData, city: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter city"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* State */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                State <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={accountFormData.state}
+                onChange={(e) => setAccountFormData({ ...accountFormData, state: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter state"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* Country */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Country <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={accountFormData.country}
+                onChange={(e) => setAccountFormData({ ...accountFormData, country: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter country"
                 disabled={isSavingAccount}
               />
             </div>

@@ -445,9 +445,12 @@ export interface UserWithProfile {
   // Onboarding fields
   phone?: string;
   companyName?: string;
-  companyUrl?: string;
+  companyWebsite?: string;
   vat?: string;
-  address?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   onboardingCompleted?: boolean;
   organization?: {
     _id: string;

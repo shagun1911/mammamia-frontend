@@ -297,12 +297,12 @@ export default function AdminUsersPage() {
                         <div className="text-sm font-medium text-foreground">{selectedUser.companyName}</div>
                       </div>
                     )}
-                    {selectedUser.companyUrl && (
+                    {selectedUser.companyWebsite && (
                       <div>
-                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Company URL</div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Company Website</div>
                         <div className="text-sm font-medium text-foreground">
-                          <a href={selectedUser.companyUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                            {selectedUser.companyUrl}
+                          <a href={selectedUser.companyWebsite} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            {selectedUser.companyWebsite}
                           </a>
                         </div>
                       </div>
@@ -313,10 +313,17 @@ export default function AdminUsersPage() {
                         <div className="text-sm font-medium text-foreground">{selectedUser.vat}</div>
                       </div>
                     )}
-                    {selectedUser.address && (
+                    {(selectedUser.street || selectedUser.city || selectedUser.state || selectedUser.country) && (
                       <div className="col-span-2">
                         <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Address</div>
-                        <div className="text-sm font-medium text-foreground">{selectedUser.address}</div>
+                        <div className="text-sm font-medium text-foreground">
+                          {selectedUser.street && <div>{selectedUser.street}</div>}
+                          {(selectedUser.city || selectedUser.state || selectedUser.country) && (
+                            <div>
+                              {[selectedUser.city, selectedUser.state, selectedUser.country].filter(Boolean).join(", ")}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
