@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { TrainingSidebar } from "@/components/training/TrainingSidebar";
 import { IntegrationModal } from "@/components/integrations/IntegrationModal";
 import { IntegrationList } from "@/components/integrations/IntegrationList";
+import { ViewIntegrationModal } from "@/components/integrations/ViewIntegrationModal";
 import { EmailTemplateModal } from "@/components/integrations/EmailTemplateModal";
 import { toolService, Tool } from "@/services/tool.service";
 import { useEmailTemplates, useDeleteEmailTemplate } from "@/hooks/useEmailTemplates";
@@ -24,7 +25,9 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Tool[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEmailTemplateModalOpen, setIsEmailTemplateModalOpen] = useState(false);
+  const [viewingTool, setViewingTool] = useState<Tool | null>(null);
   const [editingTool, setEditingTool] = useState<Tool | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +53,11 @@ export default function IntegrationsPage() {
       })),
       isEmailTemplate: true,
       template_id: template.template_id,
+      subject_template: template.subject_template,
+      body_template: template.body_template,
       createdAt: template.createdAt,
       updatedAt: template.updatedAt,
-    }));
+    } as any));
 
     // Combine regular integrations and email templates
     return [...integrations, ...emailTemplateIntegrations];
@@ -133,16 +138,41 @@ export default function IntegrationsPage() {
     }
   };
 
+  // Handle view integration
+  const handleView = (tool: Tool) => {
+    setViewingTool(tool);
+    setIsViewModalOpen(true);
+  };
+
   // Handle edit integration
   const handleEdit = (tool: Tool) => {
     setEditingTool(tool);
     setIsModalOpen(true);
   };
 
+  // Handle edit from view modal
+  const handleEditFromView = () => {
+    if (viewingTool) {
+      const unifiedTool = viewingTool as UnifiedIntegration;
+      // Only allow editing for regular integrations, not email templates
+      if (!unifiedTool.isEmailTemplate) {
+        setEditingTool(viewingTool);
+        setIsViewModalOpen(false);
+        setIsModalOpen(true);
+      }
+    }
+  };
+
   // Handle modal close
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingTool(null);
+  };
+
+  // Handle view modal close
+  const handleViewModalClose = () => {
+    setIsViewModalOpen(false);
+    setViewingTool(null);
   };
 
   // Handle email template modal
@@ -224,12 +254,21 @@ export default function IntegrationsPage() {
         {/* Integration List (includes both regular integrations and email templates) */}
         <IntegrationList
           integrations={allIntegrations}
+          onView={handleView}
           onEdit={handleEdit}
           onDelete={(toolId, integration) => {
             const unifiedIntegration = integration as UnifiedIntegration;
             handleDelete(toolId, unifiedIntegration.isEmailTemplate, unifiedIntegration.template_id);
           }}
           isLoading={isLoading || isLoadingEmailTemplates}
+        />
+
+        {/* View Integration Modal */}
+        <ViewIntegrationModal
+          isOpen={isViewModalOpen}
+          onClose={handleViewModalClose}
+          onEdit={handleEditFromView}
+          integration={viewingTool}
         />
 
         {/* Integration Modal */}

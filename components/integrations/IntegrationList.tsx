@@ -1,10 +1,11 @@
 'use client';
 
 import { Tool } from '@/services/tool.service';
-import { Edit2, Trash2, Mail, MessageSquare, Zap, Webhook, Database, Bell, Settings } from 'lucide-react';
+import { Edit2, Trash2, Mail, MessageSquare, Zap, Webhook, Database, Bell, Settings, Eye } from 'lucide-react';
 
 interface IntegrationListProps {
   integrations: Tool[];
+  onView: (tool: Tool) => void;
   onEdit: (tool: Tool) => void;
   onDelete: (toolId: string, integration?: Tool) => void;
   isLoading?: boolean;
@@ -23,6 +24,7 @@ const TOOL_TYPE_ICONS: Record<string, { icon: any; color: string; bg: string }> 
 
 export function IntegrationList({
   integrations,
+  onView,
   onEdit,
   onDelete,
   isLoading = false,
@@ -126,11 +128,20 @@ export function IntegrationList({
               {!(tool as any).isEmailTemplate ? (
                 <>
                   <button
-                    onClick={() => onEdit(tool)}
+                    onClick={() => onView(tool)}
                     className="flex-1 h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                    title="View Details"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View
+                  </button>
+                  <button
+                    onClick={() => onEdit(tool)}
+                    className="h-9 w-9 flex items-center justify-center bg-secondary text-foreground rounded-lg hover:bg-accent transition-colors"
+                    title="Edit"
                   >
                     <Edit2 className="w-4 h-4" />
-                    Edit
+                    <span className="sr-only">Edit</span>
                   </button>
                   <button
                     onClick={() => {
@@ -146,17 +157,28 @@ export function IntegrationList({
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => {
-                    if (confirm(`Are you sure you want to delete "${tool.tool_name}"?`)) {
-                      onDelete(tool.tool_id, tool);
-                    }
-                  }}
-                  className="w-full h-9 px-4 flex items-center justify-center gap-2 bg-red-500/10 text-red-500 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => onView(tool)}
+                    className="flex-1 h-9 px-4 bg-secondary text-foreground rounded-lg text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2"
+                    title="View Details"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete "${tool.tool_name}"?`)) {
+                        onDelete(tool.tool_id, tool);
+                      }
+                    }}
+                    className="h-9 w-9 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="sr-only">Delete</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
