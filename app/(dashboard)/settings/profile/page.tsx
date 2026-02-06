@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle, Trash2, Phone, MessageSquare, Users } from "lucide-react";
+import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle, Trash2, Phone, MessageSquare, Users, Loader2, User } from "lucide-react";
 import { planService, Plan } from "@/services/plan.service";
 import { authService } from "@/services/auth.service";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/lib/api";
 
 interface ProfileType {
   type: string;
@@ -48,6 +50,7 @@ interface UsageStats {
 }
 
 export default function ProfilePage() {
+  const { user, refreshUser } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [usage, setUsage] = useState<UsageStats | null>(null);
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
@@ -56,6 +59,16 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [accountFormData, setAccountFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    companyName: "",
+    companyUrl: "",
+    vat: "",
+    address: "",
+  });
 
   const getProfileIcon = (slug: string) => {
     switch (slug) {
@@ -105,6 +118,46 @@ export default function ProfilePage() {
 
     loadData();
   }, []);
+
+  // Initialize account form data from user
+  useEffect(() => {
+    if (user) {
+      setAccountFormData({
+        name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+        email: user.email || "",
+        phone: user.phone || "",
+        companyName: user.companyName || "",
+        companyUrl: user.companyUrl || "",
+        vat: user.vat || "",
+        address: user.address || "",
+      });
+    }
+  }, [user]);
+
+  const handleSaveAccountInfo = async () => {
+    setIsSavingAccount(true);
+    try {
+      const response = await apiClient.post("/auth/onboarding", accountFormData);
+      
+      // apiClient.post returns response.data directly
+      if (response?.success) {
+        toast.success("Account information updated successfully!");
+        await refreshUser();
+      } else {
+        throw new Error(response?.error?.message || "Failed to update account information");
+      }
+    } catch (error: any) {
+      console.error("Account update error:", error);
+      // Handle both axios error format and our custom error format
+      const errorMessage = error?.response?.data?.error?.message || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          "Failed to update account information";
+      toast.error(errorMessage);
+    } finally {
+      setIsSavingAccount(false);
+    }
+  };
 
   const fetchPlans = async () => {
     try {
@@ -221,8 +274,144 @@ export default function ProfilePage() {
         {/* Small Header */}
         <div className="mb-6 pb-4 border-b border-border">
           <h2 className="text-xl font-semibold text-foreground">Profile & Subscription</h2>
-          <p className="text-sm text-muted-foreground mt-1">Choose the perfect plan for your AI communication needs</p>
+          <p className="text-sm text-muted-foreground mt-1">Manage your account information and subscription</p>
         </div>
+
+        {/* Account Information Section */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground">Account Information</h3>
+              <p className="text-sm text-muted-foreground">Update your personal and company details</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Name <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={accountFormData.name}
+                onChange={(e) => setAccountFormData({ ...accountFormData, name: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter your full name"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Email <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="email"
+                value={accountFormData.email}
+                onChange={(e) => setAccountFormData({ ...accountFormData, email: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter your email address"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* Phone */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Phone <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="tel"
+                value={accountFormData.phone}
+                onChange={(e) => setAccountFormData({ ...accountFormData, phone: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter your phone number"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* Company Name */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Company Name <span className="text-muted-foreground text-xs">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                value={accountFormData.companyName}
+                onChange={(e) => setAccountFormData({ ...accountFormData, companyName: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter your company name"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* Company URL */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Company URL <span className="text-muted-foreground text-xs">(Optional)</span>
+              </label>
+              <input
+                type="url"
+                value={accountFormData.companyUrl}
+                onChange={(e) => setAccountFormData({ ...accountFormData, companyUrl: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="https://example.com"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* VAT */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                VAT <span className="text-muted-foreground text-xs">(Optional)</span>
+              </label>
+              <input
+                type="text"
+                value={accountFormData.vat}
+                onChange={(e) => setAccountFormData({ ...accountFormData, vat: e.target.value })}
+                className="w-full h-11 bg-secondary border border-border rounded-lg px-4 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                placeholder="Enter your VAT number"
+                disabled={isSavingAccount}
+              />
+            </div>
+
+            {/* Address */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Address <span className="text-destructive">*</span>
+              </label>
+              <textarea
+                value={accountFormData.address}
+                onChange={(e) => setAccountFormData({ ...accountFormData, address: e.target.value })}
+                className="w-full min-h-[100px] bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
+                placeholder="Enter your address"
+                disabled={isSavingAccount}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button
+              onClick={handleSaveAccountInfo}
+              disabled={isSavingAccount}
+              className="px-6"
+            >
+              {isSavingAccount ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Account Information"
+              )}
+            </Button>
+          </div>
+        </Card>
 
         {/* Current Usage Stats */}
         {usage && (

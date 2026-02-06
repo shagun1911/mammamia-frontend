@@ -187,15 +187,26 @@ export default function AdminUsersPage() {
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                             <User className="w-5 h-5 text-primary" />
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <div className="font-medium text-foreground">{user.firstName} {user.lastName}</div>
                             <div className="text-sm text-muted-foreground">{user.email}</div>
+                            {user.phone && (
+                              <div className="text-xs text-muted-foreground mt-1">📞 {user.phone}</div>
+                            )}
+                            {user.companyName && (
+                              <div className="text-xs text-muted-foreground mt-1">🏢 {user.companyName}</div>
+                            )}
                             <div className="flex gap-2 mt-1">
                               <span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded capitalize">{user.role}</span>
                               <span className={cn(
                                 "text-xs px-2 py-0.5 rounded capitalize",
                                 user.status === 'active' ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-gray-500/10 text-gray-600 dark:text-gray-400"
                               )}>{user.status}</span>
+                              {user.onboardingCompleted ? (
+                                <span className="text-xs px-2 py-0.5 bg-green-500/10 text-green-600 dark:text-green-400 rounded">Onboarded</span>
+                              ) : (
+                                <span className="text-xs px-2 py-0.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded">Pending</span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -261,6 +272,67 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="p-6 space-y-6">
+              {/* User Details */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">User Details</h3>
+                <div className="bg-gradient-to-r from-secondary/50 to-secondary/30 rounded-lg p-5 border border-border shadow-sm space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Name</div>
+                      <div className="text-sm font-medium text-foreground">{selectedUser.firstName} {selectedUser.lastName}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Email</div>
+                      <div className="text-sm font-medium text-foreground">{selectedUser.email}</div>
+                    </div>
+                    {selectedUser.phone && (
+                      <div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Phone</div>
+                        <div className="text-sm font-medium text-foreground">{selectedUser.phone}</div>
+                      </div>
+                    )}
+                    {selectedUser.companyName && (
+                      <div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Company</div>
+                        <div className="text-sm font-medium text-foreground">{selectedUser.companyName}</div>
+                      </div>
+                    )}
+                    {selectedUser.companyUrl && (
+                      <div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Company URL</div>
+                        <div className="text-sm font-medium text-foreground">
+                          <a href={selectedUser.companyUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            {selectedUser.companyUrl}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {selectedUser.vat && (
+                      <div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">VAT</div>
+                        <div className="text-sm font-medium text-foreground">{selectedUser.vat}</div>
+                      </div>
+                    )}
+                    {selectedUser.address && (
+                      <div className="col-span-2">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Address</div>
+                        <div className="text-sm font-medium text-foreground">{selectedUser.address}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-3 border-t border-border">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Onboarding Status:</span>
+                      {selectedUser.onboardingCompleted ? (
+                        <span className="text-xs px-2 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded">Completed</span>
+                      ) : (
+                        <span className="text-xs px-2 py-1 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded">Pending</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Current Plan */}
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">Current Plan</h3>

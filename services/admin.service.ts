@@ -442,6 +442,13 @@ export interface UserWithProfile {
   role: string;
   status: string;
   selectedProfile?: string;
+  // Onboarding fields
+  phone?: string;
+  companyName?: string;
+  companyUrl?: string;
+  vat?: string;
+  address?: string;
+  onboardingCompleted?: boolean;
   organization?: {
     _id: string;
     name: string;

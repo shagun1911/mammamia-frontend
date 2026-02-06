@@ -24,6 +24,13 @@ export interface User {
   organizationId: string;
   status: string;
   createdAt: string;
+  // Onboarding fields
+  phone?: string;
+  companyName?: string;
+  companyUrl?: string;
+  vat?: string;
+  address?: string;
+  onboardingCompleted?: boolean;
 }
 
 export interface AuthResponse {
