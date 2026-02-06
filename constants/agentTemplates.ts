@@ -3,6 +3,11 @@
  * Used in Create Agent Modal for quick start
  */
 
+/**
+ * Prebuilt Agent Templates
+ * Used in Create Agent Modal for quick start
+ */
+
 export interface AgentTemplate {
   id: string;
   name: string;
