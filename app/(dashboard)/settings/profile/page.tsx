@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient } from "@/lib/api";
+import { redirectToWooCheckout } from "@/lib/woocommerceCheckout";
 
 interface ProfileType {
   type: string;
@@ -244,9 +245,24 @@ export default function ProfilePage() {
   };
 
   const handleSelectPlan = (plan: Plan) => {
-    // For now, redirect to email for upgrade as per Billing page
-    // In future, implement direct plan switching or Stripe integration
-    window.location.href = `mailto:support@aistein.ai?subject=Upgrade%20to%20${plan.name}%20Plan&body=I%20would%20like%20to%20upgrade%20my%20subscription%20to%20the%20${plan.name}%20plan.`;
+    try {
+      // Get user's MongoDB _id (prefer _id, fallback to id)
+      // The backend sends _id, but frontend might have it as id
+      const userId = (user as any)?._id || user?.id;
+      
+      if (!userId) {
+        toast.error("Unable to identify user. Please log in again.");
+        return;
+      }
+
+      // Redirect to WooCommerce checkout with plan upgrade
+      // This adds product to cart and redirects directly to checkout
+      // Query params (uid, plan, intent) are preserved for webhook processing
+      redirectToWooCheckout(plan.slug, userId);
+    } catch (error: any) {
+      console.error("Failed to redirect to checkout:", error);
+      toast.error(error.message || "Failed to start checkout process");
+    }
   };
 
   const handleDeleteAccount = async () => {
