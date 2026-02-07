@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Zap, Crown, Sparkles, TrendingUp, Calendar, AlertCircle, CheckCircle, Trash2, Phone, MessageSquare, Users, Loader2, User } from "lucide-react";
@@ -51,6 +52,8 @@ interface UsageStats {
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, refreshUser } = useAuth();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [usage, setUsage] = useState<UsageStats | null>(null);
@@ -61,6 +64,10 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
+  
+  // Payment status polling state
+  const [paymentState, setPaymentState] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [accountFormData, setAccountFormData] = useState({
     name: "",
     email: "",
@@ -103,6 +110,99 @@ export default function ProfilePage() {
         return 'from-primary/80 to-primary';
     }
   };
+
+  // Payment status polling effect
+  useEffect(() => {
+    const intent = searchParams.get('intent');
+    
+    // If no intent in URL, do nothing
+    if (!intent) {
+      return;
+    }
+
+    // Start polling for payment status
+    setPaymentState('pending');
+    
+    const pollPaymentStatus = async () => {
+      try {
+        // Call backend payment status endpoint
+        // Note: This endpoint is read-only and does NOT activate plans
+        // The endpoint is at /api/payment/status (not under /api/v1)
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        // Remove /api/v1 suffix if present to get base URL
+        const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
+        const response = await fetch(`${baseUrl}/api/payment/status?intent=${encodeURIComponent(intent)}`);
+        
+        if (!response.ok) {
+          // If 404, payment not found yet (webhook hasn't processed)
+          if (response.status === 404) {
+            return; // Continue polling
+          }
+          throw new Error(`Failed to check payment status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Handle different payment statuses
+        if (data.status === 'active') {
+          // Payment is active - webhook has processed it
+          setPaymentState('success');
+          
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
+          // Refresh user data to get updated plan
+          await refreshUser();
+          
+          // Refresh billing info to show updated plan
+          await fetchBillingInfo();
+          
+          // Show success message
+          toast.success('🎉 Plan activated successfully!');
+          
+          // Clean URL - remove intent param
+          router.replace('/settings/profile', { scroll: false });
+          
+        } else if (data.status === 'failed' || data.status === 'refunded') {
+          // Payment failed or was refunded
+          setPaymentState('failed');
+          
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
+          // Show error message
+          toast.error('Payment failed. Please try again or contact support.');
+          
+          // Clean URL - remove intent param
+          router.replace('/settings/profile', { scroll: false });
+          
+        }
+        // If status is 'pending', continue polling (no action needed)
+        
+      } catch (error: any) {
+        console.error('Error polling payment status:', error);
+        // Don't stop polling on error - might be temporary network issue
+      }
+    };
+
+    // Poll immediately, then every 2 seconds
+    pollPaymentStatus();
+    pollingIntervalRef.current = setInterval(pollPaymentStatus, 2000);
+
+    // Cleanup: stop polling when component unmounts or intent changes
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [searchParams, router, refreshUser]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -288,6 +388,55 @@ export default function ProfilePage() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* Payment Status Banner */}
+        {paymentState === 'pending' && (
+          <Card className="p-4 bg-blue-500/10 border-blue-500/30">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                  Activating your plan...
+                </p>
+                <p className="text-xs text-blue-500/80 mt-1">
+                  Please wait while we process your payment. This may take a few moments.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {paymentState === 'success' && (
+          <Card className="p-4 bg-green-500/10 border-green-500/30">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-600 dark:text-green-400">
+                  🎉 Plan activated successfully!
+                </p>
+                <p className="text-xs text-green-500/80 mt-1">
+                  Your subscription has been updated. You can now enjoy your new plan features.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {paymentState === 'failed' && (
+          <Card className="p-4 bg-red-500/10 border-red-500/30">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-red-500" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                  ❌ Payment failed
+                </p>
+                <p className="text-xs text-red-500/80 mt-1">
+                  We couldn't process your payment. Please try again or contact support if the issue persists.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {loading && (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
