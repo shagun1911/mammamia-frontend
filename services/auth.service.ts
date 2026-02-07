@@ -34,6 +34,21 @@ export interface User {
   state?: string;
   country?: string;
   onboardingCompleted?: boolean;
+  // Subscription fields (activated ONLY via WooCommerce webhook)
+  subscription?: {
+    plan: string;
+    limits: {
+      conversations: number;
+      minutes: number;
+      automations: number;
+    };
+    usage: {
+      conversations: number;
+      minutes: number;
+      automations: number;
+    };
+    activatedAt?: string | null;
+  };
 }
 
 export interface AuthResponse {

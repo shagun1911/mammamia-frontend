@@ -630,8 +630,95 @@ export default function ProfilePage() {
           </div>
         </Card>
 
-        {/* Current Usage Stats */}
-        {usage && (
+        {/* Subscription Usage Stats */}
+        {user?.subscription && (
+          <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground mb-1">
+                  Current Plan: {user.subscription.plan.charAt(0).toUpperCase() + user.subscription.plan.slice(1)}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Track your usage and manage your subscription
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Conversations Usage */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    Conversations
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {user.subscription.usage.conversations} / {user.subscription.limits.conversations}
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, (user.subscription.usage.conversations / user.subscription.limits.conversations) * 100)}%` 
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.max(0, user.subscription.limits.conversations - user.subscription.usage.conversations)} remaining
+                </p>
+              </div>
+
+              {/* Voice Minutes Usage */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    Voice Minutes
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {user.subscription.usage.minutes} / {user.subscription.limits.minutes}
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, (user.subscription.usage.minutes / user.subscription.limits.minutes) * 100)}%` 
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.max(0, user.subscription.limits.minutes - user.subscription.usage.minutes)} remaining
+                </p>
+              </div>
+
+              {/* Automations Usage */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    Automations
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {user.subscription.usage.automations} / {user.subscription.limits.automations}
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ 
+                      width: `${Math.min(100, (user.subscription.usage.automations / user.subscription.limits.automations) * 100)}%` 
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.max(0, user.subscription.limits.automations - user.subscription.usage.automations)} remaining
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Current Usage Stats (Legacy - shown if subscription not available) */}
+        {usage && !user?.subscription && (
           <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
             <div className="flex items-start justify-between mb-4">
               <div>
