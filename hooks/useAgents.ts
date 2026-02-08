@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 /**
  * Get all agents
  */
+/**
+ * Get all agents
+ */
 export function useAgents() {
   return useQuery<Agent[]>({
     queryKey: ['agents'],
