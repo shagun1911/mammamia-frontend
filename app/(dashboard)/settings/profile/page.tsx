@@ -114,98 +114,26 @@ export default function ProfilePage() {
   // Payment status polling effect
   useEffect(() => {
     const intent = searchParams.get('intent');
-    const planParam = searchParams.get('plan'); // Get plan from URL params
     
     // If no intent in URL, do nothing
     if (!intent) {
       return;
     }
 
-    // Helper function to normalize plan slug (matches backend logic)
-    const normalizePlanKey = (planSlug: string): string => {
-      const lower = planSlug.toLowerCase().trim();
-      if (lower === 'mileva-pack') return 'mileva';
-      if (lower === 'nobel-pack') return 'nobel';
-      if (lower === 'aistein-pro-pack' || lower === 'aistein-pro') return 'pro';
-      if (lower === 'set-up') return 'setup';
-      return lower.replace(/-pack$/, '').replace(/-/g, '');
-    };
-
-    // Helper function to check if plan is already activated
-    const checkIfPlanActivated = async (): Promise<boolean> => {
-      if (!planParam) return false;
-      
-      try {
-        // Get fresh user data from API
-        const updatedUser = await authService.getCurrentUser();
-        
-        if (!updatedUser) return false;
-        
-        const expectedPlan = normalizePlanKey(planParam);
-        const currentPlan = updatedUser?.subscription?.plan || 'free';
-        
-        // Check if plan matches (accounting for normalization)
-        if (currentPlan === expectedPlan) {
-          console.log('[Payment Status] Plan already activated!', {
-            expectedPlan,
-            currentPlan,
-            subscription: updatedUser.subscription
-          });
-          return true;
-        }
-        
-        return false;
-      } catch (error) {
-        console.error('[Payment Status] Error checking plan activation:', error);
-        return false;
-      }
-    };
-
-    // Helper function to handle successful activation
-    const handleActivationSuccess = async () => {
-      setPaymentState('success');
-      
-      // Stop polling
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-
-      // Refresh user data to get updated plan
-      await refreshUser();
-      
-      // Refresh billing info to show updated plan
-      await fetchBillingInfo();
-      
-      // Show success message
-      toast.success('🎉 Plan activated successfully!');
-      
-      // Clean URL - remove intent param
-      router.replace('/settings/profile', { scroll: false });
-    };
-
     // Start polling for payment status
     setPaymentState('pending');
     
-    // First, immediately check if plan is already activated (webhook might have processed already)
-    checkIfPlanActivated().then((isActivated) => {
-      if (isActivated) {
-        handleActivationSuccess();
-        return; // Don't start polling if already activated
-      }
-    });
-    
-    let pollCount = 0;
-    const maxPolls = 30; // 30 polls * 2 seconds = 60 seconds max
+    let attempts = 0;
+    const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds max
     const startTime = Date.now();
     const maxWaitTime = 60000; // 60 seconds max wait time
     
     const pollPaymentStatus = async () => {
       try {
-        pollCount++;
-        
+        attempts++;
+
         // Check timeout
-        if (Date.now() - startTime > maxWaitTime || pollCount > maxPolls) {
+        if (Date.now() - startTime > maxWaitTime || attempts > maxAttempts) {
           console.warn('[Payment Status] Polling timeout reached');
           setPaymentState('failed');
           
@@ -219,43 +147,47 @@ export default function ProfilePage() {
           return;
         }
 
-        // First, check if plan is already activated (by checking user subscription)
-        const isAlreadyActivated = await checkIfPlanActivated();
-        if (isAlreadyActivated) {
-          handleActivationSuccess();
-          return;
-        }
-
-        // Also check payment intent status
+        // Call backend payment status endpoint
+        // This endpoint reads from Payment model (updated by webhook)
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
         const response = await fetch(`${baseUrl}/api/payment/status?intent=${encodeURIComponent(intent)}`);
         
         if (!response.ok) {
-          // If 404, payment not found yet (webhook hasn't processed)
-          if (response.status === 404) {
-            return; // Continue polling
+          // If error, continue polling (might be temporary network issue)
+          if (response.status !== 400) {
+            console.warn('[Payment Status] Error checking status:', response.status);
           }
-          throw new Error(`Failed to check payment status: ${response.status}`);
+          return; // Continue polling
         }
 
         const data = await response.json();
         
         // Handle different payment statuses
         if (data.status === 'active') {
-          // Payment is active - webhook has processed it
-          // Double-check user subscription is updated
-          const isActivated = await checkIfPlanActivated();
-          if (isActivated) {
-            handleActivationSuccess();
-          } else {
-            // Payment intent is active but user subscription not updated yet
-            // Wait a bit and check again
-            console.log('[Payment Status] Payment intent active but subscription not updated yet, waiting...');
-          }
+          // Payment is active - webhook has processed it and activated the plan
+          setPaymentState('success');
           
-        } else if (data.status === 'failed' || data.status === 'refunded') {
-          // Payment failed or was refunded
+          // Stop polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
+          // Refresh user data to get updated plan and subscription
+          await refreshUser();
+          
+          // Refresh billing info to show updated plan
+          await fetchBillingInfo();
+          
+          // Show success message
+          toast.success('🎉 Plan activated successfully!');
+          
+          // Clean URL - remove intent param
+          router.replace('/settings/profile', { scroll: false });
+          
+        } else if (data.status === 'failed') {
+          // Payment failed or was cancelled
           setPaymentState('failed');
           
           // Stop polling
@@ -290,7 +222,7 @@ export default function ProfilePage() {
         pollingIntervalRef.current = null;
       }
     };
-  }, [searchParams, router, refreshUser, user]);
+  }, [searchParams, router, refreshUser]);
 
   useEffect(() => {
     const loadData = async () => {
