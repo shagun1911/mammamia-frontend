@@ -123,32 +123,10 @@ export default function ProfilePage() {
     // Start polling for payment status
     setPaymentState('pending');
     
-    let attempts = 0;
-    const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds max
-    const startTime = Date.now();
-    const maxWaitTime = 60000; // 60 seconds max wait time
-    
     const pollPaymentStatus = async () => {
       try {
-        attempts++;
-
-        // Check timeout
-        if (Date.now() - startTime > maxWaitTime || attempts > maxAttempts) {
-          console.warn('[Payment Status] Polling timeout reached');
-          setPaymentState('failed');
-          
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          
-          toast.error('Payment processing is taking longer than expected. Please refresh the page or contact support if the issue persists.');
-          router.replace('/settings/profile', { scroll: false });
-          return;
-        }
-
         // Call backend payment status endpoint
-        // This endpoint reads from Payment model (updated by webhook)
+        // This endpoint checks Payment model first, then falls back to User.subscription
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
         const response = await fetch(`${baseUrl}/api/payment/status?intent=${encodeURIComponent(intent)}`);
@@ -187,7 +165,7 @@ export default function ProfilePage() {
           router.replace('/settings/profile', { scroll: false });
           
         } else if (data.status === 'failed') {
-          // Payment failed or was cancelled
+          // Payment failed or was cancelled - ONLY fail when backend explicitly returns 'failed'
           setPaymentState('failed');
           
           // Stop polling
@@ -204,6 +182,7 @@ export default function ProfilePage() {
           
         }
         // If status is 'pending', continue polling (no action needed)
+        // IMPORTANT: Never auto-fail on timeout. Only fail when backend returns 'failed'
         
       } catch (error: any) {
         console.error('Error polling payment status:', error);
