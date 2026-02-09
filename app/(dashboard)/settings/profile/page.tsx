@@ -771,10 +771,10 @@ export default function ProfilePage() {
                   </span>
                   <span className="text-sm text-muted-foreground">
                     {(usage.chatConversationsStats?.used ?? usage.metrics?.chatMessages ?? usage.chatConversationsUsed ?? 0)} /
-                    {(usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 100) === -1 ? '∞' : (usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 100)}
+                    {(usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 0) === -1 ? '∞' : (usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 0)}
                   </span>
                 </div>
-                {(usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 100) !== -1 && (
+                {(usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 0) !== -1 && (
                   <>
                     <div className="w-full bg-secondary rounded-full h-2">
                       <div
@@ -797,10 +797,10 @@ export default function ProfilePage() {
                   </span>
                   <span className="text-sm text-muted-foreground">
                     {(usage.voiceMinutesStats?.used ?? usage.metrics?.callMinutes ?? usage.voiceMinutesUsed ?? 0)} /
-                    {(usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 100) === -1 ? '∞' : (usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 100)}
+                    {(usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 0) === -1 ? '∞' : (usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 0)}
                   </span>
                 </div>
-                {(usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 100) !== -1 && (
+                {(usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 0) !== -1 && (
                   <>
                     <div className="w-full bg-secondary rounded-full h-2">
                       <div
