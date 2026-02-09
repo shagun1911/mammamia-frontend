@@ -42,13 +42,12 @@ const mainNavItems: NavItem[] = [
   { icon: Megaphone, label: "Campaigns", href: "/campaigns" },
   { icon: FlaskConical, label: "Chatbot Test", href: "/chatbot-test" },
   { icon: BarChart3, label: "Analytics", href: "/analytics" },
-  { icon: CreditCard, label: "Billing", href: "/billing" },
   { icon: Cog, label: "Configuration", href: "/configuration" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { icon: User, label: "Profile", href: "/profile" },
+  { icon: User, label: "Profile & Subscription", href: "/settings/profile" },
 ];
 
 export function Sidebar({ onCollapseChange }: SidebarProps) {

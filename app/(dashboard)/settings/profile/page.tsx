@@ -26,6 +26,19 @@ interface UsageStats {
   hasProfile: boolean;
   selectedProfile: string | null;
   profileType?: string;
+  metrics?: {
+    chatMessages: number;
+    callMinutes: number;
+    conversations: number;
+    automations: number;
+    campaignSends: number;
+  };
+  chatConversationsUsed?: number;
+  chatConversationsLimit?: number;
+  voiceMinutesUsed?: number;
+  voiceMinutesLimit?: number;
+  automationsUsed?: number;
+  automationsLimit?: number;
   chatConversations: {
     used: number;
     limit: number;
@@ -39,6 +52,25 @@ interface UsageStats {
     percentage: number;
   };
   automations?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
+  // Suffix versions from new backend
+  chatConversationsStats?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
+  voiceMinutesStats?: {
+    used: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
+  automationsStats?: {
     used: number;
     limit: number;
     remaining: number;
@@ -64,7 +96,7 @@ export default function ProfilePage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
-  
+
   // Payment status polling state
   const [paymentState, setPaymentState] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -114,7 +146,7 @@ export default function ProfilePage() {
   // Payment status polling effect
   useEffect(() => {
     const intent = searchParams.get('intent');
-    
+
     // If no intent in URL, do nothing
     if (!intent) {
       return;
@@ -122,7 +154,7 @@ export default function ProfilePage() {
 
     // Start polling for payment status
     setPaymentState('pending');
-    
+
     const pollPaymentStatus = async () => {
       try {
         // Call backend payment status endpoint
@@ -130,7 +162,7 @@ export default function ProfilePage() {
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
         const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
         const response = await fetch(`${baseUrl}/api/payment/status?intent=${encodeURIComponent(intent)}`);
-        
+
         if (!response.ok) {
           // If error, continue polling (might be temporary network issue)
           if (response.status !== 400) {
@@ -140,12 +172,12 @@ export default function ProfilePage() {
         }
 
         const data = await response.json();
-        
+
         // Handle different payment statuses
         if (data.status === 'active') {
           // Payment is active - webhook has processed it and activated the plan
           setPaymentState('success');
-          
+
           // Stop polling
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -154,20 +186,20 @@ export default function ProfilePage() {
 
           // Refresh user data to get updated plan and subscription
           await refreshUser();
-          
+
           // Refresh billing info to show updated plan
           await fetchBillingInfo();
-          
+
           // Show success message
           toast.success('🎉 Plan activated successfully!');
-          
+
           // Clean URL - remove intent param
           router.replace('/settings/profile', { scroll: false });
-          
+
         } else if (data.status === 'failed') {
           // Payment failed or was cancelled - ONLY fail when backend explicitly returns 'failed'
           setPaymentState('failed');
-          
+
           // Stop polling
           if (pollingIntervalRef.current) {
             clearInterval(pollingIntervalRef.current);
@@ -176,14 +208,14 @@ export default function ProfilePage() {
 
           // Show error message
           toast.error('Payment failed. Please try again or contact support.');
-          
+
           // Clean URL - remove intent param
           router.replace('/settings/profile', { scroll: false });
-          
+
         }
         // If status is 'pending', continue polling (no action needed)
         // IMPORTANT: Never auto-fail on timeout. Only fail when backend returns 'failed'
-        
+
       } catch (error: any) {
         console.error('Error polling payment status:', error);
         // Don't stop polling on error - might be temporary network issue
@@ -244,7 +276,7 @@ export default function ProfilePage() {
     setIsSavingAccount(true);
     try {
       const response = await apiClient.post("/auth/onboarding", accountFormData);
-      
+
       // apiClient.post returns response.data directly
       if (response?.success) {
         toast.success("Account information updated successfully!");
@@ -255,10 +287,10 @@ export default function ProfilePage() {
     } catch (error: any) {
       console.error("Account update error:", error);
       // Handle both axios error format and our custom error format
-      const errorMessage = error?.response?.data?.error?.message || 
-                          error?.response?.data?.message || 
-                          error?.message || 
-                          "Failed to update account information";
+      const errorMessage = error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to update account information";
       toast.error(errorMessage);
     } finally {
       setIsSavingAccount(false);
@@ -283,7 +315,7 @@ export default function ProfilePage() {
         console.warn("No access token found");
         return;
       }
-      
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/usage`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -348,7 +380,7 @@ export default function ProfilePage() {
       // Get user's MongoDB _id (prefer _id, fallback to id)
       // The backend sends _id, but frontend might have it as id
       const userId = (user as any)?._id || user?.id;
-      
+
       if (!userId) {
         toast.error("Unable to identify user. Please log in again.");
         return;
@@ -657,8 +689,8 @@ export default function ProfilePage() {
                 <div className="w-full bg-secondary rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
-                    style={{ 
-                      width: `${Math.min(100, (user.subscription.usage.conversations / user.subscription.limits.conversations) * 100)}%` 
+                    style={{
+                      width: `${Math.min(100, (user.subscription.usage.conversations / user.subscription.limits.conversations) * 100)}%`
                     }}
                   />
                 </div>
@@ -680,8 +712,8 @@ export default function ProfilePage() {
                 <div className="w-full bg-secondary rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
-                    style={{ 
-                      width: `${Math.min(100, (user.subscription.usage.minutes / user.subscription.limits.minutes) * 100)}%` 
+                    style={{
+                      width: `${Math.min(100, (user.subscription.usage.minutes / user.subscription.limits.minutes) * 100)}%`
                     }}
                   />
                 </div>
@@ -703,8 +735,8 @@ export default function ProfilePage() {
                 <div className="w-full bg-secondary rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
-                    style={{ 
-                      width: `${Math.min(100, (user.subscription.usage.automations / user.subscription.limits.automations) * 100)}%` 
+                    style={{
+                      width: `${Math.min(100, (user.subscription.usage.automations / user.subscription.limits.automations) * 100)}%`
                     }}
                   />
                 </div>
@@ -738,19 +770,20 @@ export default function ProfilePage() {
                     Chat Conversations
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {usage.chatConversations.used} / {usage.chatConversations.limit === -1 ? '∞' : usage.chatConversations.limit}
+                    {(usage.chatConversationsStats?.used ?? usage.metrics?.chatMessages ?? usage.chatConversationsUsed ?? 0)} /
+                    {(usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 100) === -1 ? '∞' : (usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 100)}
                   </span>
                 </div>
-                {usage.chatConversations.limit !== -1 && (
+                {(usage.chatConversationsStats?.limit ?? usage.chatConversationsLimit ?? 100) !== -1 && (
                   <>
                     <div className="w-full bg-secondary rounded-full h-2">
                       <div
                         className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${usage.chatConversations.percentage}%` }}
+                        style={{ width: `${(usage.chatConversationsStats?.percentage ?? 0)}%` }}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {usage.chatConversations.remaining} conversations remaining
+                      {(usage.chatConversationsStats?.remaining ?? 0)} conversations remaining
                     </p>
                   </>
                 )}
@@ -763,50 +796,50 @@ export default function ProfilePage() {
                     Voice Minutes
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {usage.voiceMinutes.used} / {usage.voiceMinutes.limit === -1 ? '∞' : usage.voiceMinutes.limit}
+                    {(usage.voiceMinutesStats?.used ?? usage.metrics?.callMinutes ?? usage.voiceMinutesUsed ?? 0)} /
+                    {(usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 100) === -1 ? '∞' : (usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 100)}
                   </span>
                 </div>
-                {usage.voiceMinutes.limit !== -1 && (
+                {(usage.voiceMinutesStats?.limit ?? usage.voiceMinutesLimit ?? 100) !== -1 && (
                   <>
                     <div className="w-full bg-secondary rounded-full h-2">
                       <div
                         className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${usage.voiceMinutes.percentage}%` }}
+                        style={{ width: `${(usage.voiceMinutesStats?.percentage ?? 0)}%` }}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {usage.voiceMinutes.remaining} minutes remaining
+                      {(usage.voiceMinutesStats?.remaining ?? 0)} minutes remaining
                     </p>
                   </>
                 )}
               </div>
 
               {/* Automations */}
-              {usage.automations && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-foreground">
-                      Automations
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {usage.automations.used} / {usage.automations.limit === -1 ? '∞' : usage.automations.limit}
-                    </span>
-                  </div>
-                  {usage.automations.limit !== -1 && (
-                    <>
-                      <div className="w-full bg-secondary rounded-full h-2">
-                        <div
-                          className="bg-primary h-2 rounded-full transition-all"
-                          style={{ width: `${usage.automations.percentage}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {usage.automations.remaining} automations remaining
-                      </p>
-                    </>
-                  )}
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-foreground">
+                    Automations
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {(usage.automationsStats?.used ?? usage.metrics?.automations ?? usage.automationsUsed ?? 0)} /
+                    {(usage.automationsStats?.limit ?? usage.automationsLimit ?? 5) === -1 ? '∞' : (usage.automationsStats?.limit ?? usage.automationsLimit ?? 5)}
+                  </span>
                 </div>
-              )}
+                {(usage.automationsStats?.limit ?? usage.automationsLimit ?? 5) !== -1 && (
+                  <>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${(usage.automationsStats?.percentage ?? 0)}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {(usage.automationsStats?.remaining ?? 0)} automations remaining
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </Card>
         )}
@@ -823,105 +856,105 @@ export default function ProfilePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
               {plans.map((plan) => {
-              const isCurrentPlan = currentPlanId === plan._id || currentPlanId === plan.slug;
+                const isCurrentPlan = currentPlanId === plan._id || currentPlanId === plan.slug;
 
-              return (
-                <Card
-                  key={plan._id}
-                  className={cn(
-                    "relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full",
-                    isCurrentPlan ? "border-primary border-2 shadow-xl" : "border-border"
-                  )}
-                >
-                  {/* Gradient Header */}
-                  <div className={`bg-gradient-to-r ${getProfileColor(plan.slug)} p-6 text-white`}>
-                    <div className="flex items-center justify-between mb-4">
-                      {getProfileIcon(plan.slug)}
-                      {isCurrentPlan && (
-                        <div className="bg-white text-primary rounded-full p-1">
-                          <Check className="w-4 h-4" />
-                        </div>
-                      )}
+                return (
+                  <Card
+                    key={plan._id}
+                    className={cn(
+                      "relative overflow-hidden transition-all hover:shadow-lg flex flex-col h-full",
+                      isCurrentPlan ? "border-primary border-2 shadow-xl" : "border-border"
+                    )}
+                  >
+                    {/* Gradient Header */}
+                    <div className={`bg-gradient-to-r ${getProfileColor(plan.slug)} p-6 text-white`}>
+                      <div className="flex items-center justify-between mb-4">
+                        {getProfileIcon(plan.slug)}
+                        {isCurrentPlan && (
+                          <div className="bg-white text-primary rounded-full p-1">
+                            <Check className="w-4 h-4" />
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold">${plan.price}</span>
+                        <span className="text-sm opacity-90">/month</span>
+                      </div>
                     </div>
-                    <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold">${plan.price}</span>
-                      <span className="text-sm opacity-90">/month</span>
-                    </div>
-                  </div>
 
-                  {/* Features */}
-                  <div className="p-6 space-y-4 flex flex-col flex-1">
-                    <p className="text-sm text-muted-foreground mb-4 min-h-[40px]">
-                      {plan.description}
-                    </p>
+                    {/* Features */}
+                    <div className="p-6 space-y-4 flex flex-col flex-1">
+                      <p className="text-sm text-muted-foreground mb-4 min-h-[40px]">
+                        {plan.description}
+                      </p>
 
-                    <div className="space-y-3 flex-1">
-                      <div className="flex items-start gap-3">
-                        <MessageSquare className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {plan.features.chatConversations === -1 ? 'Unlimited' : plan.features.chatConversations.toLocaleString()} Chats
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Phone className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {plan.features.callMinutes === -1 ? 'Unlimited' : plan.features.callMinutes.toLocaleString()} Voice Minutes
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {plan.features.automations === -1 ? 'Unlimited' : plan.features.automations.toLocaleString()} Automations
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Users className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {plan.features.users === -1 ? 'Unlimited' : plan.features.users.toLocaleString()} Users
-                          </p>
-                        </div>
-                      </div>
-
-                      {plan.features.customFeatures && plan.features.customFeatures.length > 0 && (
-                        <div className="pt-2 border-t border-border mt-2">
-                          {plan.features.customFeatures.slice(0, 3).map((feature: string, idx: number) => (
-                            <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
-                              <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
-                              <span className="truncate">{feature}</span>
-                            </div>
-                          ))}
-                          {plan.features.customFeatures.length > 3 && (
-                            <p className="text-xs text-muted-foreground mt-1 pl-5">
-                              + {plan.features.customFeatures.length - 3} more...
+                      <div className="space-y-3 flex-1">
+                        <div className="flex items-start gap-3">
+                          <MessageSquare className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {plan.features.chatConversations === -1 ? 'Unlimited' : plan.features.chatConversations.toLocaleString()} Chats
                             </p>
-                          )}
+                          </div>
                         </div>
-                      )}
-                    </div>
 
-                    <Button
-                      onClick={() => handleSelectPlan(plan)}
-                      disabled={isCurrentPlan}
-                      className="w-full mt-auto cursor-pointer"
-                      variant={isCurrentPlan ? "outline" : "default"}
-                    >
-                      {isCurrentPlan ? "Current Plan" : "Upgrade"}
-                    </Button>
-                  </div>
-                </Card>
-              );
-            })}
+                        <div className="flex items-start gap-3">
+                          <Phone className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {plan.features.callMinutes === -1 ? 'Unlimited' : plan.features.callMinutes.toLocaleString()} Voice Minutes
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3">
+                          <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {plan.features.automations === -1 ? 'Unlimited' : plan.features.automations.toLocaleString()} Automations
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-3">
+                          <Users className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {plan.features.users === -1 ? 'Unlimited' : plan.features.users.toLocaleString()} Users
+                            </p>
+                          </div>
+                        </div>
+
+                        {plan.features.customFeatures && plan.features.customFeatures.length > 0 && (
+                          <div className="pt-2 border-t border-border mt-2">
+                            {plan.features.customFeatures.slice(0, 3).map((feature: string, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground mt-1">
+                                <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 shrink-0" />
+                                <span className="truncate">{feature}</span>
+                              </div>
+                            ))}
+                            {plan.features.customFeatures.length > 3 && (
+                              <p className="text-xs text-muted-foreground mt-1 pl-5">
+                                + {plan.features.customFeatures.length - 3} more...
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        onClick={() => handleSelectPlan(plan)}
+                        disabled={isCurrentPlan}
+                        className="w-full mt-auto cursor-pointer"
+                        variant={isCurrentPlan ? "outline" : "default"}
+                      >
+                        {isCurrentPlan ? "Current Plan" : "Upgrade"}
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
