@@ -169,11 +169,14 @@ export default function ProfilePage() {
         body: JSON.stringify({ intent, plan })
       });
 
+      // Force UI reload - refresh user data first
       await refreshUser();
       await fetchBillingInfo();
 
-      setPaymentState('success');
+      // Then navigate to clean URL (this forces a full re-render)
       router.replace('/settings/profile', { scroll: false });
+      
+      setPaymentState('success');
     } catch (e: any) {
       console.error('FORCE ACTIVATE FAILED', e);
       setPaymentState('failed');
@@ -591,91 +594,124 @@ export default function ProfilePage() {
         </Card>
 
         {/* Subscription Usage Stats */}
-        {user?.subscription && (
-          <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-xl font-semibold text-foreground mb-1">
-                  Current Plan: {user.subscription.plan.charAt(0).toUpperCase() + user.subscription.plan.slice(1)}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Track your usage and manage your subscription
-                </p>
-              </div>
-            </div>
+        {(() => {
+          const subscription = user?.subscription;
+          
+          // Safety check: ensure subscription and limits exist
+          if (!subscription || !subscription.limits) {
+            return null; // Don't render if subscription data is missing
+          }
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Conversations Usage */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">
-                    Conversations
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {user.subscription.usage.conversations} / {user.subscription.limits.conversations}
-                  </span>
+          const limits = subscription.limits || {
+            conversations: 0,
+            minutes: 0,
+            automations: 0
+          };
+
+          const usage = subscription.usage || {
+            conversations: 0,
+            minutes: 0,
+            automations: 0
+          };
+
+          return (
+            <Card className="p-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground mb-1">
+                    Current Plan: {subscription.plan?.toUpperCase() || 'FREE'}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Track your usage and manage your subscription
+                  </p>
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(100, (user.subscription.usage.conversations / user.subscription.limits.conversations) * 100)}%`
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.max(0, user.subscription.limits.conversations - user.subscription.usage.conversations)} remaining
-                </p>
               </div>
 
-              {/* Voice Minutes Usage */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">
-                    Voice Minutes
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {user.subscription.usage.minutes} / {user.subscription.limits.minutes}
-                  </span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Conversations Usage */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-foreground">
+                      Conversations
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {usage.conversations} / {limits.conversations === -1 ? '∞' : limits.conversations}
+                    </span>
+                  </div>
+                  {limits.conversations !== -1 && limits.conversations > 0 && (
+                    <>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, (usage.conversations / limits.conversations) * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {Math.max(0, limits.conversations - usage.conversations)} remaining
+                      </p>
+                    </>
+                  )}
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(100, (user.subscription.usage.minutes / user.subscription.limits.minutes) * 100)}%`
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.max(0, user.subscription.limits.minutes - user.subscription.usage.minutes)} remaining
-                </p>
-              </div>
 
-              {/* Automations Usage */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">
-                    Automations
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {user.subscription.usage.automations} / {user.subscription.limits.automations}
-                  </span>
+                {/* Voice Minutes Usage */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-foreground">
+                      Voice Minutes
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {usage.minutes} / {limits.minutes === -1 ? '∞' : limits.minutes}
+                    </span>
+                  </div>
+                  {limits.minutes !== -1 && limits.minutes > 0 && (
+                    <>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, (usage.minutes / limits.minutes) * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {Math.max(0, limits.minutes - usage.minutes)} remaining
+                      </p>
+                    </>
+                  )}
                 </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(100, (user.subscription.usage.automations / user.subscription.limits.automations) * 100)}%`
-                    }}
-                  />
+
+                {/* Automations Usage */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-foreground">
+                      Automations
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {usage.automations} / {limits.automations === -1 ? '∞' : limits.automations}
+                    </span>
+                  </div>
+                  {limits.automations !== -1 && limits.automations > 0 && (
+                    <>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div
+                          className="bg-primary h-2 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(100, (usage.automations / limits.automations) * 100)}%`
+                          }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {Math.max(0, limits.automations - usage.automations)} remaining
+                      </p>
+                    </>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.max(0, user.subscription.limits.automations - user.subscription.usage.automations)} remaining
-                </p>
               </div>
-            </div>
-          </Card>
-        )}
+            </Card>
+          );
+        })()}
 
         {/* Current Usage Stats (Legacy - shown if subscription not available) */}
         {usage && !user?.subscription && (
