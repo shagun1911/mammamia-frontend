@@ -519,19 +519,19 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                 <tbody>
                   <tr>
                     <td className="border border-border/50 px-2 py-1">Shagun</td>
-                    <td className="border border-border/50 px-2 py-1">19shagunyadavnnl@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">919896941400</td>
+                    <td className="border border-border/50 px-2 py-1">shagunyadav@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">91989694000</td>
                     <td className="border border-border/50 px-2 py-1">Shagun</td>
-                    <td className="border border-border/50 px-2 py-1">19shagunyadavnnl@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">919896941400</td>
+                    <td className="border border-border/50 px-2 py-1">shagunyadav@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">91989694000</td>
                   </tr>
                   <tr>
                     <td className="border border-border/50 px-2 py-1">Vivek</td>
-                    <td className="border border-border/50 px-2 py-1">joshspecter8@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">918979145539</td>
+                    <td className="border border-border/50 px-2 py-1">josh@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">91897914000</td>
                     <td className="border border-border/50 px-2 py-1">Vivek</td>
-                    <td className="border border-border/50 px-2 py-1">joshspecter8@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">918979145539</td>
+                    <td className="border border-border/50 px-2 py-1">joshspectr8@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">918979145000</td>
                   </tr>
                 </tbody>
               </table>
