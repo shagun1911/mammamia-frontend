@@ -60,9 +60,9 @@ export function UserMenu() {
         className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-sm font-medium hover:brightness-110 transition-all overflow-hidden"
       >
         {avatarUrl ? (
-          <img 
-            src={avatarUrl} 
-            alt={user?.name || "User"} 
+          <img
+            src={avatarUrl}
+            alt={user?.name || "User"}
             className="w-full h-full object-cover rounded-full"
             onError={(e) => {
               // Fallback to initials if image fails to load

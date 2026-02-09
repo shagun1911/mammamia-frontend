@@ -195,7 +195,7 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Call Minutes</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {profile?.voiceMinutesUsed || usage?.callMinutes || 0} / {plan?.features.callMinutes === -1 ? '∞' : (profile?.voiceMinutesLimit || plan?.features.callMinutes || 100)}
+                {profile?.voiceMinutesUsed || usage?.callMinutes || 0} / {plan?.features.callMinutes === -1 ? '∞' : (profile?.voiceMinutesLimit || plan?.features.callMinutes || 0)}
                 {plan?.features.callMinutes !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
                     ({Math.max(0, (profile?.voiceMinutesLimit || plan?.features.callMinutes || 0) - (profile?.voiceMinutesUsed || usage?.callMinutes || 0))} left)
@@ -209,9 +209,9 @@ export default function BillingPage() {
                   <div
                     className={cn(
                       "h-2 rounded-full transition-all",
-                      getProgressColor(getPercentage(usage?.callMinutes || 0, plan?.features.callMinutes || 100))
+                      getProgressColor(getPercentage(usage?.callMinutes || 0, plan?.features.callMinutes || 0))
                     )}
-                    style={{ width: `${getPercentage(usage?.callMinutes || 0, plan?.features.callMinutes || 100)}%` }}
+                    style={{ width: `${getPercentage(usage?.callMinutes || 0, plan?.features.callMinutes || 0)}%` }}
                   />
                 </div>
                 {getPercentage(usage?.callMinutes || 0, plan?.features.callMinutes || 100) >= 90 && (
@@ -234,7 +234,7 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Chat Messages</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {profile?.chatConversationsUsed || usage?.chatMessages || 0} / {plan?.features.chatConversations === -1 ? '∞' : (profile?.chatConversationsLimit || plan?.features.chatConversations || 100)}
+                {profile?.chatConversationsUsed || usage?.chatMessages || 0} / {plan?.features.chatConversations === -1 ? '∞' : (profile?.chatConversationsLimit || plan?.features.chatConversations || 0)}
                 {plan?.features.chatConversations !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
                     ({Math.max(0, (profile?.chatConversationsLimit || plan?.features.chatConversations || 0) - (profile?.chatConversationsUsed || usage?.chatMessages || 0))} left)
@@ -248,9 +248,9 @@ export default function BillingPage() {
                   <div
                     className={cn(
                       "h-2 rounded-full transition-all",
-                      getProgressColor(getPercentage(usage?.chatMessages || 0, plan?.features.chatConversations || 100))
+                      getProgressColor(getPercentage(usage?.chatMessages || 0, plan?.features.chatConversations || 0))
                     )}
-                    style={{ width: `${getPercentage(usage?.chatMessages || 0, plan?.features.chatConversations || 100)}%` }}
+                    style={{ width: `${getPercentage(usage?.chatMessages || 0, plan?.features.chatConversations || 0)}%` }}
                   />
                 </div>
                 {getPercentage(usage?.chatMessages || 0, plan?.features.chatConversations || 100) >= 90 && (
@@ -273,7 +273,7 @@ export default function BillingPage() {
                 <span className="text-sm font-medium text-foreground">Active Automations</span>
               </div>
               <div className="text-sm font-medium text-foreground">
-                {(profile?.automationsUsed || usage?.automations || 0)} / {plan?.features.automations === -1 ? '∞' : (profile?.automationsLimit || plan?.features.automations || 5)}
+                {(profile?.automationsUsed || usage?.automations || 0)} / {plan?.features.automations === -1 ? '∞' : (profile?.automationsLimit || plan?.features.automations || 0)}
                 {plan?.features.automations !== -1 && (
                   <span className="ml-2 text-xs text-muted-foreground">
                     ({Math.max(0, (profile?.automationsLimit || plan?.features.automations || 0) - (profile?.automationsUsed || usage?.automations || 0))} left)
@@ -287,9 +287,9 @@ export default function BillingPage() {
                   <div
                     className={cn(
                       "h-2 rounded-full transition-all",
-                      getProgressColor(getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 5)))
+                      getProgressColor(getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 0)))
                     )}
-                    style={{ width: `${getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 5))}%` }}
+                    style={{ width: `${getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 0))}%` }}
                   />
                 </div>
                 {getPercentage((profile?.automationsUsed || usage?.automations || 0), (profile?.automationsLimit || plan?.features.automations || 5)) >= 90 && (
