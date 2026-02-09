@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,9 +97,8 @@ export default function ProfilePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
 
-  // Payment status polling state
-  const [paymentState, setPaymentState] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Payment activation state
+  const [paymentState, setPaymentState] = useState<'idle' | 'success' | 'failed'>('idle');
   const [accountFormData, setAccountFormData] = useState({
     name: "",
     email: "",
@@ -143,96 +142,43 @@ export default function ProfilePage() {
     }
   };
 
-  // Activate plan on redirect with payment intent
+  // Force activate plan immediately on redirect
   useEffect(() => {
+    const status = searchParams.get('status');
     const intent = searchParams.get('intent');
+    const plan = searchParams.get('plan');
 
-    // If no intent in URL, do nothing
-    if (!intent) {
-      return;
+    if (status === 'success' && intent && plan) {
+      forceActivate(intent, plan);
     }
+  }, [searchParams]);
 
-    // Start polling for payment status
-    setPaymentState('pending');
+  const forceActivate = async (intent: string, plan: string) => {
+    try {
+      // Payment routes are at /api/payment, not /api/v1/payment
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
+      const token = localStorage.getItem('accessToken');
+      
+      await fetch(`${baseUrl}/api/payment/force-activate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ intent, plan })
+      });
 
-    const pollPaymentStatus = async () => {
-      try {
-        // Call backend payment status endpoint
-        // This endpoint checks Payment model first, then falls back to User.subscription
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
-        const response = await fetch(`${baseUrl}/api/payment/status?intent=${encodeURIComponent(intent)}`);
+      await refreshUser();
+      await fetchBillingInfo();
 
-        if (!response.ok) {
-          // If error, continue polling (might be temporary network issue)
-          if (response.status !== 400) {
-            console.warn('[Payment Status] Error checking status:', response.status);
-          }
-          return; // Continue polling
-        }
-
-        const data = await response.json();
-
-        // Handle different payment statuses
-        if (data.status === 'active') {
-          // Payment is active - webhook has processed it and activated the plan
-          setPaymentState('success');
-
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-
-          await refreshUser();
-
-          // Refresh billing info to show updated plan
-          await fetchBillingInfo();
-
-          // Show success message
-          toast.success('🎉 Plan activated successfully!');
-
-          // Clean URL - remove intent param
-          router.replace('/settings/profile', { scroll: false });
-
-        } else if (data.status === 'failed') {
-          // Payment failed or was cancelled - ONLY fail when backend explicitly returns 'failed'
-          setPaymentState('failed');
-
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-
-          // Show error message
-          toast.error('Payment failed. Please try again or contact support.');
-
-          // Clean URL - remove intent param
-          router.replace('/settings/profile', { scroll: false });
-
-        }
-        // If status is 'pending', continue polling (no action needed)
-        // IMPORTANT: Never auto-fail on timeout. Only fail when backend returns 'failed'
-
-      } catch (error: any) {
-        console.error('Error polling payment status:', error);
-        // Don't stop polling on error - might be temporary network issue
-      }
-    };
-
-    // Start polling immediately, then poll every 2 seconds
-    pollPaymentStatus();
-    pollingIntervalRef.current = setInterval(pollPaymentStatus, 2000);
-
-    // Cleanup: stop polling when component unmounts or intent changes
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
-  }, [searchParams, router, refreshUser]);
+      setPaymentState('success');
+      router.replace('/settings/profile', { scroll: false });
+    } catch (e: any) {
+      console.error('FORCE ACTIVATE FAILED', e);
+      setPaymentState('failed');
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
