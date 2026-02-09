@@ -65,9 +65,9 @@ export default function ProfilePage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingAccount, setIsSavingAccount] = useState(false);
   
-  // Payment status polling state
-  const [paymentState, setPaymentState] = useState<'idle' | 'pending' | 'success' | 'failed'>('idle');
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  // Payment activation state
+  const [paymentState, setPaymentState] = useState<'idle' | 'success' | 'failed'>('idle');
+  const activationAttemptedRef = useRef(false);
   const [accountFormData, setAccountFormData] = useState({
     name: "",
     email: "",
@@ -111,96 +111,62 @@ export default function ProfilePage() {
     }
   };
 
-  // Payment status polling effect
+  // Activate plan on redirect with status=success
   useEffect(() => {
+    const status = searchParams.get('status');
     const intent = searchParams.get('intent');
-    
-    // If no intent in URL, do nothing
-    if (!intent) {
-      return;
-    }
+    const plan = searchParams.get('plan');
 
-    // Start polling for payment status
-    setPaymentState('pending');
-    
-    const pollPaymentStatus = async () => {
-      try {
-        // Call backend payment status endpoint
-        // This endpoint checks Payment model first, then falls back to User.subscription
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
-        const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
-        const response = await fetch(`${baseUrl}/api/payment/status?intent=${encodeURIComponent(intent)}`);
-        
-        if (!response.ok) {
-          // If error, continue polling (might be temporary network issue)
-          if (response.status !== 400) {
-            console.warn('[Payment Status] Error checking status:', response.status);
-          }
-          return; // Continue polling
-        }
-
-        const data = await response.json();
-        
-        // Handle different payment statuses
-        if (data.status === 'active') {
-          // Payment is active - webhook has processed it and activated the plan
-          setPaymentState('success');
+    // Prevent multiple activation attempts
+    if (status === 'success' && intent && plan && !activationAttemptedRef.current) {
+      activationAttemptedRef.current = true;
+      
+      const activatePlan = async () => {
+        try {
+          // Payment routes are at /api/payment, not /api/v1/payment
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+          const baseUrl = apiBaseUrl.replace(/\/api\/v1$/, '');
+          const token = localStorage.getItem('accessToken');
           
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
+          const response = await fetch(`${baseUrl}/api/payment/confirm`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ intent, plan })
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}`);
           }
 
-          // Refresh user data to get updated plan and subscription
           await refreshUser();
-          
-          // Refresh billing info to show updated plan
           await fetchBillingInfo();
-          
-          // Show success message
+
+          setPaymentState('success');
           toast.success('🎉 Plan activated successfully!');
-          
-          // Clean URL - remove intent param
+
+          // Clean URL - remove query params
           router.replace('/settings/profile', { scroll: false });
-          
-        } else if (data.status === 'failed') {
-          // Payment failed or was cancelled - ONLY fail when backend explicitly returns 'failed'
+        } catch (err: any) {
+          console.error('Error activating plan:', err);
           setPaymentState('failed');
+          toast.error(err?.message || 'Failed to activate plan. Please contact support.');
           
-          // Stop polling
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-
-          // Show error message
-          toast.error('Payment failed. Please try again or contact support.');
-          
-          // Clean URL - remove intent param
+          // Clean URL - remove query params even on error
           router.replace('/settings/profile', { scroll: false });
-          
         }
-        // If status is 'pending', continue polling (no action needed)
-        // IMPORTANT: Never auto-fail on timeout. Only fail when backend returns 'failed'
-        
-      } catch (error: any) {
-        console.error('Error polling payment status:', error);
-        // Don't stop polling on error - might be temporary network issue
-      }
-    };
+      };
 
-    // Poll immediately, then every 2 seconds
-    pollPaymentStatus();
-    pollingIntervalRef.current = setInterval(pollPaymentStatus, 2000);
-
-    // Cleanup: stop polling when component unmounts or intent changes
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
-    };
+      activatePlan();
+    }
+    
+    // Reset ref when query params change (new payment attempt)
+    if (!status || status !== 'success') {
+      activationAttemptedRef.current = false;
+    }
   }, [searchParams, router, refreshUser]);
 
   useEffect(() => {
@@ -388,22 +354,6 @@ export default function ProfilePage() {
     <div className="h-full overflow-auto">
       <div className="max-w-7xl mx-auto p-6 space-y-8">
         {/* Payment Status Banner */}
-        {paymentState === 'pending' && (
-          <Card className="p-4 bg-blue-500/10 border-blue-500/30">
-            <div className="flex items-center gap-3">
-              <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                  Activating your plan...
-                </p>
-                <p className="text-xs text-blue-500/80 mt-1">
-                  Please wait while we process your payment. This may take a few moments.
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
-
         {paymentState === 'success' && (
           <Card className="p-4 bg-green-500/10 border-green-500/30">
             <div className="flex items-center gap-3">
