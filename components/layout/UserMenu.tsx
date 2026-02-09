@@ -90,12 +90,12 @@ export function UserMenu() {
 
           <div className="py-1">
             <Link
-              href="/settings/profile"
+              href="/profile"
               className="flex items-center gap-3 h-10 px-4 text-sm text-popover-foreground hover:bg-accent transition-colors"
               onClick={() => setIsOpen(false)}
             >
               <User className="w-4 h-4" />
-              <span>Profile & Subscription</span>
+              <span>Profile</span>
             </Link>
           </div>
 

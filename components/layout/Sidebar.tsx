@@ -47,7 +47,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
-  { icon: User, label: "Profile & Subscription", href: "/settings/profile" },
+  { icon: User, label: "Profile", href: "/profile" },
 ];
 
 export function Sidebar({ onCollapseChange }: SidebarProps) {
