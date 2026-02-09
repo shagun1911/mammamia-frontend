@@ -26,12 +26,12 @@ export function VoiceAgentAnswering() {
   const { user } = useAuth();
   const { aiBehavior } = useAIBehavior();
   const { data: phoneNumbers } = usePhoneNumbersList();
-  // Show all numbers that support outbound (Twilio + SIP). If SIP number isn't registered with ElevenLabs, backend will return a clear error when placing the call.
+  // Show all numbers that support outbound (Twilio + SIP). If SIP number isn't registered with the provider, backend will return a clear error when placing the call.
   const outboundPhoneNumbers = phoneNumbers?.filter(phone => phone.supports_outbound === true) || [];
   const { integrations } = useSocialIntegrationsStatus();
   const { data: agents = [], isLoading: isLoadingAgents } = useAgents();
   const outboundCallMutation = useOutboundCall();
-  
+
   const [improvements, setImprovements] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("en");
   const [showTestModal, setShowTestModal] = useState(false);
@@ -55,7 +55,7 @@ export function VoiceAgentAnswering() {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.data?.voiceAgent?.language) {
@@ -70,7 +70,7 @@ export function VoiceAgentAnswering() {
   const handleSavePrompt = async () => {
     if (improvements.trim()) {
       setVoiceAgentPrompt(improvements);
-      
+
       try {
         const response = await fetch('/api/v1/ai-behavior/voice-agent/prompt', {
           method: 'PATCH',
@@ -80,7 +80,7 @@ export function VoiceAgentAnswering() {
           },
           body: JSON.stringify({ systemPrompt: improvements })
         });
-        
+
         if (response.ok) {
           toast.success('Voice agent prompt saved to database!');
         } else {
@@ -102,7 +102,7 @@ export function VoiceAgentAnswering() {
         },
         body: JSON.stringify({ language })
       });
-      
+
       if (response.ok) {
         setSelectedLanguage(language);
         toast.success('Voice agent language updated!');
@@ -142,7 +142,7 @@ export function VoiceAgentAnswering() {
       toast.error('Selected agent not found');
       return;
     }
-    
+
     // Use agent_id field from Agent model (this is the Python API agent ID)
     const agentId = selectedAgent.agent_id;
     if (!agentId) {
@@ -152,7 +152,7 @@ export function VoiceAgentAnswering() {
 
     // Get sender email from connected Gmail social integration
     let senderEmail = '';
-    
+
     // First check Gmail integration
     if (integrations.gmail?.status === 'connected') {
       // Check credentials.email first
@@ -164,7 +164,7 @@ export function VoiceAgentAnswering() {
         senderEmail = (integrations.gmail.metadata as any).email;
       }
     }
-    
+
     // Fallback: try any connected integration with email
     if (!senderEmail) {
       const connectedIntegration = Object.values(integrations).find(
@@ -174,7 +174,7 @@ export function VoiceAgentAnswering() {
         senderEmail = connectedIntegration.credentials.email;
       }
     }
-    
+
     // Log for debugging
     if (senderEmail) {
       console.log('[Outbound Call] Using sender email:', senderEmail);
@@ -185,7 +185,7 @@ export function VoiceAgentAnswering() {
     setIsTesting(true);
     try {
       console.log(`[Outbound Call] Using provider: ${callerProvider}`);
-      
+
       const result = await outboundCallMutation.mutateAsync({
         agent_id: agentId,
         agent_phone_number_id: selectedPhoneNumberId,
@@ -202,14 +202,14 @@ export function VoiceAgentAnswering() {
 
       if (result.success) {
         toast.success(result.message || 'Outbound call initiated successfully!');
-        
+
         // Navigate to conversation if conversation_db_id is available
         if (result.conversation_db_id) {
           setTimeout(() => {
             router.push(`/conversations?conversation=${result.conversation_db_id}`);
           }, 1000); // Small delay to ensure conversation is created
         }
-        
+
         setShowTestModal(false);
         setTestPhoneNumber("");
         setCustomerName("");
@@ -248,7 +248,7 @@ export function VoiceAgentAnswering() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={() => setShowTestModal(true)}
               className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all cursor-pointer"
             >
@@ -268,7 +268,7 @@ export function VoiceAgentAnswering() {
             <p className="text-sm text-muted-foreground mb-4">
               Fill in the details below to initiate an outbound call test.
             </p>
-            
+
             <div className="space-y-4">
               {/* Agent Selection */}
               <div>

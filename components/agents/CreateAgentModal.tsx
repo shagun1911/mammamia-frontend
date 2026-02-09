@@ -6,12 +6,12 @@ import { useCreateAgent } from '@/hooks/useAgents';
 import { useKnowledgeBases } from '@/hooks/useKnowledgeBase';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { 
-  VOICE_OPTIONS, 
-  getDefaultGreeting, 
-  getDefaultSystemPrompt, 
+import {
+  VOICE_OPTIONS,
+  getDefaultGreeting,
+  getDefaultSystemPrompt,
   getDefaultEscalationConditions,
-  getVoiceIdFromValue, 
+  getVoiceIdFromValue,
   renderGreeting,
   playVoicePreview,
   preloadVoicePreview,
@@ -40,12 +40,12 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
   const [showKBDropdown, setShowKBDropdown] = useState(false);
   const [showGreetingPreview, setShowGreetingPreview] = useState(false);
   const [escalationRules, setEscalationRules] = useState<string[]>(['']);
-  
+
   // Voice testing state
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
+
   // Preview contact data for greeting
   const previewContact = { name: 'John Doe', email: 'john@example.com', phone: '+14155551234' };
 
@@ -74,13 +74,13 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
         setLanguage(template.language);
         setHasCustomizedFirstMessage(false);
         setHasCustomizedSystemPrompt(false);
-        
+
         // Auto-select recommended voice if available
         if (template.recommendedVoice) {
           setVoiceType('predefined');
           setSelectedVoice(template.recommendedVoice);
         }
-        
+
         toast.success(`${template.icon} ${template.name} template applied!`);
       }
     }
@@ -105,14 +105,14 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
         const currentDefault = getDefaultGreeting(language);
         setFirstMessage(currentDefault);
       }
-      
+
       // Always update system prompt to language-specific default when language changes
       // unless user has explicitly customized it
       if (!hasCustomizedSystemPrompt) {
         const currentSystemDefault = getDefaultSystemPrompt(language);
         setSystemPrompt(currentSystemDefault);
       }
-      
+
       // Update escalation conditions
       const defaultEscalation = getDefaultEscalationConditions(language);
       if (escalationRules.length === 1 && escalationRules[0] === '') {
@@ -120,7 +120,7 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
       } else if (escalationRules.length === 0 || (escalationRules.length === 1 && escalationRules[0] === '')) {
         setEscalationRules(defaultEscalation);
       }
-      
+
       // Reset voice selection if current voice doesn't match language
       if (selectedVoice && voiceType === 'predefined') {
         const currentVoice = VOICE_OPTIONS.find(v => v.value === selectedVoice);
@@ -138,7 +138,7 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
   }, [language]);
 
   // Get rendered first message preview
-  const firstMessagePreview = firstMessage 
+  const firstMessagePreview = firstMessage
     ? renderGreeting(firstMessage, previewContact)
     : '';
 
@@ -394,7 +394,7 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
               <label className="block text-sm font-medium text-foreground mb-3">
                 Voice Configuration <span className="text-destructive">*</span>
               </label>
-              
+
               {/* Voice Type Toggle */}
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -514,10 +514,10 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
                     value={manualVoiceId}
                     onChange={(e) => setManualVoiceId(e.target.value)}
                     className="w-full bg-secondary border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-mono text-sm"
-                    placeholder="Enter ElevenLabs Voice ID (e.g., pNInz6obpgDQGcFmaJgB)"
+                    placeholder="Enter Voice ID (e.g., pNInz6obpgDQGcFmaJgB)"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Enter a custom ElevenLabs voice ID. You can find voice IDs in your ElevenLabs dashboard.
+                    Enter a custom voice ID. You can find voice IDs in your dashboard.
                   </p>
                 </div>
               )}

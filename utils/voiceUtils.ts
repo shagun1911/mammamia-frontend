@@ -20,27 +20,27 @@ export const VOICE_OPTIONS: VoiceOption[] = [
   { value: 'mario', label: 'Mario', voiceId: 'irAl0cku0Hx4TEUJ8d1Q', language: 'Italian', languageCode: 'it', gender: 'Male', flag: '🇮🇹' },
   { value: 'gianp', label: 'Gianp', voiceId: 'SpoXt7BywHwFLisCTpQ3', language: 'Italian', languageCode: 'it', gender: 'Male', flag: '🇮🇹' },
   { value: 'vittorio', label: 'Vittorio', voiceId: 'nH7uLS5UdEnvKEOAXtlQ', language: 'Italian', languageCode: 'it', gender: 'Male', flag: '🇮🇹' },
-  
+
   // 🇮🇹 ITALIAN - FEMALE
   { value: 'ginevra', label: 'Ginevra', voiceId: 'QITiGyM4owEZrBEf0QV8', language: 'Italian', languageCode: 'it', gender: 'Female', flag: '🇮🇹' },
   { value: 'roberta', label: 'Roberta', voiceId: 'ZzFXkjuO1rPntDj6At5C', language: 'Italian', languageCode: 'it', gender: 'Female', flag: '🇮🇹' },
   { value: 'giusy', label: 'Giusy', voiceId: '8KInRSd4DtD5L5gK7itu', language: 'Italian', languageCode: 'it', gender: 'Female', flag: '🇮🇹' },
   { value: 'roxy', label: 'Roxy', voiceId: 'mGiFn5Udfw93ewbgFHaP', language: 'Italian', languageCode: 'it', gender: 'Female', flag: '🇮🇹' },
   { value: 'sami', label: 'Sami', voiceId: 'kAzI34nYjizE0zON6rXv', language: 'Italian', languageCode: 'it', gender: 'Female', flag: '🇮🇹' },
-  
+
   // 🇪🇸 SPANISH - MALE
   { value: 'alejandro', label: 'Alejandro Ballesteros', voiceId: 'YKUjKbMlejgvkOZlnnvt', language: 'Spanish', languageCode: 'es', gender: 'Male', flag: '🇪🇸' },
   { value: 'antonio', label: 'Antonio', voiceId: 'htFfPSZGJwjBv1CL0aMD', language: 'Spanish', languageCode: 'es', gender: 'Male', flag: '🇪🇸' },
   { value: 'el_faraon', label: 'El Faraon', voiceId: '8mBRP99B2Ng2QwsJMFQl', language: 'Spanish', languageCode: 'es', gender: 'Male', flag: '🇪🇸' },
   { value: 'carlos', label: 'Carlos', voiceId: 'XB0fDUnXU5powFXDhCwa', language: 'Spanish', languageCode: 'es', gender: 'Male', flag: '🇪🇸' },
   { value: 'diego', label: 'Diego', voiceId: 'ThT5KcBeYPX3keUQyHlb', language: 'Spanish', languageCode: 'es', gender: 'Male', flag: '🇪🇸' },
-  
+
   // 🇪🇸 SPANISH - FEMALE
   { value: 'lumina', label: 'Lumina (Colombia)', voiceId: 'x5IDPSl4ZUbhosMmVFTk', language: 'Spanish', languageCode: 'es', gender: 'Female', flag: '🇪🇸' },
   { value: 'elena', label: 'Elena', voiceId: 'tXgbXPnsMpKXkuTgvE3h', language: 'Spanish', languageCode: 'es', gender: 'Female', flag: '🇪🇸' },
   { value: 'sara', label: 'Sara Martin', voiceId: 'gD1IexrzCvsXPHUuT0s3', language: 'Spanish', languageCode: 'es', gender: 'Female', flag: '🇪🇸' },
   { value: 'isabella', label: 'Isabella', voiceId: 'XB0fDUnXU5powFXDhCwa', language: 'Spanish', languageCode: 'es', gender: 'Female', flag: '🇪🇸' },
-  
+
   // 🇬🇧 ENGLISH - FEMALE
   { value: 'zara', label: 'Zara', voiceId: 'jqcCZkN6Knx8BJ5TBdYR', language: 'English', languageCode: 'en', gender: 'Female', flag: '🇬🇧' },
   { value: 'brittney', label: 'Brittney', voiceId: 'kPzsL2i3teMYv0FxEYQ6', language: 'English', languageCode: 'en', gender: 'Female', flag: '🇬🇧' },
@@ -55,88 +55,88 @@ export const VOICE_OPTIONS: VoiceOption[] = [
   { value: 'arnold', label: 'Arnold', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'English', languageCode: 'en', gender: 'Male', flag: '🇬🇧' },
   { value: 'adam', label: 'Adam', voiceId: 'pNInz6obpgDQGcFmaJgB', language: 'English', languageCode: 'en', gender: 'Male', flag: '🇬🇧' },
   { value: 'sam', label: 'Sam', voiceId: 'yoZ06aMxZJJ28mfd3POQ', language: 'English', languageCode: 'en', gender: 'Male', flag: '🇬🇧' },
-  
+
   // 🇬🇧 ENGLISH - MALE
   { value: 'jameson', label: 'Jameson', voiceId: 'Mu5jxyqZOLIGltFpfalg', language: 'English', languageCode: 'en', gender: 'Male', flag: '🇬🇧' },
   { value: 'mark', label: 'Mark', voiceId: 'UgBBYS2sOqTuMpoF3BR0', language: 'English', languageCode: 'en', gender: 'Male', flag: '🇬🇧' },
   { value: 'archie', label: 'Archie', voiceId: 'kmSVBPu7loj4ayNinwWM', language: 'English', languageCode: 'en', gender: 'Male', flag: '🇬🇧' },
-  
+
   // 🇫🇷 FRENCH - MALE
   { value: 'arnold_fr', label: 'Arnold (French)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'French', languageCode: 'fr', gender: 'Male', flag: '🇫🇷' },
   { value: 'antoni_fr', label: 'Antoni (French)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'French', languageCode: 'fr', gender: 'Male', flag: '🇫🇷' },
-  
+
   // 🇫🇷 FRENCH - FEMALE
   { value: 'bella_fr', label: 'Bella (French)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'French', languageCode: 'fr', gender: 'Female', flag: '🇫🇷' },
   { value: 'elli_fr', label: 'Elli (French)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'French', languageCode: 'fr', gender: 'Female', flag: '🇫🇷' },
-  
+
   // 🇩🇪 GERMAN - MALE
   { value: 'antoni_de', label: 'Antoni (German)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'German', languageCode: 'de', gender: 'Male', flag: '🇩🇪' },
   { value: 'arnold_de', label: 'Arnold (German)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'German', languageCode: 'de', gender: 'Male', flag: '🇩🇪' },
-  
+
   // 🇩🇪 GERMAN - FEMALE
   { value: 'bella_de', label: 'Bella (German)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'German', languageCode: 'de', gender: 'Female', flag: '🇩🇪' },
   { value: 'elli_de', label: 'Elli (German)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'German', languageCode: 'de', gender: 'Female', flag: '🇩🇪' },
-  
+
   // 🇵🇹 PORTUGUESE - MALE
   { value: 'antoni_pt', label: 'Antoni (Portuguese)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Portuguese', languageCode: 'pt', gender: 'Male', flag: '🇵🇹' },
   { value: 'arnold_pt', label: 'Arnold (Portuguese)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Portuguese', languageCode: 'pt', gender: 'Male', flag: '🇵🇹' },
-  
+
   // 🇵🇹 PORTUGUESE - FEMALE
   { value: 'bella_pt', label: 'Bella (Portuguese)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Portuguese', languageCode: 'pt', gender: 'Female', flag: '🇵🇹' },
   { value: 'elli_pt', label: 'Elli (Portuguese)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Portuguese', languageCode: 'pt', gender: 'Female', flag: '🇵🇹' },
-  
+
   // 🇵🇱 POLISH - MALE
   { value: 'antoni_pl', label: 'Antoni (Polish)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Polish', languageCode: 'pl', gender: 'Male', flag: '🇵🇱' },
   { value: 'arnold_pl', label: 'Arnold (Polish)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Polish', languageCode: 'pl', gender: 'Male', flag: '🇵🇱' },
-  
+
   // 🇵🇱 POLISH - FEMALE
   { value: 'bella_pl', label: 'Bella (Polish)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Polish', languageCode: 'pl', gender: 'Female', flag: '🇵🇱' },
   { value: 'elli_pl', label: 'Elli (Polish)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Polish', languageCode: 'pl', gender: 'Female', flag: '🇵🇱' },
-  
+
   // 🇮🇳 HINDI - MALE
   { value: 'antoni_hi', label: 'Antoni (Hindi)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Hindi', languageCode: 'hi', gender: 'Male', flag: '🇮🇳' },
   { value: 'arnold_hi', label: 'Arnold (Hindi)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Hindi', languageCode: 'hi', gender: 'Male', flag: '🇮🇳' },
-  
+
   // 🇮🇳 HINDI - FEMALE
   { value: 'bella_hi', label: 'Bella (Hindi)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Hindi', languageCode: 'hi', gender: 'Female', flag: '🇮🇳' },
   { value: 'elli_hi', label: 'Elli (Hindi)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Hindi', languageCode: 'hi', gender: 'Female', flag: '🇮🇳' },
-  
+
   // 🇯🇵 JAPANESE - MALE
   { value: 'antoni_ja', label: 'Antoni (Japanese)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Japanese', languageCode: 'ja', gender: 'Male', flag: '🇯🇵' },
   { value: 'arnold_ja', label: 'Arnold (Japanese)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Japanese', languageCode: 'ja', gender: 'Male', flag: '🇯🇵' },
-  
+
   // 🇯🇵 JAPANESE - FEMALE
   { value: 'bella_ja', label: 'Bella (Japanese)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Japanese', languageCode: 'ja', gender: 'Female', flag: '🇯🇵' },
   { value: 'elli_ja', label: 'Elli (Japanese)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Japanese', languageCode: 'ja', gender: 'Female', flag: '🇯🇵' },
-  
+
   // 🇨🇳 CHINESE - MALE
   { value: 'antoni_zh', label: 'Antoni (Chinese)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Chinese', languageCode: 'zh', gender: 'Male', flag: '🇨🇳' },
   { value: 'arnold_zh', label: 'Arnold (Chinese)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Chinese', languageCode: 'zh', gender: 'Male', flag: '🇨🇳' },
-  
+
   // 🇨🇳 CHINESE - FEMALE
   { value: 'bella_zh', label: 'Bella (Chinese)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Chinese', languageCode: 'zh', gender: 'Female', flag: '🇨🇳' },
   { value: 'elli_zh', label: 'Elli (Chinese)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Chinese', languageCode: 'zh', gender: 'Female', flag: '🇨🇳' },
-  
+
   // 🇰🇷 KOREAN - MALE
   { value: 'antoni_ko', label: 'Antoni (Korean)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Korean', languageCode: 'ko', gender: 'Male', flag: '🇰🇷' },
   { value: 'arnold_ko', label: 'Arnold (Korean)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Korean', languageCode: 'ko', gender: 'Male', flag: '🇰🇷' },
-  
+
   // 🇰🇷 KOREAN - FEMALE
   { value: 'bella_ko', label: 'Bella (Korean)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Korean', languageCode: 'ko', gender: 'Female', flag: '🇰🇷' },
   { value: 'elli_ko', label: 'Elli (Korean)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Korean', languageCode: 'ko', gender: 'Female', flag: '🇰🇷' },
-  
+
   // 🇹🇷 TURKISH - MALE
   { value: 'antoni_tr', label: 'Antoni (Turkish)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Turkish', languageCode: 'tr', gender: 'Male', flag: '🇹🇷' },
   { value: 'arnold_tr', label: 'Arnold (Turkish)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Turkish', languageCode: 'tr', gender: 'Male', flag: '🇹🇷' },
-  
+
   // 🇹🇷 TURKISH - FEMALE
   { value: 'bella_tr', label: 'Bella (Turkish)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Turkish', languageCode: 'tr', gender: 'Female', flag: '🇹🇷' },
   { value: 'elli_tr', label: 'Elli (Turkish)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Turkish', languageCode: 'tr', gender: 'Female', flag: '🇹🇷' },
-  
+
   // 🇸🇦 ARABIC - MALE
   { value: 'antoni_ar', label: 'Antoni (Arabic)', voiceId: 'ErXwobaYiN019PkySvjV', language: 'Arabic', languageCode: 'ar', gender: 'Male', flag: '🇸🇦' },
   { value: 'arnold_ar', label: 'Arnold (Arabic)', voiceId: 'VR6AewLTigWG4xSOukaG', language: 'Arabic', languageCode: 'ar', gender: 'Male', flag: '🇸🇦' },
-  
+
   // 🇸🇦 ARABIC - FEMALE
   { value: 'bella_ar', label: 'Bella (Arabic)', voiceId: 'EXAVITQu4vr4xnSDxMaL', language: 'Arabic', languageCode: 'ar', gender: 'Female', flag: '🇸🇦' },
   { value: 'elli_ar', label: 'Elli (Arabic)', voiceId: 'MF3mGyEYCl7XYWbV9V6O', language: 'Arabic', languageCode: 'ar', gender: 'Female', flag: '🇸🇦' },
@@ -291,7 +291,7 @@ let pendingPreload: { voiceId: string; language: string } | null = null;
  */
 export async function preloadVoicePreview(voiceId: string, language: string): Promise<void> {
   const cacheKey = `${voiceId}-${language}`;
-  
+
   // Already cached or already loading
   if (audioCache.has(cacheKey) || pendingRequests.has(cacheKey)) {
     return;
@@ -311,7 +311,7 @@ export async function preloadVoicePreview(voiceId: string, language: string): Pr
       activeRequestCount++;
       const requestPromise = fetchVoiceAudio(voiceId, language, cacheKey);
       pendingRequests.set(cacheKey, requestPromise);
-      
+
       await requestPromise;
     } catch (error: any) {
       // Silent fail for preload
@@ -324,7 +324,7 @@ export async function preloadVoicePreview(voiceId: string, language: string): Pr
 }
 
 /**
- * Fetch audio from ElevenLabs API with retry logic
+ * Fetch audio from Voice API with retry logic
  */
 async function fetchVoiceAudio(
   voiceId: string,
@@ -389,10 +389,10 @@ async function fetchVoiceAudio(
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
-    
+
     // Preload audio
     audio.preload = 'auto';
-    
+
     audioCache.set(cacheKey, { url: audioUrl, audio, blob: audioBlob });
   } catch (error: any) {
     if (retries > 0 && !error?.message?.includes('Rate limit')) {
@@ -404,7 +404,7 @@ async function fetchVoiceAudio(
 }
 
 /**
- * Play voice preview using ElevenLabs API with caching for instant playback
+ * Play voice preview using Voice API with caching for instant playback
  */
 export async function playVoicePreview(
   voiceId: string,
@@ -414,7 +414,7 @@ export async function playVoicePreview(
   onError?: (error: string) => void
 ): Promise<HTMLAudioElement | null> {
   const cacheKey = `${voiceId}-${language}`;
-  
+
   try {
     // Check cache first for instant playback
     const cached = audioCache.get(cacheKey);
@@ -427,7 +427,7 @@ export async function playVoicePreview(
       audio.onerror = () => {
         onError?.("Failed to play voice sample");
       };
-      
+
       // Play immediately
       onPlaying?.();
       await audio.play().catch((err) => {
@@ -466,14 +466,14 @@ export async function playVoicePreview(
       activeRequestCount++;
       const requestPromise = fetchVoiceAudio(voiceId, language, cacheKey);
       pendingRequests.set(cacheKey, requestPromise);
-      
+
       await requestPromise;
-      
+
       // Get cached audio and play
       const cached = audioCache.get(cacheKey);
       if (cached) {
         const audio = new Audio(cached.url);
-        
+
         audio.onended = () => {
           // Keep in cache
         };
@@ -498,14 +498,14 @@ export async function playVoicePreview(
 
   } catch (error: any) {
     const errorMessage = error.message || "Failed to play voice sample";
-    
+
     // Handle 409 specifically
     if (errorMessage.includes('409') || errorMessage.includes('Rate limit')) {
       onError?.("Too many requests. Please wait a moment and try again.");
     } else {
       onError?.(errorMessage);
     }
-    
+
     return null;
   }
 }

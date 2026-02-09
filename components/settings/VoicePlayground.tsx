@@ -83,7 +83,7 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
 
       // Create and play audio
       const audio = new Audio(audioUrl);
-      
+
       audio.onloadeddata = () => {
         setLoadingVoice(null);
         setPlayingVoice(voice.value);
@@ -127,17 +127,16 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
           <span>{language.toUpperCase()} — {gender.toUpperCase()}</span>
           <span className="text-xs text-muted-foreground font-normal">({voices.length} voices)</span>
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {voices.map((voice) => (
             <button
               key={voice.value}
               onClick={() => onVoiceSelect(voice.value)}
-              className={`relative group p-4 rounded-lg border-2 transition-all text-left ${
-                selectedVoice === voice.value
+              className={`relative group p-4 rounded-lg border-2 transition-all text-left ${selectedVoice === voice.value
                   ? "border-primary bg-primary/10"
                   : "border-border bg-secondary hover:border-primary/50 hover:bg-secondary/80"
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -159,13 +158,12 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
                     handlePlayVoice(voice);
                   }}
                   disabled={loadingVoice === voice.value}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                    playingVoice === voice.value
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${playingVoice === voice.value
                       ? "bg-primary text-primary-foreground"
                       : loadingVoice === voice.value
-                      ? "bg-primary/50 text-primary-foreground cursor-wait"
-                      : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
-                  }`}
+                        ? "bg-primary/50 text-primary-foreground cursor-wait"
+                        : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                    }`}
                   title={loadingVoice === voice.value ? "Loading..." : "Preview voice"}
                 >
                   {loadingVoice === voice.value ? (
@@ -206,7 +204,7 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
           <div className="flex-1">
             <h4 className="text-sm font-medium text-blue-400 mb-1">How to use</h4>
             <p className="text-xs text-muted-foreground">
-              Click on a voice card to select it, then click the <strong>play button (▶️)</strong> to hear a live preview powered by ElevenLabs AI. 
+              Click on a voice card to select it, then click the <strong>play button (▶️)</strong> to hear a live preview.
               Each voice speaks in its native language. The selected voice will be used for all voice calls.
             </p>
           </div>
