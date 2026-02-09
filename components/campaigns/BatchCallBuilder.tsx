@@ -48,8 +48,8 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const downloadTemplate = () => {
     const headers = ["name", "email", "phone_number", "customer_name", "customer_email", "customer_phone_number"];
     const sampleData = [
-      ["Shagun", "shagunyadav@gmail.com", "919896949999 ", "Shagun", "shagunyadav@gmail.com", "919896949999"],
-      ["Vivek", "josh@gmail.com", "918979145999", "Vivek", "josh@gmail.com", "918979145999"]
+      ["Shagun", "19shagunyadavnnl@gmail.com", "919896941400", "Shagun", "19shagunyadavnnl@gmail.com", "919896941400"],
+      ["Vivek", "joshspecter8@gmail.com", "918979145539", "Vivek", "joshspecter8@gmail.com", "918979145539"]
     ];
 
     // Create Excel file using xlsx library
@@ -674,19 +674,19 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                   <tbody>
                     <tr>
                       <td className="border border-border px-2 py-1 text-foreground">Shagun</td>
-                      <td className="border border-border px-2 py-1 text-foreground">shagunyadav@gmail.com</td>
-                      <td className="border border-border px-2 py-1 text-foreground">919896940000</td>
+                      <td className="border border-border px-2 py-1 text-foreground">19shagunyadavnnl@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">919896941400</td>
                       <td className="border border-border px-2 py-1 text-foreground">Shagun</td>
-                      <td className="border border-border px-2 py-1 text-foreground">shagunyadav@gmail.com</td>
-                      <td className="border border-border px-2 py-1 text-foreground">919896940000</td>
+                      <td className="border border-border px-2 py-1 text-foreground">19shagunyadavnnl@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">919896941400</td>
                     </tr>
                     <tr>
                       <td className="border border-border px-2 py-1 text-foreground">Vivek</td>
-                      <td className="border border-border px-2 py-1 text-foreground">josh @gmail.com</td>
-                      <td className="border border-border px-2 py-1 text-foreground">918979140000</td>
+                      <td className="border border-border px-2 py-1 text-foreground">joshspecter8@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">918979145539</td>
                       <td className="border border-border px-2 py-1 text-foreground">Vivek</td>
-                      <td className="border border-border px-2 py-1 text-foreground">josh@gmail.com</td>
-                      <td className="border border-border px-2 py-1 text-foreground">918979140000</td>
+                      <td className="border border-border px-2 py-1 text-foreground">joshspecter8@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">918979145539</td>
                     </tr>
                   </tbody>
                 </table>

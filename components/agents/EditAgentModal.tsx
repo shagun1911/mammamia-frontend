@@ -7,13 +7,13 @@ import { useKnowledgeBases } from '@/hooks/useKnowledgeBase';
 import { Agent, agentService } from '@/services/agent.service';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { 
-  VOICE_OPTIONS, 
-  getDefaultGreeting, 
-  getDefaultSystemPrompt, 
+import {
+  VOICE_OPTIONS,
+  getDefaultGreeting,
+  getDefaultSystemPrompt,
   getDefaultEscalationConditions,
-  getVoiceIdFromValue, 
-  getVoiceByVoiceId, 
+  getVoiceIdFromValue,
+  getVoiceByVoiceId,
   renderGreeting,
   playVoicePreview,
   preloadVoicePreview,
@@ -40,13 +40,13 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
   const [showKBDropdown, setShowKBDropdown] = useState(false);
   const [showGreetingPreview, setShowGreetingPreview] = useState(false);
   const [escalationRules, setEscalationRules] = useState<string[]>(['']);
-  
+
   // Voice testing state
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null);
   const [syncingToElevenLabs, setSyncingToElevenLabs] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
+
   // Preview contact data for greeting
   const previewContact = { name: 'John Doe', email: 'john@example.com', phone: '+14155551234' };
 
@@ -74,13 +74,13 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
       setLanguage(agentLanguage);
       setSelectedKBIds(agent.knowledge_base_ids || []);
       setEscalationRules(agent.escalationRules && agent.escalationRules.length > 0 ? agent.escalationRules : getDefaultEscalationConditions(agentLanguage));
-      
+
       // Check if first message/system prompt match defaults (user hasn't customized)
       const defaultFirstMessage = getDefaultGreeting(agentLanguage);
       const defaultSystemPrompt = getDefaultSystemPrompt(agentLanguage);
       setHasCustomizedFirstMessage(!!(agent.first_message && agent.first_message !== defaultFirstMessage));
       setHasCustomizedSystemPrompt(!!(agent.system_prompt && agent.system_prompt !== defaultSystemPrompt));
-      
+
       // Set voice type and selection from voice_id
       if (agent.voice_id) {
         const voice = getVoiceByVoiceId(agent.voice_id);
@@ -106,20 +106,20 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
         const currentDefault = getDefaultGreeting(language);
         setFirstMessage(currentDefault);
       }
-      
+
       // Always update system prompt to language-specific default when language changes
       // unless user has explicitly customized it
       if (!hasCustomizedSystemPrompt) {
         const currentSystemDefault = getDefaultSystemPrompt(language);
         setSystemPrompt(currentSystemDefault);
       }
-      
+
       // Update escalation conditions if empty or default
       const defaultEscalation = getDefaultEscalationConditions(language);
       if (escalationRules.length === 0 || (escalationRules.length === 1 && escalationRules[0] === '')) {
         setEscalationRules(defaultEscalation);
       }
-      
+
       // Reset voice selection if current voice doesn't match language
       if (selectedVoice && voiceType === 'predefined') {
         const currentVoice = VOICE_OPTIONS.find(v => v.value === selectedVoice);
@@ -137,7 +137,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
   }, [language]);
 
   // Get rendered first message preview
-  const firstMessagePreview = firstMessage 
+  const firstMessagePreview = firstMessage
     ? renderGreeting(firstMessage, previewContact)
     : '';
 
@@ -255,7 +255,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
     setSyncingToElevenLabs(true);
     try {
       await agentService.syncToElevenLabs(agent.agent_id);
-      toast.success('Agent synced to ElevenLabs. Tools should now execute during calls.');
+      toast.success('Agent synced. Tools should now execute during calls.');
     } catch (error: any) {
       toast.error(error.message || 'Failed to sync agent');
     } finally {
@@ -360,7 +360,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
               <label className="block text-sm font-medium text-foreground mb-3">
                 Voice Configuration <span className="text-destructive">*</span>
               </label>
-              
+
               {/* Voice Type Toggle */}
               <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -487,10 +487,10 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
                     onChange={(e) => setManualVoiceId(e.target.value)}
                     disabled={updateAgentPrompt.isPending}
                     className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-mono text-sm"
-                    placeholder="Enter ElevenLabs Voice ID (e.g., pNInz6obpgDQGcFmaJgB)"
+                    placeholder="Enter Voice ID (e.g., pNInz6obpgDQGcFmaJgB)"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
-                    Enter a custom ElevenLabs voice ID. You can find voice IDs in your ElevenLabs dashboard.
+                    Enter a custom voice ID. You can find voice IDs in your dashboard.
                   </p>
                 </div>
               )}
