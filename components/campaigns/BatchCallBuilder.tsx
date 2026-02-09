@@ -44,19 +44,19 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate CSV template (works for both CSV and Excel)
+  // Generate CSV template (works for both CSV and Excel)
   const downloadTemplate = () => {
-    const headers = ["name", "phone_number", "email", "language"];
+    const headers = ["name", "email", "phone_number", "customer_name", "customer_email", "customer_phone_number"];
     const sampleData = [
-      ["Nev", "+3838310429", "nev@example.com", "en"],
-      ["Antoni", "+3838310429", "antoni@example.com", "pl"],
-      ["Thor", "+3838310429", "thor@example.com", "de"]
+      ["Shagun", "shagunyadav@gmail.com", "919896949999 ", "Shagun", "shagunyadav@gmail.com", "919896949999"],
+      ["Vivek", "josh@gmail.com", "918979145999", "Vivek", "josh@gmail.com", "918979145999"]
     ];
 
     // Create Excel file using xlsx library
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Recipients");
-    
+
     // Generate Excel file
     XLSX.writeFile(workbook, "batch_call_template.xlsx");
     toast.success("Template downloaded (Excel format)");
@@ -108,17 +108,17 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
           try {
             const data = new Uint8Array(e.target?.result as ArrayBuffer);
             const workbook = XLSX.read(data, { type: "array" });
-            
+
             // Get the first sheet
             const firstSheetName = workbook.SheetNames[0];
             if (!firstSheetName) {
               reject(new Error("Excel file must contain at least one sheet"));
               return;
             }
-            
+
             const worksheet = workbook.Sheets[firstSheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
-            
+
             if (jsonData.length < 2) {
               reject(new Error("File must contain at least a header row and one data row"));
               return;
@@ -140,21 +140,21 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
               const row = jsonData[i] || [];
               const phone = String(row[phoneNumberIndex] || "").trim();
               const name = String(row[nameIndex] || "").trim();
-              
+
               if (phone && name) {
                 const recipient: Recipient = {
                   phone_number: phone,
                   name,
                   ...(emailIndex !== -1 && row[emailIndex] && { email: String(row[emailIndex]).trim() })
                 };
-                
+
                 // Add any other columns as dynamic variables
                 headers.forEach((header, index) => {
                   if (index !== phoneNumberIndex && index !== nameIndex && index !== emailIndex && row[index]) {
                     recipient[header] = String(row[index]).trim();
                   }
                 });
-                
+
                 parsedRecipients.push(recipient);
               }
             }
@@ -333,25 +333,25 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   // CRITICAL FIX: Always includes BOTH formats (e.g., "name" AND "customer_name") to support any variable format in agent greeting
   const mapColumnsToDynamicVariables = (recipient: Recipient, greetingVariables: string[]): Record<string, any> => {
     const dynamicVars: Record<string, any> = {};
-    
+
     // Get all column names from the recipient (excluding standard fields)
     const recipientKeys = Object.keys(recipient).filter(
       key => key !== 'phone_number' && key !== 'name' && key !== 'email' && key !== 'dynamic_variables'
     );
-    
+
     // First, map greeting variables to CSV/XLS columns (use variable name from first_message)
     greetingVariables.forEach(varName => {
       // Try exact match first (case-insensitive)
       const matchingKey = recipientKeys.find(
         key => key.toLowerCase() === varName.toLowerCase()
       );
-      
+
       if (matchingKey && recipient[matchingKey] !== undefined && recipient[matchingKey] !== null && recipient[matchingKey] !== '') {
         // Use the variable name from first_message (e.g., "appointment") not the CSV column name
         dynamicVars[varName] = String(recipient[matchingKey]).trim();
       }
     });
-    
+
     // Then, include ALL other columns that aren't standard fields
     // This ensures we capture all dynamic data from CSV/XLS, even if not in first_message
     recipientKeys.forEach(key => {
@@ -363,24 +363,24 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         dynamicVars[key] = String(recipient[key]).trim();
       }
     });
-    
+
     // 🔥 CRITICAL FIX: Add BOTH variable formats to support ANY greeting variable format
     // This prevents calls from dropping when using {{name}} vs {{customer_name}}
-    
+
     // If we have "name" from recipient, add standard aliases
     if (recipient.name && recipient.name !== '') {
       dynamicVars.name = String(recipient.name).trim();
       dynamicVars.customer_name = String(recipient.name).trim();
       dynamicVars['contact.name'] = String(recipient.name).trim();
     }
-    
+
     // If we have "email" from recipient, add standard aliases
     if (recipient.email && recipient.email !== '') {
       dynamicVars.email = String(recipient.email).trim();
       dynamicVars.customer_email = String(recipient.email).trim();
       dynamicVars['contact.email'] = String(recipient.email).trim();
     }
-    
+
     // If we have "phone_number" from recipient, add standard aliases
     if (recipient.phone_number && recipient.phone_number !== '') {
       dynamicVars.phone = String(recipient.phone_number).trim();
@@ -388,7 +388,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       dynamicVars.customer_phone_number = String(recipient.phone_number).trim();
       dynamicVars['contact.phone_number'] = String(recipient.phone_number).trim();
     }
-    
+
     // Also check if CSV has customer_* or contact.* columns and normalize them
     if (dynamicVars.customer_name && !dynamicVars.name) {
       dynamicVars.name = dynamicVars.customer_name;
@@ -403,9 +403,9 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       dynamicVars.phone_number = dynamicVars.customer_phone_number;
       dynamicVars['contact.phone_number'] = dynamicVars.customer_phone_number;
     }
-    
+
     console.log('[BatchCallBuilder] 🔥 Final dynamic_variables (with all formats):', dynamicVars);
-    
+
     return dynamicVars;
   };
 
@@ -454,7 +454,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       // Extract variables from agent's first_message
       const firstMessage = selectedAgent.first_message || '';
       const greetingVariables = extractVariablesFromGreeting(firstMessage);
-      
+
       console.log('[BatchCallBuilder] Agent first message:', firstMessage);
       console.log('[BatchCallBuilder] Extracted variables from first message:', greetingVariables);
 
@@ -465,16 +465,16 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
           // Map CSV/XLS columns to dynamic_variables
           // This includes ALL non-standard columns, mapped to first_message variables if they match
           const dynamicVars = mapColumnsToDynamicVariables(r, greetingVariables);
-          
+
           const recipient: any = {
             phone_number: r.phone_number,
             name: r.name
           };
-          
+
           if (r.email) {
             recipient.email = r.email;
           }
-          
+
           // ALWAYS add dynamic_variables if any exist (even if empty, but we check length > 0)
           // This ensures all CSV/XLS columns beyond name, phone_number, email are included
           if (Object.keys(dynamicVars).length > 0) {
@@ -494,18 +494,18 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
               greeting_variables: greetingVariables
             });
           }
-          
+
           return recipient;
         }),
         retry_count: 0,
         phone_number_id: selectedPhoneNumberId // Always include phone_number_id
       };
-      
+
       // Only add sender_email if it exists
       if (senderEmail) {
         payload.sender_email = senderEmail;
       }
-      
+
       console.log('[BatchCallBuilder] Submitting batch call with payload:', {
         agent_id: payload.agent_id,
         call_name: payload.call_name,
@@ -515,7 +515,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         sender_email: payload.sender_email || 'not provided',
         greeting_variables: greetingVariables
       });
-      
+
       await submitBatchCallMutation.mutateAsync(payload);
       toast.success(`Batch call submitted successfully for ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}!`);
       if (onSuccess) onSuccess();
@@ -604,7 +604,10 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
               <label className="block text-sm font-medium text-foreground mb-2">
                 Recipients <span className="text-red-500">*</span>
               </label>
-              
+              <p className="text-xs text-muted-foreground mb-3">
+                Please ensure your file follows the format shown below. Include headers for <strong>name</strong>, <strong>email</strong>, <strong>phone_number</strong>, <strong>customer_name</strong>, <strong>customer_email</strong>, and <strong>customer_phone_number</strong>.
+              </p>
+
               {/* Upload Area - Accepts both CSV and Excel */}
               <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
                 <input
@@ -654,32 +657,36 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                 </button>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                The <strong>phone_number</strong> column is required. You can also pass certain <strong>overrides</strong>. Any other columns will be passed as dynamic variables.
+                The <strong>phone_number</strong> column is required. Please use the exact headers as shown below.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-background">
                       <th className="border border-border px-2 py-1 text-left text-foreground">name</th>
+                      <th className="border border-border px-2 py-1 text-left text-foreground">email</th>
                       <th className="border border-border px-2 py-1 text-left text-foreground">phone_number</th>
-                      <th className="border border-border px-2 py-1 text-left text-foreground">language</th>
+                      <th className="border border-border px-2 py-1 text-left text-foreground">customer_name</th>
+                      <th className="border border-border px-2 py-1 text-left text-foreground">customer_email</th>
+                      <th className="border border-border px-2 py-1 text-left text-foreground">customer_phone_number</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="border border-border px-2 py-1 text-foreground">Nev</td>
-                      <td className="border border-border px-2 py-1 text-foreground">+3838310429</td>
-                      <td className="border border-border px-2 py-1 text-foreground">en</td>
+                      <td className="border border-border px-2 py-1 text-foreground">Shagun</td>
+                      <td className="border border-border px-2 py-1 text-foreground">shagunyadav@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">919896940000</td>
+                      <td className="border border-border px-2 py-1 text-foreground">Shagun</td>
+                      <td className="border border-border px-2 py-1 text-foreground">shagunyadav@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">919896940000</td>
                     </tr>
                     <tr>
-                      <td className="border border-border px-2 py-1 text-foreground">Antoni</td>
-                      <td className="border border-border px-2 py-1 text-foreground">+3838310429</td>
-                      <td className="border border-border px-2 py-1 text-foreground">pl</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-border px-2 py-1 text-foreground">Thor</td>
-                      <td className="border border-border px-2 py-1 text-foreground">+3838310429</td>
-                      <td className="border border-border px-2 py-1 text-foreground">de</td>
+                      <td className="border border-border px-2 py-1 text-foreground">Vivek</td>
+                      <td className="border border-border px-2 py-1 text-foreground">josh @gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">918979140000</td>
+                      <td className="border border-border px-2 py-1 text-foreground">Vivek</td>
+                      <td className="border border-border px-2 py-1 text-foreground">josh@gmail.com</td>
+                      <td className="border border-border px-2 py-1 text-foreground">918979140000</td>
                     </tr>
                   </tbody>
                 </table>

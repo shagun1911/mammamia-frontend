@@ -17,7 +17,7 @@ export function useCreateEmailTemplate() {
       queryClient.invalidateQueries({ queryKey: ['emailTemplates'] });
       toast.success('Email template created successfully!');
       if (data?._suggestions && (data.name?.includes('booking') || data.name?.includes('confirm'))) {
-        toast.info('Update your agent\'s system prompt in AI → Agents and click "Sync to ElevenLabs" for appointment booking to work.', { duration: 8000 });
+        toast.info('Update your agent\'s system prompt in AI → Agents and click "Sync" for appointment booking to work.', { duration: 8000 });
       }
     },
     onError: (error) => {

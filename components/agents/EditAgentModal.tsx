@@ -646,7 +646,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
                 title="Enable tool execution (fixes 'Unable to execute function')"
               >
                 {syncingToElevenLabs && <Loader2 className="w-4 h-4 animate-spin" />}
-                Sync to ElevenLabs
+                Sync
               </button>
             )}
             <button

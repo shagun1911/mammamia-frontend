@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Upload, FileText, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { X, Upload, FileText, AlertCircle, CheckCircle, Loader2, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api";
 
 interface CSVImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (file: File) => Promise<{ 
-    importId?: string; 
+  onImport: (file: File) => Promise<{
+    importId?: string;
     imported?: number;
     duplicates?: number;
     failed?: number;
@@ -37,21 +38,60 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
   const [isCompleted, setIsCompleted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onCloseRef = useRef(onClose);
-  
+
   // Keep ref updated
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  const processFile = async (file: File) => {
+    const fileExtension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+
+    // If it's already a CSV, just use it
+    if (fileExtension === ".csv" || file.type === "text/csv") {
+      setFile(file);
+      setError(null);
+      return;
+    }
+
+    // If it's an Excel file, convert to CSV
+    if (fileExtension === ".xls" || fileExtension === ".xlsx") {
+      try {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const csvOutput = XLSX.utils.sheet_to_csv(worksheet);
+
+            // Create a new CSV file
+            const csvFile = new File([csvOutput], file.name.replace(/\.[^/.]+$/, "") + ".csv", {
+              type: "text/csv",
+            });
+
+            setFile(csvFile);
+            setError(null);
+          } catch (err) {
+            console.error("Error converting Excel to CSV:", err);
+            setError("Failed to process Excel file. Please try saving as CSV.");
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } catch (err) {
+        setError("Failed to read file");
+      }
+      return;
+    }
+
+    setError("Please select a valid CSV or Excel file");
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type !== "text/csv" && !selectedFile.name.endsWith(".csv")) {
-        setError("Please select a valid CSV file");
-        return;
-      }
-      setFile(selectedFile);
-      setError(null);
+      processFile(selectedFile);
     }
   };
 
@@ -59,13 +99,24 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
     e.preventDefault();
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-      if (droppedFile.type !== "text/csv" && !droppedFile.name.endsWith(".csv")) {
-        setError("Please select a valid CSV file");
-        return;
-      }
-      setFile(droppedFile);
-      setError(null);
+      processFile(droppedFile);
     }
+  };
+
+  const downloadTemplate = () => {
+    const headers = ["name", "email", "phone_number", "customer_name", "customer_email", "customer_phone_number"];
+    const sampleData =  [
+      ["Shagun", "shagunyadav@gmail.com", "919896949999 ", "Shagun", "shagunyadav@gmail.com", "919896949999"],
+      ["Vivek", "josh@gmail.com", "918979145999", "Vivek", "josh@gmail.com", "918979145999"]
+    ];
+
+    // Create Excel file using xlsx library
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
+
+    // Generate Excel file
+    XLSX.writeFile(workbook, "contacts_template.xlsx");
   };
 
   const handleImport = async () => {
@@ -80,7 +131,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
       setProgress(0);
       setIsCompleted(false);
       const result = await onImport(file);
-      
+
       // If importId is returned, start polling for progress
       if (result?.importId) {
         setImportId(result.importId);
@@ -108,7 +159,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
         setProgress(100);
         setIsCompleted(true);
         setImporting(false);
-        
+
         // Auto-close after 3 seconds
         setTimeout(() => {
           onCloseRef.current();
@@ -128,17 +179,17 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
     let closeTimeoutId: NodeJS.Timeout | null = null;
     let hasCompleted = false;
     let interval: NodeJS.Timeout | null = null;
-    
+
     const pollProgress = async () => {
       if (!isMounted || hasCompleted) return;
-      
+
       try {
         const response = await apiClient.get(`/contacts/imports/${importId}`);
         // Handle nested response structure: response.data.data or response.data
         const rawData = response.data?.data || response.data || response;
-        
+
         if (!isMounted || hasCompleted) return;
-        
+
         // Extract data with fallbacks - ensure we get numbers, not strings
         const totalRows = Number(rawData.totalRows) || 0;
         const processedRows = Number(rawData.processedRows) || Number(rawData.processed) || 0;
@@ -146,7 +197,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
         const duplicateCount = Number(rawData.duplicateCount) || Number(rawData.duplicates) || 0;
         const failedCount = Number(rawData.failedCount) || Number(rawData.failed) || 0;
         const status = rawData.status || 'processing';
-        
+
         // Calculate percentage - ensure we have valid numbers
         const percent = totalRows > 0 && processedRows >= 0
           ? Math.min(100, Math.max(0, Math.round((processedRows / totalRows) * 100)))
@@ -178,7 +229,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
           hasCompleted = true;
           setIsCompleted(status === "completed");
           setImporting(false);
-          
+
           // Final update to ensure 100% is shown
           if (status === "completed") {
             setProgress(100);
@@ -200,13 +251,13 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
               };
             });
           }
-          
+
           // Stop polling
           if (interval) {
             clearInterval(interval);
             interval = null;
           }
-          
+
           // Auto-close after 3 seconds if completed
           if (status === "completed" && !closeTimeoutId) {
             closeTimeoutId = setTimeout(() => {
@@ -221,7 +272,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
         // Don't stop polling on error, might be temporary
       }
     };
-    
+
     // Poll immediately, then every 1 second
     pollProgress();
     interval = setInterval(() => {
@@ -262,7 +313,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Import Contacts from CSV</h2>
+            <h2 className="text-xl font-semibold text-foreground">Import Contacts</h2>
             {listName && (
               <p className="text-sm text-muted-foreground mt-1">Importing to: {listName}</p>
             )}
@@ -282,7 +333,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
           {/* File Upload */}
           <div>
             <label className="block text-sm font-medium text-secondary-foreground mb-2">
-              CSV File *
+              File (CSV or Excel) *
             </label>
             <div
               onDrop={handleDrop}
@@ -325,7 +376,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                   <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
                   <div>
                     <p className="text-foreground font-medium mb-1">
-                      Drop your CSV file here, or{" "}
+                      Drop your CSV or Excel file here, or{" "}
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         className="text-primary hover:underline"
@@ -335,7 +386,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                       </button>
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      CSV should contain: name, email, phone, and other fields
+                      CSV or Excel file should contain: name, email, phone_number, etc.
                     </p>
                   </div>
                 </div>
@@ -343,7 +394,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv, .xls, .xlsx"
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -371,7 +422,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                   </div>
                 </div>
               </div>
-              
+
               {/* TV Volume Bar Style Progress Bar */}
               <div className="relative">
                 <div className="w-full h-6 bg-secondary/80 rounded-full overflow-hidden shadow-inner border border-border/50">
@@ -406,7 +457,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-foreground">
-                      {stats.totalRows && stats.processedRows 
+                      {stats.totalRows && stats.processedRows
                         ? (stats.totalRows - stats.processedRows).toLocaleString()
                         : '...'}
                     </div>
@@ -449,27 +500,50 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
 
           {/* CSV Format Info */}
           <div className="p-4 bg-background rounded-lg border border-border">
-            <h4 className="text-sm font-medium text-foreground mb-2">Expected CSV Format:</h4>
+            <h4 className="text-sm font-medium text-foreground mb-2">Expected Format:</h4>
             <p className="text-xs text-muted-foreground mb-2">
-              First row must be headers. <strong>Name</strong> is required — use <code className="bg-black/30 px-1 rounded">name</code> (or <code className="bg-black/30 px-1 rounded">first name</code> + <code className="bg-black/30 px-1 rounded">last name</code>). Optional: <code className="bg-black/30 px-1 rounded">email</code>, <code className="bg-black/30 px-1 rounded">phone</code>, <code className="bg-black/30 px-1 rounded">tags</code>. Extra columns (e.g. Company name, Job title, Notes) are stored as custom fields.
+              Please use the following headers exactly as shown to ensure correct data mapping.
             </p>
-            <code className="text-xs text-secondary-foreground bg-black/50 px-2 py-1 rounded block mb-2">
-              name,email,phone,company name,notes,tags
-            </code>
-            <code className="text-xs text-secondary-foreground bg-black/50 px-2 py-1 rounded block mb-2">
-              first name,last name,email,phone,company name,tags
-            </code>
-            <p className="text-xs text-muted-foreground mb-3">
-              Recognized: <strong>name</strong> / <strong>full name</strong>; <strong>first name</strong>, <strong>last name</strong> (or firstname, lastname, fname, lname, surname); <strong>company name</strong>, <strong>phone number</strong>, <strong>email address</strong>. Other headers become custom fields.
-            </p>
-            <a
-              href="/contacts-template.csv"
-              download="contacts-template.csv"
+            <div className="overflow-x-auto mb-3">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-secondary/50">
+                    <th className="border border-border/50 px-2 py-1 text-left">name</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">email</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">phone_number</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">customer_name</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">customer_email</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">customer_phone_number</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-border/50 px-2 py-1">Shagun</td>
+                    <td className="border border-border/50 px-2 py-1">19shagunyadavnnl@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">919896941400</td>
+                    <td className="border border-border/50 px-2 py-1">Shagun</td>
+                    <td className="border border-border/50 px-2 py-1">19shagunyadavnnl@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">919896941400</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-border/50 px-2 py-1">Vivek</td>
+                    <td className="border border-border/50 px-2 py-1">joshspecter8@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">918979145539</td>
+                    <td className="border border-border/50 px-2 py-1">Vivek</td>
+                    <td className="border border-border/50 px-2 py-1">joshspecter8@gmail.com</td>
+                    <td className="border border-border/50 px-2 py-1">918979145539</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              onClick={downloadTemplate}
               className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
             >
-              <FileText className="w-4 h-4" />
-              Download Template CSV
-            </a>
+              <Download className="w-4 h-4" />
+              Download Template
+            </button>
           </div>
         </div>
 
