@@ -16,6 +16,7 @@ export interface EmailTemplate {
   parameters: EmailTemplateParameter[];
   tool_id: string;
   webhook_base_url?: string;
+  sender_email?: string;
   created_at?: string;
   userId: string;
   createdAt: string;
@@ -28,6 +29,7 @@ export interface CreateEmailTemplateData {
   subject_template: string;
   body_template: string;
   parameters: EmailTemplateParameter[];
+  sender_email?: string;
 }
 
 class EmailTemplateService {

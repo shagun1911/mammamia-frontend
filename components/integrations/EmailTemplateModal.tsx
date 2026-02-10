@@ -18,6 +18,7 @@ export function EmailTemplateModal({
 }: EmailTemplateModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
   const [subjectTemplate, setSubjectTemplate] = useState('');
   const [bodyTemplate, setBodyTemplate] = useState('');
   const [parameters, setParameters] = useState<EmailTemplateParameter[]>([
@@ -103,11 +104,13 @@ export function EmailTemplateModal({
           description: p.description.trim(),
           required: p.required || false,
         })),
+        sender_email: senderEmail.trim() || undefined,
       });
 
       // Reset form
       setName('');
       setDescription('');
+      setSenderEmail('');
       setSubjectTemplate('');
       setBodyTemplate('');
       setParameters([{ name: 'name', description: 'Customer name', required: true }, { name: 'email', description: 'Customer email for confirmation', required: true }]);
@@ -184,6 +187,24 @@ export function EmailTemplateModal({
                 disabled={createEmailTemplate.isPending}
                 required
               />
+            </div>
+
+            {/* Sender Email */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Sender Email (Optional)
+              </label>
+              <input
+                type="email"
+                value={senderEmail}
+                onChange={(e) => setSenderEmail(e.target.value)}
+                placeholder="e.g., support@yourdomain.com"
+                className="w-full h-12 px-4 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={createEmailTemplate.isPending}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                The email address that will appear in the "From" field. Requires SMTP configuration.
+              </p>
             </div>
 
             {/* Subject Template */}

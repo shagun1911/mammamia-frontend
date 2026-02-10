@@ -89,6 +89,18 @@ export function ViewIntegrationModal({
             </div>
           </div>
 
+          {/* Sender Email (for Email Templates) */}
+          {isEmailTemplate && (integration as any).sender_email && (
+            <div>
+              <label className="block text-sm font-semibold text-foreground mb-2">
+                Sender Email
+              </label>
+              <div className="p-4 bg-secondary border border-border rounded-xl">
+                <p className="text-foreground">{(integration as any).sender_email}</p>
+              </div>
+            </div>
+          )}
+
           {/* Email Template Specific Fields */}
           {isEmailTemplate && (
             <>
