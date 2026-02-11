@@ -12,8 +12,7 @@ if (!API_URL) {
   console.error('❌ [FATAL] Set NEXT_PUBLIC_API_URL in .env.local or environment');
   console.error('❌ [FATAL] Example: NEXT_PUBLIC_API_URL=http://localhost:5001/api/v1');
   
-  // In Next.js, we can't use process.exit() during build, but we can throw
-  // This will cause the build to fail
+ 
   if (typeof window === 'undefined') {
     throw new Error(error);
   }
