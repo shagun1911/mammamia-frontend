@@ -158,7 +158,18 @@ export function NodeConfigPanel({
 
       const data = (response as any)?.data || response;
       const templatesData = data?.data?.data || data?.data || [];
+      
+      // CRITICAL: Log template structure to debug language field
+      if (templatesData.length > 0) {
+        console.log('[WhatsApp Templates] Sample template structure:', templatesData[0]);
+        console.log('[WhatsApp Templates] Total templates loaded:', templatesData.length);
+      }
+      
       setWhatsappTemplates(Array.isArray(templatesData) ? templatesData : []);
+      
+      if (templatesData.length > 0) {
+        toast.success(`Loaded ${templatesData.length} WhatsApp template(s)`);
+      }
     } catch (error: any) {
       console.error('Error fetching WhatsApp templates:', error);
       const message = error.response?.data?.error?.message || error.message || 'Failed to load WhatsApp templates';
@@ -1231,24 +1242,91 @@ export function NodeConfigPanel({
                 </label>
                 <select
                   value={node.config.templateName || node.config.template || ""}
-                  onChange={(e) =>
-                    onUpdate({ ...node.config, templateName: e.target.value, template: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const selectedTemplateName = e.target.value;
+                    
+                    if (!selectedTemplateName) {
+                      // Clear selection
+                      onUpdate({ 
+                        ...node.config, 
+                        templateName: '', 
+                        template: '',
+                        languageCode: ''
+                      });
+                      return;
+                    }
+                    
+                    // Find the selected template to get its language
+                    const selectedTemplate = whatsappTemplates.find((tpl: any) => tpl.name === selectedTemplateName);
+                    
+                    if (!selectedTemplate) {
+                      console.warn('[WhatsApp Template] Template not found in list:', selectedTemplateName);
+                      toast.error('Template not found. Please refresh the template list.');
+                      return;
+                    }
+                    
+                    // CRITICAL: Extract language code from template
+                    // Meta API can return language as string OR object
+                    let languageCode = '';
+                    if (typeof selectedTemplate.language === 'string') {
+                      languageCode = selectedTemplate.language;
+                    } else if (selectedTemplate.language?.code) {
+                      languageCode = selectedTemplate.language.code;
+                    }
+                    
+                    console.log('[WhatsApp Template] Selected template:', selectedTemplate);
+                    console.log('[WhatsApp Template] Extracted language:', languageCode);
+                    
+                    if (!languageCode) {
+                      console.error('[WhatsApp Template] Template missing language property:', selectedTemplate);
+                      toast.error(`Template "${selectedTemplateName}" is missing language information. Cannot proceed.`);
+                      return;
+                    }
+                    
+                    console.log(`[WhatsApp Template] ✅ Selected: ${selectedTemplateName} (${languageCode})`);
+                    toast.success(`Template selected: ${selectedTemplateName} (${languageCode})`);
+                    
+                    // Store BOTH templateName AND languageCode
+                    onUpdate({ 
+                      ...node.config, 
+                      templateName: selectedTemplateName, 
+                      template: selectedTemplateName,
+                      languageCode: languageCode
+                    });
+                  }}
                   className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="">Select template...</option>
                   {whatsappTemplates.length > 0 ? (
-                    whatsappTemplates.map((tpl: any) => (
-                      <option key={tpl.id || tpl.name} value={tpl.name}>
-                        {tpl.name} {tpl.language ? `(${tpl.language})` : ''}
-                      </option>
-                    ))
+                    whatsappTemplates.map((tpl: any) => {
+                      // Extract language for display - handle both string and object
+                      const langDisplay = typeof tpl.language === 'string' 
+                        ? tpl.language 
+                        : tpl.language?.code || '';
+                      return (
+                        <option key={tpl.id || tpl.name} value={tpl.name}>
+                          {tpl.name} {langDisplay ? `(${langDisplay})` : ''}
+                        </option>
+                      );
+                    })
                   ) : (
                     <>
-                      <option value="hello_world">hello_world</option>
+                      <option value="hello_world">hello_world (en_US)</option>
                     </>
                   )}
                 </select>
+                {node.config.templateName && node.config.languageCode && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Language: <span className="font-medium">{node.config.languageCode}</span>
+                  </p>
+                )}
+                {node.config.templateName && !node.config.languageCode && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Please re-select the template to capture the language
+                  </p>
+                )}
               </div>
               {/* Template Parameters - Simple Input Fields */}
               <div>

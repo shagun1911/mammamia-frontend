@@ -101,7 +101,7 @@ export const automationTemplates: AutomationTemplate[] = [
         config: {
           mode: "automatic",
           templateName: "hello_world",
-          languageCode: "en_US"
+          languageCode: "en_US" // Example only - users must reconfigure to select actual template with correct language
         },
         position: 6,
       },
