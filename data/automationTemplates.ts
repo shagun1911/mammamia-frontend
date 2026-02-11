@@ -94,6 +94,17 @@ export const automationTemplates: AutomationTemplate[] = [
         },
         position: 5,
       },
+      {
+        id: "node_7",
+        type: "action",
+        service: "whatsapp_template",
+        config: {
+          mode: "automatic",
+          templateName: "hello_world",
+          languageCode: "en_US"
+        },
+        position: 6,
+      },
     ],
   },
   {

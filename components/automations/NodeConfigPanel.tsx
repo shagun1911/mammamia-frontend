@@ -42,6 +42,22 @@ export function NodeConfigPanel({
     (p) => p.supports_outbound === true
   );
 
+  // WhatsApp template state
+  const [whatsappTemplates, setWhatsappTemplates] = useState<any[]>([]);
+  const [loadingWhatsappTemplates, setLoadingWhatsappTemplates] = useState(false);
+  const [whatsappMode, setWhatsappMode] = useState<'automatic' | 'manual'>(
+    (node.config.mode as 'automatic' | 'manual') || 'automatic'
+  );
+  const [manualWhatsAppConfig, setManualWhatsAppConfig] = useState<{
+    accessToken: string;
+    phoneNumberId: string;
+    wabaId: string;
+  }>({
+    accessToken: (node.config.accessToken as string) || '',
+    phoneNumberId: (node.config.phoneNumberId as string) || '',
+    wabaId: (node.config.wabaId as string) || ''
+  });
+
   // Sync selectedSpreadsheetId with node.config.spreadsheetId when node changes
   // This ensures state persists when switching between nodes or reopening the panel
   useEffect(() => {
@@ -124,6 +140,32 @@ export function NodeConfigPanel({
       spreadsheetId,
       sheetName
     });
+  };
+
+  const fetchWhatsappTemplates = async (mode: 'automatic' | 'manual') => {
+    try {
+      setLoadingWhatsappTemplates(true);
+      let response;
+
+      if (mode === 'automatic') {
+        response = await apiClient.get('/whatsapp/templates');
+      } else {
+        response = await apiClient.post('/whatsapp/templates', {
+          accessToken: manualWhatsAppConfig.accessToken,
+          wabaId: manualWhatsAppConfig.wabaId
+        });
+      }
+
+      const data = (response as any)?.data || response;
+      const templatesData = data?.data?.data || data?.data || [];
+      setWhatsappTemplates(Array.isArray(templatesData) ? templatesData : []);
+    } catch (error: any) {
+      console.error('Error fetching WhatsApp templates:', error);
+      const message = error.response?.data?.error?.message || error.message || 'Failed to load WhatsApp templates';
+      toast.error(message);
+    } finally {
+      setLoadingWhatsappTemplates(false);
+    }
   };
 
   // Extract spreadsheetId from Google Sheets URL
@@ -1045,26 +1087,196 @@ export function NodeConfigPanel({
           {/* WHATSAPP TEMPLATE ACTION */}
           {node.service === "whatsapp_template" && (
             <div className="space-y-4">
+              {/* Mode selection */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-foreground">
+                  Mode
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWhatsappMode('automatic');
+                      onUpdate({ ...node.config, mode: 'automatic' });
+                      fetchWhatsappTemplates('automatic');
+                    }}
+                    className={`flex-1 h-10 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors ${
+                      whatsappMode === 'automatic'
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-secondary border-border text-foreground'
+                    }`}
+                  >
+                    <span>Automatic</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWhatsappMode('manual');
+                      onUpdate({ ...node.config, mode: 'manual' });
+                    }}
+                    className={`flex-1 h-10 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors ${
+                      whatsappMode === 'manual'
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-secondary border-border text-foreground'
+                    }`}
+                  >
+                    <span>Manual</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Automatic mode info */}
+              {whatsappMode === 'automatic' && !isLoadingSocialStatus && (
+                <>
+                  {!socialIntegrations.whatsapp || socialIntegrations.whatsapp.status !== 'connected' ? (
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-2">
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>
+                          WhatsApp integration required. Connect WhatsApp in Settings &gt; Socials to use automatic templates.
+                        </span>
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-1 p-2 bg-secondary/50 rounded-lg">
+                      <p className="text-xs text-blue-400 mb-0.5 font-medium flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-blue-400"></span>
+                        Uses your connected WhatsApp Business account
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Manual mode credentials */}
+              {whatsappMode === 'manual' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      Access Token
+                    </label>
+                    <input
+                      type="password"
+                      value={manualWhatsAppConfig.accessToken}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setManualWhatsAppConfig((prev) => ({ ...prev, accessToken: value }));
+                        onUpdate({ ...node.config, accessToken: value });
+                      }}
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="Meta access token"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      Phone Number ID
+                    </label>
+                    <input
+                      type="text"
+                      value={manualWhatsAppConfig.phoneNumberId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setManualWhatsAppConfig((prev) => ({ ...prev, phoneNumberId: value }));
+                        onUpdate({ ...node.config, phoneNumberId: value });
+                      }}
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="WhatsApp Phone Number ID"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      WABA ID
+                    </label>
+                    <input
+                      type="text"
+                      value={manualWhatsAppConfig.wabaId}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setManualWhatsAppConfig((prev) => ({ ...prev, wabaId: value }));
+                        onUpdate({ ...node.config, wabaId: value });
+                      }}
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="WhatsApp Business Account ID"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => fetchWhatsappTemplates('manual')}
+                    disabled={
+                      loadingWhatsappTemplates ||
+                      !manualWhatsAppConfig.accessToken ||
+                      !manualWhatsAppConfig.wabaId
+                    }
+                    className="w-full h-9 bg-secondary border border-border rounded-lg text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {loadingWhatsappTemplates ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Load templates</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="w-3 h-3" />
+                        <span>Load templates</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Template
                 </label>
                 <select
-                  value={node.config.template || ""}
+                  value={node.config.templateName || node.config.template || ""}
                   onChange={(e) =>
-                    onUpdate({ ...node.config, template: e.target.value })
+                    onUpdate({ ...node.config, templateName: e.target.value, template: e.target.value })
                   }
                   className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
                   <option value="">Select template...</option>
-                  <option value="welcome">Welcome Message</option>
-                  <option value="follow_up">Follow Up</option>
-                  <option value="cart_reminder">Cart Reminder</option>
-                  <option value="order_confirmation">Order Confirmation</option>
+                  {whatsappTemplates.length > 0 ? (
+                    whatsappTemplates.map((tpl: any) => (
+                      <option key={tpl.id || tpl.name} value={tpl.name}>
+                        {tpl.name} {tpl.language ? `(${tpl.language})` : ''}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="hello_world">hello_world</option>
+                    </>
+                  )}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Components (JSON, optional)
+                </label>
+                <textarea
+                  value={
+                    typeof node.config.components === 'string'
+                      ? node.config.components
+                      : node.config.components
+                      ? JSON.stringify(node.config.components, null, 2)
+                      : ''
+                  }
+                  onChange={(e) =>
+                    onUpdate({
+                      ...node.config,
+                      components: e.target.value
+                    })
+                  }
+                  className="w-full h-28 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono resize-none"
+                  placeholder='[{"type": "header", "parameters": [{"type": "text", "text": "Header value"}]}]'
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use this only if your template has header/body placeholders. Paste the Meta components array JSON exactly as required.
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Select the WhatsApp template message to send.
+                Select the WhatsApp template message to send. Templates are loaded from your Meta account. If Meta says "parameter format does not match", add the required components JSON above.
               </p>
             </div>
           )}
