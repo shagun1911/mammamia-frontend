@@ -217,13 +217,21 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
     let voiceId: string | undefined;
     if (voiceType === 'predefined') {
       voiceId = selectedVoice ? getVoiceIdFromValue(selectedVoice) || undefined : undefined;
+      console.log('[EditAgentModal] 🎤 Predefined voice selected:', {
+        selectedVoice,
+        resolvedVoiceId: voiceId
+      });
     } else {
       voiceId = manualVoiceId.trim() || undefined;
+      console.log('[EditAgentModal] 🎤 Manual voice ID:', voiceId);
     }
 
     if (!voiceId) {
+      toast.error('Please select a voice');
       return;
     }
+
+    console.log('[EditAgentModal] 🚀 Updating agent with voice_id:', voiceId);
 
     try {
       await updateAgentPrompt.mutateAsync({
