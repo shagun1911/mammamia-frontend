@@ -1250,33 +1250,118 @@ export function NodeConfigPanel({
                   )}
                 </select>
               </div>
+              {/* Template Parameters - Simple Input Fields */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Components (JSON, optional)
+                  Template Parameters
                 </label>
-                <textarea
-                  value={
-                    typeof node.config.components === 'string'
-                      ? node.config.components
-                      : node.config.components
-                      ? JSON.stringify(node.config.components, null, 2)
-                      : ''
-                  }
-                  onChange={(e) =>
-                    onUpdate({
-                      ...node.config,
-                      components: e.target.value
-                    })
-                  }
-                  className="w-full h-28 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono resize-none"
-                  placeholder='[{"type": "header", "parameters": [{"type": "text", "text": "Header value"}]}]'
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Use this only if your template has header/body placeholders. Paste the Meta components array JSON exactly as required.
+                <p className="text-xs text-muted-foreground mb-3">
+                  Enter the parameter values for your template. Each field corresponds to a parameter in your template (e.g., order number, customer name, etc.).
+                </p>
+                <div className="space-y-2">
+                  {(() => {
+                    // Get current parameters or default to 3 empty fields
+                    const currentParams = node.config.templateParams || [];
+                    const paramCount = Math.max(3, currentParams.length || 3);
+                    const params = Array.from({ length: paramCount }, (_, i) => 
+                      currentParams[i] || ''
+                    );
+                    
+                    return (
+                      <>
+                        {params.map((param, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-8 shrink-0">
+                              #{index + 1}
+                            </span>
+                            <input
+                              type="text"
+                              value={param}
+                              onChange={(e) => {
+                                const newParams = [...params];
+                                newParams[index] = e.target.value;
+                                // Keep all params (including empty ones) to maintain field positions
+                                // Backend will filter out empty params when generating components
+                                onUpdate({
+                                  ...node.config,
+                                  templateParams: newParams
+                                });
+                              }}
+                              className="flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                              placeholder={`Parameter ${index + 1} value`}
+                            />
+                            {index >= 3 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newParams = params.filter((_, i) => i !== index);
+                                  onUpdate({
+                                    ...node.config,
+                                    templateParams: newParams
+                                  });
+                                }}
+                                className="text-destructive hover:text-destructive/80 text-xs px-2"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onUpdate({
+                              ...node.config,
+                              templateParams: [...params, '']
+                            });
+                          }}
+                          className="text-xs text-primary hover:text-primary/80 mt-2"
+                        >
+                          + Add Parameter
+                        </button>
+                      </>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  These parameters will be automatically formatted and sent to WhatsApp. Leave empty if your template doesn't require parameters.
                 </p>
               </div>
+
+              {/* Advanced: Components JSON (for backward compatibility and advanced use cases) */}
+              <details className="group">
+                <summary className="cursor-pointer text-sm font-medium text-foreground mb-2 list-none">
+                  <div className="flex items-center gap-2">
+                    <span>Advanced: Components JSON (optional)</span>
+                    <span className="text-xs text-muted-foreground">(Click to expand)</span>
+                  </div>
+                </summary>
+                <div className="mt-2">
+                  <textarea
+                    value={
+                      typeof node.config.components === 'string'
+                        ? node.config.components
+                        : node.config.components
+                        ? JSON.stringify(node.config.components, null, 2)
+                        : ''
+                    }
+                    onChange={(e) =>
+                      onUpdate({
+                        ...node.config,
+                        components: e.target.value
+                      })
+                    }
+                    className="w-full h-28 bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors font-mono resize-none"
+                    placeholder='[{"type": "header", "parameters": [{"type": "text", "text": "Header value"}]}]'
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    For advanced use cases only. If you fill this, it will override the simple parameters above. Use this for header components or complex parameter structures.
+                  </p>
+                </div>
+              </details>
+
               <p className="text-xs text-muted-foreground">
-                Select the WhatsApp template message to send. Templates are loaded from your Meta account. If Meta says "parameter format does not match", add the required components JSON above.
+                Select the WhatsApp template message to send. Templates are loaded from your Meta account. Enter the required parameters above.
               </p>
             </div>
           )}
