@@ -131,7 +131,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     let finalConfig = { ...config };
     const node = selectedAutomation.nodes.find(n => n.id === selectedNodeId);
 
-    if (node?.service === "keplero_google_sheet_append_row") {
+    if (node?.service === "aistein_google_sheet_append_row") {
       // Ensure values array is properly formatted
       if (finalConfig.values && Array.isArray(finalConfig.values)) {
         // Filter out empty values but preserve array structure
@@ -181,7 +181,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
 
     // Check if any Google Sheets node is incomplete
     const incompleteNode = selectedAutomation.nodes.find(node => {
-      if (node.service === "keplero_google_sheet_append_row") {
+      if (node.service === "aistein_google_sheet_append_row") {
         const hasSpreadsheetId = !!(node.config.spreadsheetId && node.config.spreadsheetId.trim() !== "");
         const hasValues = !!(node.config.values && Array.isArray(node.config.values) && node.config.values.length > 0 && node.config.values.some((v: string) => v && v.trim() !== ""));
         return !hasSpreadsheetId || !hasValues;
@@ -298,7 +298,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       const backendNodes = selectedAutomation.nodes.map(node => {
         let config = { ...node.config };
 
-        if (node.service === "keplero_google_sheet_append_row") {
+        if (node.service === "aistein_google_sheet_append_row") {
           if (config.values && Array.isArray(config.values)) {
             config.values = config.values.filter(
               (v: string) => v && typeof v === "string" && v.trim() !== ""
@@ -386,7 +386,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     if (!selectedAutomation || !selectedAutomationId) return;
 
     // Find batch call trigger node
-    const batchNode = selectedAutomation.nodes.find(n => n.service === "batch_call" || n.service === "keplero_mass_sending");
+    const batchNode = selectedAutomation.nodes.find(n => n.service === "batch_call" || n.service === "aistein_mass_sending");
     if (!batchNode || !batchNode.config.listId) {
       toast.error("Batch calling node not configured with a list");
       return;
@@ -481,7 +481,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
                 </button>
               </div>
 
-              {selectedAutomation.status === "enabled" && selectedAutomation.nodes.some(n => n.service === "batch_call" || n.service === "keplero_mass_sending") && (
+              {selectedAutomation.status === "enabled" && selectedAutomation.nodes.some(n => n.service === "batch_call" || n.service === "aistein_mass_sending") && (
                 <button
                   onClick={handleRunBatch}
                   disabled={runningBatch}

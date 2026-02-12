@@ -80,7 +80,7 @@ export function AutomationNode({
         </button>
       </div>
       <p className="text-sm text-muted-foreground mb-3">{getStepText()}</p>
-      {node.service.startsWith("keplero_google_") && (
+      {node.service.startsWith("aistein_google_") && (
         <div className="flex flex-col gap-1 pt-3 border-t border-border/50">
           <div className="flex items-center gap-2 text-xs text-blue-400 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>

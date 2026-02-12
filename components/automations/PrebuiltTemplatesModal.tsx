@@ -161,19 +161,19 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
   const getNodeIcon = (service: string): string => {
     const serviceMap: Record<string, string> = {
       facebook_leads: "📘",
-      keplero_contact_created: "👤",
-      keplero_create_contact: "➕",
+      aistein_contact_created: "👤",
+      aistein_create_contact: "➕",
       whatsapp_template: "💬",
-      keplero_send_email: "📧",
-      keplero_outbound_call: "📞",
-      keplero_mass_sending: "📤",
+      aistein_send_email: "📧",
+      aistein_outbound_call: "📞",
+      aistein_mass_sending: "📤",
       batch_call: "📤",
       webhook: "🔗",
       delay: "⏱️",
-      keplero_google_calendar_check_availability: "📅",
-      keplero_google_calendar_create_event: "📅",
-      keplero_google_sheet_append_row: "📊",
-      keplero_google_gmail_send: "📧",
+      aistein_google_calendar_check_availability: "📅",
+      aistein_google_calendar_create_event: "📅",
+      aistein_google_sheet_append_row: "📊",
+      aistein_google_gmail_send: "📧",
     };
     return serviceMap[service] || "⚙️";
   };
@@ -181,19 +181,19 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
   const getNodeName = (service: string): string => {
     const nameMap: Record<string, string> = {
       facebook_leads: "Facebook Lead",
-      keplero_contact_created: "Contact Created",
-      keplero_create_contact: "Create Contact",
+      aistein_contact_created: "Contact Created",
+      aistein_create_contact: "Create Contact",
       whatsapp_template: "WhatsApp Message",
-      keplero_send_email: "Aistein – Send Email",
-      keplero_outbound_call: "Outbound Call",
-      keplero_mass_sending: "Mass Sending",
+      aistein_send_email: "Aistein – Send Email",
+      aistein_outbound_call: "Outbound Call",
+      aistein_mass_sending: "Mass Sending",
       batch_call: "Batch Call (CSV/List)",
       webhook: "Webhook",
       delay: "Delay",
-      keplero_google_calendar_check_availability: "Check Calendar Availability",
-      keplero_google_calendar_create_event: "Create Calendar Event",
-      keplero_google_sheet_append_row: "Add to Google Sheets",
-      keplero_google_gmail_send: "Gmail – Send Email",
+      aistein_google_calendar_check_availability: "Check Calendar Availability",
+      aistein_google_calendar_create_event: "Create Calendar Event",
+      aistein_google_sheet_append_row: "Add to Google Sheets",
+      aistein_google_gmail_send: "Gmail – Send Email",
     };
     return nameMap[service] || service.replace(/aistein_/g, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };

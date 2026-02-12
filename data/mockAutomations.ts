@@ -63,9 +63,9 @@ export interface Automation {
 
 export const nodeServices = {
   triggers: [
-    { id: "keplero_contact_created", name: "Aistein-It - Contact Created", icon: "👤", color: "#6366f1" },
-    { id: "keplero_contact_deleted", name: "Aistein-It - Contact Deleted", icon: "🗑️", color: "#ef4444" },
-    { id: "keplero_contact_moved", name: "Aistein-It - Contact Moved", icon: "📋", color: "#8b5cf6" },
+    { id: "aistein_contact_created", name: "Aistein-It - Contact Created", icon: "👤", color: "#6366f1" },
+    { id: "aistein_contact_deleted", name: "Aistein-It - Contact Deleted", icon: "🗑️", color: "#ef4444" },
+    { id: "aistein_contact_moved", name: "Aistein-It - Contact Moved", icon: "📋", color: "#8b5cf6" },
     { id: "conversation_created", name: "Aistein-It - Call Finished (AI Agent)", icon: "📞", color: "#10b981" },
     { id: "batch_call", name: "Aistein-It - Batch Call (CSV/List)", icon: "📤", color: "#f59e0b" },
     { id: "facebook_leads", name: "Facebook Leads", icon: "📘", color: "#1877f2" },
@@ -74,20 +74,20 @@ export const nodeServices = {
     { id: "webhook", name: "Webhook", icon: "🔗", color: "#a855f7" },
   ],
   actions: [
-    { id: "keplero_batch_calling", name: "Aistein-It - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },
-    { id: "keplero_extract_data", name: "Aistein-It - Extract Conversation Data", icon: "🧠", color: "#8b5cf6" },
-    { id: "keplero_outbound_call", name: "Aistein-It - Outbound Call", icon: "📞", color: "#8b5cf6" },
-    { id: "keplero_send_sms", name: "Aistein-It - Send SMS", icon: "💬", color: "#10b981" },
-    { id: "keplero_send_email", name: "Aistein – Send Email", icon: "📧", color: "#3b82f6" },
-    { id: "keplero_create_contact", name: "Aistein-It - Create Contact", icon: "➕", color: "#6366f1" },
-    { id: "keplero_api_call", name: "Aistein-It - API Call", icon: "🔗", color: "#a855f7" },
+    { id: "aistein_batch_calling", name: "Aistein-It - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },
+    { id: "aistein_extract_data", name: "Aistein-It - Extract Conversation Data", icon: "🧠", color: "#8b5cf6" },
+    { id: "aistein_outbound_call", name: "Aistein-It - Outbound Call", icon: "📞", color: "#8b5cf6" },
+    { id: "aistein_send_sms", name: "Aistein-It - Send SMS", icon: "💬", color: "#10b981" },
+    { id: "aistein_send_email", name: "Aistein – Send Email", icon: "📧", color: "#3b82f6" },
+    { id: "aistein_create_contact", name: "Aistein-It - Create Contact", icon: "➕", color: "#6366f1" },
+    { id: "aistein_api_call", name: "Aistein-It - API Call", icon: "🔗", color: "#a855f7" },
     { id: "whatsapp_template", name: "WhatsApp Template", icon: "💬", color: "#25d366" },
     { id: "save_to_crm", name: "Save to CRM", icon: "💾", color: "#8b5cf6" },
     // Google Workspace Actions
-    { id: "keplero_google_calendar_check_availability", name: "Google Calendar - Check Availability", icon: "📅", color: "#4285f4", requiresIntegration: "google" },
-    { id: "keplero_google_calendar_create_event", name: "Google Calendar - Create Event", icon: "📅", color: "#4285f4", requiresIntegration: "google" },
-    { id: "keplero_google_sheet_append_row", name: "Google Sheets - Append Row", icon: "📊", color: "#34a853", requiresIntegration: "google" },
-    { id: "keplero_google_gmail_send", name: "Gmail – Send Email", icon: "📧", color: "#ea4335", requiresIntegration: "google" },
+    { id: "aistein_google_calendar_check_availability", name: "Google Calendar - Check Availability", icon: "📅", color: "#4285f4", requiresIntegration: "google" },
+    { id: "aistein_google_calendar_create_event", name: "Google Calendar - Create Event", icon: "📅", color: "#4285f4", requiresIntegration: "google" },
+    { id: "aistein_google_sheet_append_row", name: "Google Sheets - Append Row", icon: "📊", color: "#34a853", requiresIntegration: "google" },
+    { id: "aistein_google_gmail_send", name: "Gmail – Send Email", icon: "📧", color: "#ea4335", requiresIntegration: "google" },
   ],
 };
 

@@ -31,7 +31,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_2",
         type: "action",
-        service: "keplero_extract_appointment",
+        service: "aistein_extract_appointment",
         config: {
           conversation_id: "{{conversation_id}}",
           extraction_type: "appointment",
@@ -52,7 +52,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_4",
         type: "action",
-        service: "keplero_google_calendar_create_event",
+        service: "aistein_google_calendar_create_event",
         config: {
           summary: "Appointment - {{contact.name}}",
           description: "Booked via AI batch call\nConversation ID: {{conversation_id}}\nPhone: {{contact.phone}}",
@@ -66,7 +66,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_5",
         type: "action",
-        service: "keplero_google_sheet_append_row",
+        service: "aistein_google_sheet_append_row",
         config: {
           spreadsheetId: "",
           range: "Sheet1!A1",
@@ -85,7 +85,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_6",
         type: "action",
-        service: "keplero_google_gmail_send",
+        service: "aistein_google_gmail_send",
         config: {
           to: "{{contact.email}}",
           subject: "Appointment Confirmed - {{contact.name}}",
@@ -118,7 +118,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_1",
         type: "trigger",
-        service: "keplero_contact_created",
+        service: "aistein_contact_created",
         config: {
           event: "contact_form_submitted",
           source: "website",
@@ -135,7 +135,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_3",
         type: "action",
-        service: "keplero_send_email",
+        service: "aistein_send_email",
         config: {
           subject: "Welcome {{contact.name}}!",
           body: "Thank you for contacting us. We'll get back to you soon.",
@@ -146,7 +146,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_4",
         type: "action",
-        service: "keplero_google_sheet_append_row",
+        service: "aistein_google_sheet_append_row",
         config: {
           spreadsheetId: "",
           range: "Sheet1!A1",
@@ -181,7 +181,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_3",
         type: "action",
-        service: "keplero_create_contact",
+        service: "aistein_create_contact",
         config: {
           name: "{{lead.name}}",
           email: "{{lead.email}}",
@@ -193,7 +193,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_4",
         type: "action",
-        service: "keplero_outbound_call",
+        service: "aistein_outbound_call",
         config: {
           dynamicInstruction: "Hello {{contact.name}}, thank you for your interest. I'm calling to discuss your inquiry and see if we can schedule an appointment.",
           language: "en",
@@ -203,7 +203,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_5",
         type: "action",
-        service: "keplero_google_calendar_check_availability",
+        service: "aistein_google_calendar_check_availability",
         config: {
           timeMin: "{{nextBusinessDay}}T09:00:00Z",
           timeMax: "{{nextBusinessDay}}T17:00:00Z",
@@ -214,7 +214,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_6",
         type: "action",
-        service: "keplero_google_calendar_create_event",
+        service: "aistein_google_calendar_create_event",
         config: {
           summary: "Appointment with {{contact.name}}",
           description: "Follow-up appointment for Facebook lead: {{contact.email}}",
@@ -228,7 +228,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_7",
         type: "action",
-        service: "keplero_google_sheet_append_row",
+        service: "aistein_google_sheet_append_row",
         config: {
           spreadsheetId: "",
           range: "Sheet1!A1",
@@ -239,7 +239,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_8",
         type: "action",
-        service: "keplero_google_gmail_send",
+        service: "aistein_google_gmail_send",
         config: {
           to: "{{contact.email}}",
           subject: "Appointment Confirmed - {{contact.name}}",
@@ -261,7 +261,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_1",
         type: "trigger",
-        service: "keplero_contact_created",
+        service: "aistein_contact_created",
         config: {
           event: "contact_form_submitted",
           source: "website",
@@ -290,7 +290,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_4",
         type: "action",
-        service: "keplero_google_sheet_append_row",
+        service: "aistein_google_sheet_append_row",
         config: {
           spreadsheetId: "",
           range: "Sheet1!A1",
@@ -321,7 +321,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_2",
         type: "action",
-        service: "keplero_create_contact",
+        service: "aistein_create_contact",
         config: {
           name: "{{call.caller_name}}",
           phone: "{{call.caller_number}}",
@@ -333,7 +333,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_3",
         type: "action",
-        service: "keplero_google_sheet_append_row",
+        service: "aistein_google_sheet_append_row",
         config: {
           spreadsheetId: "",
           range: "Sheet1!A1",
@@ -356,7 +356,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_5",
         type: "action",
-        service: "keplero_google_calendar_check_availability",
+        service: "aistein_google_calendar_check_availability",
         config: {
           timeMin: "{{nextBusinessDay}}T09:00:00Z",
           timeMax: "{{nextBusinessDay}}T17:00:00Z",
@@ -367,7 +367,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_6",
         type: "action",
-        service: "keplero_google_calendar_create_event",
+        service: "aistein_google_calendar_create_event",
         config: {
           summary: "Follow-up Appointment - {{contact.name}}",
           description: "Inbound call follow-up: {{contact.email}}\nConversation: {{conversation.link}}",
@@ -381,7 +381,7 @@ export const automationTemplates: AutomationTemplate[] = [
       {
         id: "node_7",
         type: "action",
-        service: "keplero_google_gmail_send",
+        service: "aistein_google_gmail_send",
         config: {
           to: "{{contact.email}}",
           subject: "Appointment Details - {{contact.name}}",

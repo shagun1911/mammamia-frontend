@@ -70,7 +70,7 @@ export function NodeConfigPanel({
   useEffect(() => {
     // Fetch lists for contact moved trigger or batch call
     const fetchLists = async () => {
-      if (node.service === "keplero_contact_moved" || node.service === "keplero_create_contact" || node.service === "batch_call" || node.service === "keplero_mass_sending") {
+      if (node.service === "aistein_contact_moved" || node.service === "aistein_create_contact" || node.service === "batch_call" || node.service === "aistein_mass_sending") {
         setLoading(true);
         try {
           const response = await apiClient.get('/contacts/lists/all');
@@ -89,7 +89,7 @@ export function NodeConfigPanel({
     fetchLists();
 
     // Fetch Google Sheets spreadsheets when configuring Google Sheets action
-    if (node.service === "keplero_google_sheet_append_row") {
+    if (node.service === "aistein_google_sheet_append_row") {
       loadSpreadsheets();
     }
   }, [node.service]);
@@ -242,7 +242,7 @@ export function NodeConfigPanel({
   // CRITICAL: This function MUST use the current form state (selectedSpreadsheetId, spreadsheetLink, node.config.values)
   // to ensure all user inputs are captured, not just what's in node.config
   const ensureGoogleSheetsConfig = (): AutomationNode["config"] => {
-    if (node.service === "keplero_google_sheet_append_row") {
+    if (node.service === "aistein_google_sheet_append_row") {
       // Start with current node.config as base
       const config = { ...node.config };
 
@@ -306,7 +306,7 @@ export function NodeConfigPanel({
 
   // Validate Google Sheets config before save
   const validateGoogleSheetsConfig = (config: AutomationNode["config"]): { valid: boolean; error?: string } => {
-    if (node.service === "keplero_google_sheet_append_row") {
+    if (node.service === "aistein_google_sheet_append_row") {
       // Check if spreadsheetId is set (either from link or dropdown)
       const hasSpreadsheetId = config.spreadsheetId &&
         (typeof config.spreadsheetId === 'string' && config.spreadsheetId.trim() !== "");
@@ -426,7 +426,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - CONTACT CREATED TRIGGER */}
-          {node.service === "keplero_contact_created" && (
+          {node.service === "aistein_contact_created" && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 This automation will trigger whenever a new contact is created in your system.
@@ -445,7 +445,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - CONTACT DELETED TRIGGER */}
-          {node.service === "keplero_contact_deleted" && (
+          {node.service === "aistein_contact_deleted" && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 This automation will trigger whenever a contact is deleted from your system.
@@ -463,7 +463,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - CONTACT MOVED TRIGGER */}
-          {node.service === "keplero_contact_moved" && (
+          {node.service === "aistein_contact_moved" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -492,7 +492,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - BATCH CALL TRIGGER */}
-          {(node.service === "batch_call" || node.service === "keplero_mass_sending") && (
+          {(node.service === "batch_call" || node.service === "aistein_mass_sending") && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -586,7 +586,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - BATCH CALLING ACTION */}
-          {node.service === "keplero_batch_calling" && (
+          {node.service === "aistein_batch_calling" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -676,7 +676,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - EXTRACT DATA ACTION */}
-          {node.service === "keplero_extract_data" && (
+          {node.service === "aistein_extract_data" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -719,7 +719,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - OUTBOUND CALL ACTION */}
-          {node.service === "keplero_outbound_call" && (
+          {node.service === "aistein_outbound_call" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -822,7 +822,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - SEND SMS ACTION */}
-          {node.service === "keplero_send_sms" && (
+          {node.service === "aistein_send_sms" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -844,7 +844,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - SEND EMAIL ACTION */}
-          {node.service === "keplero_send_email" && (
+          {node.service === "aistein_send_email" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -922,7 +922,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - CREATE CONTACT ACTION */}
-          {node.service === "keplero_create_contact" && (
+          {node.service === "aistein_create_contact" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -994,7 +994,7 @@ export function NodeConfigPanel({
           )}
 
           {/* AISTEIN-IT - API CALL ACTION */}
-          {node.service === "keplero_api_call" && (
+          {node.service === "aistein_api_call" && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
@@ -1066,7 +1066,7 @@ export function NodeConfigPanel({
 
           {/* LEGACY TRIGGERS */}
           {(node.type === "trigger" && 
-            !node.service.startsWith("keplero_") && 
+            !node.service.startsWith("aistein_") && 
             node.service !== "batch_call_completed" &&
             node.service !== "conversation_created" &&
             node.service !== "batch_call") && (
@@ -1485,7 +1485,7 @@ export function NodeConfigPanel({
           )}
 
           {/* GOOGLE CALENDAR - CHECK AVAILABILITY */}
-          {node.service === "keplero_google_calendar_check_availability" && (
+          {node.service === "aistein_google_calendar_check_availability" && (
             <div className="space-y-4">
               {!isLoadingGoogleStatus && (!googleIntegrationStatus || !googleIntegrationStatus.services?.calendar) && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
@@ -1547,7 +1547,7 @@ export function NodeConfigPanel({
           )}
 
           {/* GOOGLE CALENDAR - CREATE EVENT */}
-          {node.service === "keplero_google_calendar_create_event" && (
+          {node.service === "aistein_google_calendar_create_event" && (
             <div className="space-y-4">
               {!isLoadingGoogleStatus && (!googleIntegrationStatus || !googleIntegrationStatus.services?.calendar) && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
@@ -1644,7 +1644,7 @@ export function NodeConfigPanel({
           )}
 
           {/* GOOGLE SHEETS - APPEND ROW */}
-          {(node.service === "keplero_google_sheet_append_row" || node.service === "keplero_user_google_sheet_append_row") && (
+          {(node.service === "aistein_google_sheet_append_row" || node.service === "aistein_user_google_sheet_append_row") && (
             <div className="space-y-4">
               {!isLoadingGoogleStatus && (!googleIntegrationStatus || !googleIntegrationStatus.services?.sheets) && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
@@ -1865,7 +1865,7 @@ export function NodeConfigPanel({
           )}
 
           {/* GOOGLE GMAIL - SEND EMAIL */}
-          {node.service === "keplero_google_gmail_send" && (
+          {node.service === "aistein_google_gmail_send" && (
             <div className="space-y-4">
               {!isLoadingSocialStatus && (!socialIntegrations || !socialIntegrations.gmail || socialIntegrations.gmail.status !== 'connected') && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4">
@@ -1985,7 +1985,7 @@ export function NodeConfigPanel({
               }
 
               // Ensure Google Sheets config is properly formatted before saving
-              if (node.service === "keplero_google_sheet_append_row") {
+              if (node.service === "aistein_google_sheet_append_row") {
                 // CRITICAL: Build final config from current form state
                 const finalConfig = ensureGoogleSheetsConfig();
 
