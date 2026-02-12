@@ -48,6 +48,8 @@ export function NodeConfigPanel({
   const [whatsappMode, setWhatsappMode] = useState<'automatic' | 'manual'>(
     (node.config.mode as 'automatic' | 'manual') || 'automatic'
   );
+  const [showTemplateInfo, setShowTemplateInfo] = useState(false);
+  const [selectedTemplateInfo, setSelectedTemplateInfo] = useState<any>(null);
   const [manualWhatsAppConfig, setManualWhatsAppConfig] = useState<{
     accessToken: string;
     phoneNumberId: string;
@@ -1293,6 +1295,15 @@ export function NodeConfigPanel({
                       template: selectedTemplateName,
                       languageCode: languageCode
                     });
+
+                    // Show template info modal if enriched metadata is available
+                    if (selectedTemplate.enrichedMetadata) {
+                      setSelectedTemplateInfo({
+                        ...selectedTemplate,
+                        enrichedMetadata: selectedTemplate.enrichedMetadata
+                      });
+                      setShowTemplateInfo(true);
+                    }
                   }}
                   className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
@@ -1327,7 +1338,159 @@ export function NodeConfigPanel({
                     Please re-select the template to capture the language
                   </p>
                 )}
+                {node.config.templateName && (() => {
+                  const currentTemplate = whatsappTemplates.find((tpl: any) => tpl.name === node.config.templateName);
+                  if (currentTemplate?.enrichedMetadata) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTemplateInfo(currentTemplate);
+                          setShowTemplateInfo(true);
+                        }}
+                        className="text-xs text-primary hover:text-primary/80 mt-2 flex items-center gap-1"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        View template details ({currentTemplate.enrichedMetadata.totalParamCount} param{currentTemplate.enrichedMetadata.totalParamCount !== 1 ? 's' : ''})
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
+
+              {/* Template Info Modal */}
+              {showTemplateInfo && selectedTemplateInfo && selectedTemplateInfo.enrichedMetadata && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                  <div className="bg-card border border-border rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl mx-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
+                      <div>
+                        <h2 className="text-xl font-semibold text-foreground">
+                          Template: {selectedTemplateInfo.name}
+                        </h2>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Language: {typeof selectedTemplateInfo.language === 'string' 
+                            ? selectedTemplateInfo.language 
+                            : selectedTemplateInfo.language?.code || 'N/A'} • 
+                          Status: {selectedTemplateInfo.status || 'N/A'} • 
+                          Category: {selectedTemplateInfo.category || 'N/A'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setShowTemplateInfo(false);
+                          setSelectedTemplateInfo(null);
+                        }}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="overflow-y-auto max-h-[calc(85vh-140px)] p-6 space-y-6">
+                      {/* Parameter Counts */}
+                      <div className="bg-secondary/50 rounded-lg p-4 border border-border">
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Parameter Requirements</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Total Parameters</p>
+                            <p className="text-2xl font-bold text-foreground mt-1">
+                              {selectedTemplateInfo.enrichedMetadata.totalParamCount || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Body Parameters</p>
+                            <p className="text-2xl font-bold text-primary mt-1">
+                              {selectedTemplateInfo.enrichedMetadata.bodyParamCount || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Header Parameters</p>
+                            <p className="text-2xl font-bold text-primary mt-1">
+                              {selectedTemplateInfo.enrichedMetadata.headerParamCount || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Button Parameters</p>
+                            <p className="text-2xl font-bold text-primary mt-1">
+                              {selectedTemplateInfo.enrichedMetadata.buttonParamCount || 0}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Header Preview */}
+                      {selectedTemplateInfo.enrichedMetadata.headerPreview && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground mb-2">Header Preview</h3>
+                          <div className="bg-secondary border border-border rounded-lg p-3 text-sm text-foreground whitespace-pre-wrap">
+                            {selectedTemplateInfo.enrichedMetadata.headerPreview}
+                          </div>
+                          {selectedTemplateInfo.enrichedMetadata.headerParamCount > 0 && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              This template requires {selectedTemplateInfo.enrichedMetadata.headerParamCount} header parameter(s). 
+                              Use the advanced "Components (JSON)" field to provide header parameters.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Body Preview */}
+                      {selectedTemplateInfo.enrichedMetadata.bodyPreview && (
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground mb-2">Body Preview</h3>
+                          <div className="bg-secondary border border-border rounded-lg p-3 text-sm text-foreground whitespace-pre-wrap">
+                            {selectedTemplateInfo.enrichedMetadata.bodyPreview}
+                          </div>
+                          {selectedTemplateInfo.enrichedMetadata.bodyParamCount > 0 && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              This template requires {selectedTemplateInfo.enrichedMetadata.bodyParamCount} body parameter(s). 
+                              Enter them in the "Template Parameters" fields below.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Info Message */}
+                      {selectedTemplateInfo.enrichedMetadata.totalParamCount === 0 && (
+                        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                          <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4" />
+                            This template requires no parameters. You can use it directly without filling parameter fields.
+                          </p>
+                        </div>
+                      )}
+
+                      {selectedTemplateInfo.enrichedMetadata.totalParamCount > 0 && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                          <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            Make sure to provide exactly {selectedTemplateInfo.enrichedMetadata.totalParamCount} parameter(s) 
+                            when using this template, or the automation will fail.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="border-t border-border p-4 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setShowTemplateInfo(false);
+                          setSelectedTemplateInfo(null);
+                        }}
+                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                      >
+                        Got it
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Template Parameters - Simple Input Fields */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
