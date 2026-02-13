@@ -57,7 +57,6 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
 
   // Group voices by gender for display
 
-  // Group voices by gender for display
   const voicesByGender = availableVoices.reduce((acc, voice) => {
     if (!acc[voice.gender]) {
       acc[voice.gender] = [];
