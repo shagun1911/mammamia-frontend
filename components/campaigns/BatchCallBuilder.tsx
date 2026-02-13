@@ -313,19 +313,39 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     }
   };
 
-  // Helper function to extract variables from greeting message (e.g., {{name}}, {{email}})
-  const extractVariablesFromGreeting = (greetingMessage: string): string[] => {
-    if (!greetingMessage) return [];
+  // Helper function to extract variables from text (e.g., {{name}}, {{email}})
+  const extractVariables = (text: string): string[] => {
+    if (!text) return [];
     const variablePattern = /\{\{(\w+)\}\}/g;
     const variables: string[] = [];
     let match;
-    while ((match = variablePattern.exec(greetingMessage)) !== null) {
+    while ((match = variablePattern.exec(text)) !== null) {
       const varName = match[1].toLowerCase(); // Normalize to lowercase
       if (!variables.includes(varName)) {
         variables.push(varName);
       }
     }
     return variables;
+  };
+
+  // Helper function to extract variables from greeting message (e.g., {{name}}, {{email}})
+  // Kept for backward compatibility
+  const extractVariablesFromGreeting = (greetingMessage: string): string[] => {
+    return extractVariables(greetingMessage);
+  };
+
+  // Extract all required variables from selected agent
+  const getRequiredVariables = (): string[] => {
+    if (!selectedAgentId) return [];
+    const selectedAgent = agents.find(agent => agent._id === selectedAgentId);
+    if (!selectedAgent) return [];
+    
+    const firstMessageVars = extractVariables(selectedAgent.first_message || '');
+    const systemPromptVars = extractVariables(selectedAgent.system_prompt || '');
+    
+    // Combine and deduplicate
+    const allVars = [...firstMessageVars, ...systemPromptVars];
+    return Array.from(new Set(allVars)).sort();
   };
 
   // Helper function to map CSV/XLS columns to dynamic_variables
@@ -597,6 +617,45 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                   No agents available. Please create an agent first.
                 </p>
               )}
+              
+              {/* Dynamic Variables Info */}
+              {selectedAgentId && (() => {
+                const requiredVars = getRequiredVariables();
+                if (requiredVars.length === 0) return null;
+                
+                return (
+                  <div className="mt-3 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">
+                          Required CSV/XLS Columns
+                        </h4>
+                        <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mb-2">
+                          Your CSV/XLS file must include these column names (exact match, case-insensitive) to populate the dynamic variables used in this agent's first message and system prompt:
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {requiredVars.map((varName) => (
+                            <span
+                              key={varName}
+                              className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-500/20 border border-blue-500/40 text-xs font-mono text-blue-700 dark:text-blue-300"
+                            >
+                              {varName}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-2">
+                          <strong>Note:</strong> Column names in your CSV/XLS should match these variable names exactly (e.g., if the agent uses <code className="bg-blue-500/20 px-1 rounded">{"{{name}}"}</code>, your CSV should have a column named <code className="bg-blue-500/20 px-1 rounded">name</code>).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* File Upload Section */}
