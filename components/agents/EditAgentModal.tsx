@@ -246,6 +246,16 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
         },
       });
 
+      // Automatically sync to ElevenLabs after successful update
+      // This ensures webhook is attached and tools are properly configured
+      try {
+        await agentService.syncToElevenLabs(agent.agent_id);
+        toast.success('Agent updated and synced successfully');
+      } catch (syncError: any) {
+        console.error('Failed to sync agent after update:', syncError);
+        toast.warning('Agent updated but sync failed. Click "Sync" button to retry.');
+      }
+
       onClose();
     } catch (error: any) {
       console.error('Failed to update agent prompt:', error);

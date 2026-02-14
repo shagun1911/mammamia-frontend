@@ -493,6 +493,60 @@ export function NodeConfigPanel({
             </div>
           )}
 
+          {/* WEBHOOK TRIGGER */}
+          {node.service === "webhook" && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Webhook URL <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="url"
+                  value={node.config.webhookUrl || ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, webhookUrl: e.target.value })
+                  }
+                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                  placeholder="https://your-webhook-url.com/webhook"
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enter the external webhook URL (e.g., n8n, Zapier, Make.com) where batch call data will be sent
+                </p>
+              </div>
+              
+              <div className="bg-secondary/50 border border-border rounded-lg p-4">
+                <h4 className="text-sm font-medium text-foreground mb-2">Webhook Payload Structure:</h4>
+                <pre className="text-xs text-muted-foreground overflow-x-auto">
+{`{
+  "event": "batch_call_completed",
+  "timestamp": "2026-02-14T...",
+  "organizationId": "...",
+  "batch_id": "...",
+  "contactId": "...",
+  "freshContactData": {
+    "name": "...",
+    "email": "...",
+    "phone": "..."
+  },
+  "conversation": {
+    "conversation_id": "...",
+    "agent_id": "...",
+    "transcript": "...",
+    "summary": "...",
+    "status": "..."
+  }
+}`}
+                </pre>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <p className="text-xs text-blue-400">
+                  ℹ️ This webhook will only trigger after batch calls complete. Make sure your webhook URL is publicly accessible and can handle POST requests.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* AISTEIN-IT - BATCH CALL TRIGGER */}
           {(node.service === "batch_call" || node.service === "aistein_mass_sending") && (
             <div className="space-y-4">
@@ -1071,7 +1125,8 @@ export function NodeConfigPanel({
             !node.service.startsWith("aistein_") && 
             node.service !== "batch_call_completed" &&
             node.service !== "conversation_created" &&
-            node.service !== "batch_call") && (
+            node.service !== "batch_call" &&
+            node.service !== "webhook") && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">

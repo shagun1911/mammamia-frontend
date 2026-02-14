@@ -246,7 +246,7 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
     }
 
     try {
-      await createAgent.mutateAsync({
+      const createdAgent = await createAgent.mutateAsync({
         name: name.trim(),
         first_message: firstMessage.trim() || getDefaultGreeting(language),
         system_prompt: systemPrompt.trim() || getDefaultSystemPrompt(language),
@@ -255,6 +255,17 @@ export function CreateAgentModal({ isOpen, onClose }: CreateAgentModalProps) {
         escalationRules: escalationRules.filter(rule => rule.trim() !== '') || undefined,
         knowledge_base_ids: selectedKBIds,
       });
+
+      // Automatically sync to ElevenLabs after successful creation
+      // This ensures webhook is attached and tools are properly configured
+      try {
+        const { agentService } = await import('@/services/agent.service');
+        await agentService.syncToElevenLabs(createdAgent.agent_id);
+        toast.success('Agent created and synced successfully');
+      } catch (syncError: any) {
+        console.error('Failed to sync agent after creation:', syncError);
+        toast.warning('Agent created but sync may be needed. Use the Sync button if needed.');
+      }
 
       // Reset form
       setName('');

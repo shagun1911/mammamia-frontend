@@ -333,12 +333,17 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
         };
       });
 
+      // Extract webhook URL from webhook trigger node if present
+      const webhookNode = selectedAutomation.nodes.find(node => node.service === 'webhook');
+      const webhookUrl = webhookNode?.config?.webhookUrl || null;
+
       const response = await apiClient.patch(
         `/automations/${selectedAutomationId}`,
         {
           name: selectedAutomation.name,
           nodes: backendNodes,
           isActive: selectedAutomation.status === "enabled",
+          webhookUrl: webhookUrl, // Send webhook URL at automation level
         }
       );
 
