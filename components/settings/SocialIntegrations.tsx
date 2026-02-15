@@ -22,7 +22,9 @@ import {
   Shield,
   Zap,
   ArrowRight,
-  Link2
+  Link2,
+  Copy,
+  Check
 } from 'lucide-react';
 
 interface Integration {
@@ -108,6 +110,12 @@ export default function SocialIntegrations() {
     phoneNumberId: '',
     wabaId: ''
   });
+  const [webhookConfig, setWebhookConfig] = useState<{
+    url: string;
+    verifyToken: string;
+    subscribed: boolean;
+    show: boolean;
+  } | null>(null);
 
   useEffect(() => {
     fetchIntegrations();
@@ -294,6 +302,17 @@ export default function SocialIntegrations() {
         toast.success('WhatsApp connected successfully!');
         setShowWhatsAppForm(false);
         setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
+        
+        // Show webhook configuration if provided
+        if (response.data?.webhookConfiguration) {
+          setWebhookConfig({
+            url: response.data.webhookConfiguration.url,
+            verifyToken: response.data.webhookConfiguration.verifyToken,
+            subscribed: response.data.webhookConfiguration.subscribed || false,
+            show: true
+          });
+        }
+        
         await fetchIntegrations();
       }
     } catch (error: any) {
@@ -883,6 +902,156 @@ export default function SocialIntegrations() {
           </div>
         </Card>
       </div>
+
+      {/* Webhook Configuration Modal */}
+      {webhookConfig && webhookConfig.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <Link2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">Webhook Configuration Required</h3>
+                    <p className="text-sm text-muted-foreground">Configure webhook in your Meta App Dashboard</p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setWebhookConfig(null)}
+                  className="h-8 w-8 p-0"
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {webhookConfig.subscribed ? (
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg mb-6">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">
+                        Webhook Automatically Subscribed!
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-300">
+                        Your webhook has been automatically configured. You can still verify it in Meta App Dashboard if needed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg mb-6">
+                  <div className="flex items-start gap-2.5">
+                    <Settings className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                        Manual Webhook Configuration Required
+                      </p>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                        Please configure the webhook in your Meta App Dashboard to receive incoming messages.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-foreground mb-2 block">
+                    Webhook URL
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={webhookConfig.url}
+                      readOnly
+                      className="flex-1 font-mono text-sm bg-secondary"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(webhookConfig.url);
+                        toast.success('Webhook URL copied to clipboard!');
+                      }}
+                      className="h-10 px-3"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium text-foreground mb-2 block">
+                    Verify Token
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={webhookConfig.verifyToken}
+                      readOnly
+                      type="password"
+                      className="flex-1 font-mono text-sm bg-secondary"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(webhookConfig.verifyToken);
+                        toast.success('Verify Token copied to clipboard!');
+                      }}
+                      className="h-10 px-3"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="text-sm font-semibold text-foreground mb-3">Setup Instructions:</h4>
+                  <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
+                    <li>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">Meta App Dashboard <ExternalLink className="h-3 w-3" /></a></li>
+                    <li>Select your WhatsApp Business App</li>
+                    <li>Navigate to <strong>WhatsApp → Configuration → Webhooks</strong></li>
+                    <li>Click <strong>"Edit"</strong> or <strong>"Add Callback URL"</strong></li>
+                    <li>Paste the <strong>Webhook URL</strong> from above</li>
+                    <li>Paste the <strong>Verify Token</strong> from above</li>
+                    <li>Click <strong>"Verify and Save"</strong></li>
+                    <li>Subscribe to these webhook fields:
+                      <ul className="ml-6 mt-1 space-y-1 list-disc">
+                        <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messages</code></li>
+                        <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">message_status</code></li>
+                      </ul>
+                    </li>
+                  </ol>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    onClick={() => setWebhookConfig(null)}
+                    className="flex-1 h-11 font-medium"
+                  >
+                    Got it, I'll configure it
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      window.open('https://developers.facebook.com/apps', '_blank');
+                    }}
+                    className="h-11"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open Meta Dashboard
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
