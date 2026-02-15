@@ -53,11 +53,11 @@ interface IntegrationConfig {
 const PLATFORMS = {
   whatsapp: {
     name: 'WhatsApp Business',
-    description: 'Connect your WhatsApp Business account via Meta OAuth',
+    description: 'Connect your WhatsApp Business account using Access Token, Phone Number ID, and WABA ID',
     icon: MessageSquare,
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
     color: 'green',
-    oauthEnabled: true
+    oauthEnabled: false // Changed to manual connection
   },
   instagram: {
     name: 'Instagram Direct',
@@ -99,6 +99,12 @@ export default function SocialIntegrations() {
   const [logoErrors, setLogoErrors] = useState<Record<string, boolean>>({});
   const [manualForm, setManualForm] = useState<IntegrationConfig>({
     apiKey: '',
+    phoneNumberId: '',
+    wabaId: ''
+  });
+  const [showWhatsAppForm, setShowWhatsAppForm] = useState(false);
+  const [whatsAppCredentials, setWhatsAppCredentials] = useState({
+    accessToken: '',
     phoneNumberId: '',
     wabaId: ''
   });
@@ -153,6 +159,17 @@ export default function SocialIntegrations() {
   };
 
   const initiateOAuth = async (platform: 'whatsapp' | 'instagram' | 'facebook' | 'gmail') => {
+    console.log('[initiateOAuth] Called with platform:', platform);
+    
+    // For WhatsApp, show manual form instead of OAuth
+    if (platform === 'whatsapp') {
+      console.log('[initiateOAuth] WhatsApp detected, showing manual form');
+      setShowWhatsAppForm(true);
+      console.log('[initiateOAuth] showWhatsAppForm set to true');
+      return;
+    }
+    
+    console.log('[initiateOAuth] Not WhatsApp, proceeding with OAuth for:', platform);
     setConnecting(platform);
     try {
       const response = await apiClient.post(`/social-integrations/${platform}/oauth/initiate`);
@@ -243,12 +260,51 @@ export default function SocialIntegrations() {
       
       if (response.success) {
         toast.success(`${PLATFORMS[platform].name} disconnected`);
+        // Reset WhatsApp form if disconnecting WhatsApp
+        if (platform === 'whatsapp') {
+          setShowWhatsAppForm(false);
+          setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
+        }
         await fetchIntegrations();
       }
     } catch (error: any) {
       console.error('Error disconnecting platform:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to disconnect';
       toast.error(errorMessage);
+    }
+  };
+
+  const connectWhatsAppManual = async () => {
+    const { accessToken, phoneNumberId, wabaId } = whatsAppCredentials;
+    
+    if (!accessToken || !phoneNumberId || !wabaId) {
+      toast.error('All fields are required: Access Token, Phone Number ID, and WABA ID');
+      return;
+    }
+
+    setConnecting('whatsapp');
+    try {
+      const response = await apiClient.post('/social-integrations/whatsapp/connect-manual', {
+        accessToken,
+        phoneNumberId,
+        wabaId
+      });
+      
+      if (response.success) {
+        toast.success('WhatsApp connected successfully!');
+        setShowWhatsAppForm(false);
+        setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
+        await fetchIntegrations();
+      }
+    } catch (error: any) {
+      console.error('Error connecting WhatsApp manually:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to connect WhatsApp';
+      toast.error(errorMessage);
+    } finally {
+      setConnecting(null);
     }
   };
 
@@ -466,25 +522,102 @@ export default function SocialIntegrations() {
           {!showForm && (
             <div className="mt-auto pt-4 border-t border-border">
               {!isConnected ? (
-                <Button
-                  onClick={() => initiateOAuth(platform)}
-                  disabled={isConnecting}
-                  className={`w-full h-11 text-sm sm:text-base font-semibold ${colors.button} shadow-lg hover:shadow-xl transition-all duration-300 group/btn`}
-                  size="lg"
-                >
-                  {isConnecting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-                      <span>Connecting...</span>
-                    </>
+                <>
+                  {(() => {
+                    console.log('[Render] Platform:', platform, 'showWhatsAppForm:', showWhatsAppForm);
+                    return null;
+                  })()}
+                  {platform === 'whatsapp' && showWhatsAppForm ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Access Token <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={whatsAppCredentials.accessToken}
+                          onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="Enter Meta Access Token"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Phone Number ID <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsAppCredentials.phoneNumberId}
+                          onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, phoneNumberId: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="930062466863543"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          WABA ID <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsAppCredentials.wabaId}
+                          onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, wabaId: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="1559660438592434"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setShowWhatsAppForm(false);
+                            setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
+                          }}
+                          variant="outline"
+                          className="flex-1 h-10 text-sm"
+                          disabled={connecting === 'whatsapp'}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={connectWhatsAppManual}
+                          disabled={connecting === 'whatsapp'}
+                          className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
+                        >
+                          {connecting === 'whatsapp' ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span>Connecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare className="mr-2 h-4 w-4" />
+                              <span>Connect</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
-                    <>
-                      <Icon className="mr-2 h-4 w-4 sm:h-5 sm:w-5 group-hover/btn:scale-110 transition-transform" />
-                      <span className="truncate">Connect {config.name.split(' ')[0]}</span>
-                      <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform flex-shrink-0" />
-                    </>
+                    <Button
+                      onClick={() => initiateOAuth(platform)}
+                      disabled={isConnecting}
+                      className={`w-full h-11 text-sm sm:text-base font-semibold ${colors.button} shadow-lg hover:shadow-xl transition-all duration-300 group/btn`}
+                      size="lg"
+                    >
+                      {isConnecting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                          <span>Connecting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Icon className="mr-2 h-4 w-4 sm:h-5 sm:w-5 group-hover/btn:scale-110 transition-transform" />
+                          <span className="truncate">Connect {config.name.split(' ')[0]}</span>
+                          <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform flex-shrink-0" />
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
+                </>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-2.5">
                   <Button
