@@ -1343,7 +1343,7 @@ export function NodeConfigPanel({
                     console.log(`[WhatsApp Template] ✅ Selected: ${selectedTemplateName} (${languageCode})`);
                     toast.success(`Template selected: ${selectedTemplateName} (${languageCode})`);
                     
-                    // Store BOTH templateName AND languageCode
+                 
                     onUpdate({ 
                       ...node.config, 
                       templateName: selectedTemplateName, 
