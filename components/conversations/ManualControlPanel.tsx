@@ -223,7 +223,7 @@ export function ManualControlPanel({
             onClick={onReleaseControl}
             className="px-5 py-2.5 bg-secondary rounded-lg text-muted-foreground text-sm font-medium hover:text-foreground transition-colors"
           >
-            Release to Kepler
+            Release to Aistein
           </button>
         </div>
       </div>
