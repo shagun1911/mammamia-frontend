@@ -63,19 +63,19 @@ const PLATFORMS = {
   },
   instagram: {
     name: 'Instagram Direct',
-    description: 'Connect your Instagram Business account via Meta OAuth',
+    description: 'Connect your Instagram Business account using Access Token, Instagram Account ID, and Page ID',
     icon: Instagram,
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png',
     color: 'pink',
-    oauthEnabled: true
+    oauthEnabled: false // Changed to manual connection
   },
   facebook: {
     name: 'Facebook Messenger',
-    description: 'Connect your Facebook Page via Meta OAuth',
+    description: 'Connect your Facebook Page using Page Access Token and Page ID',
     icon: Facebook,
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg',
     color: 'blue',
-    oauthEnabled: true
+    oauthEnabled: false // Changed to manual connection
   },
   gmail: {
     name: 'Gmail',
@@ -110,11 +110,24 @@ export default function SocialIntegrations() {
     phoneNumberId: '',
     wabaId: ''
   });
+  const [showInstagramForm, setShowInstagramForm] = useState(false);
+  const [instagramCredentials, setInstagramCredentials] = useState({
+    accessToken: '',
+    instagramAccountId: '',
+    facebookPageId: ''
+  });
+  const [showFacebookForm, setShowFacebookForm] = useState(false);
+  const [facebookCredentials, setFacebookCredentials] = useState({
+    pageAccessToken: '',
+    facebookPageId: '',
+    appId: ''
+  });
   const [webhookConfig, setWebhookConfig] = useState<{
     url: string;
     verifyToken: string;
     subscribed: boolean;
     show: boolean;
+    platform: 'whatsapp' | 'instagram' | 'facebook';
   } | null>(null);
 
   useEffect(() => {
@@ -177,7 +190,21 @@ export default function SocialIntegrations() {
       return;
     }
     
-    console.log('[initiateOAuth] Not WhatsApp, proceeding with OAuth for:', platform);
+    // For Instagram, show manual form instead of OAuth
+    if (platform === 'instagram') {
+      console.log('[initiateOAuth] Instagram detected, showing manual form');
+      setShowInstagramForm(true);
+      return;
+    }
+    
+    // For Facebook, show manual form instead of OAuth
+    if (platform === 'facebook') {
+      console.log('[initiateOAuth] Facebook detected, showing manual form');
+      setShowFacebookForm(true);
+      return;
+    }
+    
+    console.log('[initiateOAuth] Not WhatsApp/Instagram/Facebook, proceeding with OAuth for:', platform);
     setConnecting(platform);
     try {
       const response = await apiClient.post(`/social-integrations/${platform}/oauth/initiate`);
@@ -273,6 +300,16 @@ export default function SocialIntegrations() {
           setShowWhatsAppForm(false);
           setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
         }
+        // Reset Instagram form if disconnecting Instagram
+        if (platform === 'instagram') {
+          setShowInstagramForm(false);
+          setInstagramCredentials({ accessToken: '', instagramAccountId: '', facebookPageId: '' });
+        }
+        // Reset Facebook form if disconnecting Facebook
+        if (platform === 'facebook') {
+          setShowFacebookForm(false);
+          setFacebookCredentials({ pageAccessToken: '', facebookPageId: '', appId: '' });
+        }
         await fetchIntegrations();
       }
     } catch (error: any) {
@@ -309,7 +346,8 @@ export default function SocialIntegrations() {
             url: response.data.webhookConfiguration.url,
             verifyToken: response.data.webhookConfiguration.verifyToken,
             subscribed: response.data.webhookConfiguration.subscribed || false,
-            show: true
+            show: true,
+            platform: 'whatsapp'
           });
         }
         
@@ -321,6 +359,98 @@ export default function SocialIntegrations() {
                           error.response?.data?.message || 
                           error.message || 
                           'Failed to connect WhatsApp';
+      toast.error(errorMessage);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const connectInstagramManual = async () => {
+    const { accessToken, instagramAccountId, facebookPageId } = instagramCredentials;
+    
+    if (!accessToken || !instagramAccountId || !facebookPageId) {
+      toast.error('All fields are required: Access Token, Instagram Account ID, and Facebook Page ID');
+      return;
+    }
+
+    setConnecting('instagram');
+    try {
+      const response = await apiClient.post('/social-integrations/instagram/connect-manual', {
+        accessToken,
+        instagramAccountId,
+        facebookPageId
+      });
+      
+      if (response.success) {
+        toast.success('Instagram connected successfully!');
+        setShowInstagramForm(false);
+        setInstagramCredentials({ accessToken: '', instagramAccountId: '', facebookPageId: '' });
+        
+        // Show webhook configuration if provided
+        if (response.data?.webhookConfiguration) {
+          setWebhookConfig({
+            url: response.data.webhookConfiguration.url,
+            verifyToken: response.data.webhookConfiguration.verifyToken,
+            subscribed: response.data.webhookConfiguration.subscribed || false,
+            show: true,
+            platform: 'instagram'
+          });
+        }
+        
+        await fetchIntegrations();
+      }
+    } catch (error: any) {
+      console.error('Error connecting Instagram manually:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to connect Instagram';
+      toast.error(errorMessage);
+    } finally {
+      setConnecting(null);
+    }
+  };
+
+  const connectFacebookManual = async () => {
+    const { pageAccessToken, facebookPageId } = facebookCredentials;
+    
+    if (!pageAccessToken || !facebookPageId) {
+      toast.error('Page Access Token and Facebook Page ID are required');
+      return;
+    }
+
+    setConnecting('facebook');
+    try {
+      const response = await apiClient.post('/social-integrations/facebook/connect-manual', {
+        pageAccessToken,
+        facebookPageId,
+        appId: facebookCredentials.appId || undefined
+      });
+      
+      if (response.success) {
+        toast.success('Facebook connected successfully!');
+        setShowFacebookForm(false);
+        setFacebookCredentials({ pageAccessToken: '', facebookPageId: '', appId: '' });
+        
+        // Show webhook configuration if provided
+        if (response.data?.webhookConfiguration) {
+          setWebhookConfig({
+            url: response.data.webhookConfiguration.url,
+            verifyToken: response.data.webhookConfiguration.verifyToken,
+            subscribed: response.data.webhookConfiguration.subscribed || false,
+            show: true,
+            platform: 'facebook'
+          });
+        }
+        
+        await fetchIntegrations();
+      }
+    } catch (error: any) {
+      console.error('Error connecting Facebook manually:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to connect Facebook';
       toast.error(errorMessage);
     } finally {
       setConnecting(null);
@@ -609,6 +739,144 @@ export default function SocialIntegrations() {
                           ) : (
                             <>
                               <MessageSquare className="mr-2 h-4 w-4" />
+                              <span>Connect</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : platform === 'instagram' && showInstagramForm ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Access Token <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={instagramCredentials.accessToken}
+                          onChange={(e) => setInstagramCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="Enter Meta Access Token"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Instagram Account ID <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={instagramCredentials.instagramAccountId}
+                          onChange={(e) => setInstagramCredentials(prev => ({ ...prev, instagramAccountId: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="17841400123456789"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Facebook Page ID <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={instagramCredentials.facebookPageId}
+                          onChange={(e) => setInstagramCredentials(prev => ({ ...prev, facebookPageId: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="123456789012345"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setShowInstagramForm(false);
+                            setInstagramCredentials({ accessToken: '', instagramAccountId: '', facebookPageId: '' });
+                          }}
+                          variant="outline"
+                          className="flex-1 h-10 text-sm"
+                          disabled={connecting === 'instagram'}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={connectInstagramManual}
+                          disabled={connecting === 'instagram'}
+                          className="flex-1 h-10 bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold"
+                        >
+                          {connecting === 'instagram' ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span>Connecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Instagram className="mr-2 h-4 w-4" />
+                              <span>Connect</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : platform === 'facebook' && showFacebookForm ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Page Access Token <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={facebookCredentials.pageAccessToken}
+                          onChange={(e) => setFacebookCredentials(prev => ({ ...prev, pageAccessToken: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="Enter Facebook Page Access Token (EAAG...)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Facebook Page ID <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={facebookCredentials.facebookPageId}
+                          onChange={(e) => setFacebookCredentials(prev => ({ ...prev, facebookPageId: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="123456789012345"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          App ID (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={facebookCredentials.appId}
+                          onChange={(e) => setFacebookCredentials(prev => ({ ...prev, appId: e.target.value }))}
+                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder="1234567890123456"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setShowFacebookForm(false);
+                            setFacebookCredentials({ pageAccessToken: '', facebookPageId: '', appId: '' });
+                          }}
+                          variant="outline"
+                          className="flex-1 h-10 text-sm"
+                          disabled={connecting === 'facebook'}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={connectFacebookManual}
+                          disabled={connecting === 'facebook'}
+                          className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
+                        >
+                          {connecting === 'facebook' ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span>Connecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Facebook className="mr-2 h-4 w-4" />
                               <span>Connect</span>
                             </>
                           )}
@@ -914,7 +1182,11 @@ export default function SocialIntegrations() {
                     <Link2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-foreground">Webhook Configuration Required</h3>
+                    <h3 className="text-xl font-bold text-foreground">
+                      {webhookConfig.platform === 'whatsapp' && 'WhatsApp Webhook Configuration'}
+                      {webhookConfig.platform === 'instagram' && 'Instagram Webhook Configuration'}
+                      {webhookConfig.platform === 'facebook' && 'Facebook Webhook Configuration'}
+                    </h3>
                     <p className="text-sm text-muted-foreground">Configure webhook in your Meta App Dashboard</p>
                   </div>
                 </div>
@@ -1014,18 +1286,58 @@ export default function SocialIntegrations() {
                   <h4 className="text-sm font-semibold text-foreground mb-3">Setup Instructions:</h4>
                   <ol className="space-y-2 text-sm text-muted-foreground list-decimal list-inside">
                     <li>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">Meta App Dashboard <ExternalLink className="h-3 w-3" /></a></li>
-                    <li>Select your WhatsApp Business App</li>
-                    <li>Navigate to <strong>WhatsApp → Configuration → Webhooks</strong></li>
-                    <li>Click <strong>"Edit"</strong> or <strong>"Add Callback URL"</strong></li>
-                    <li>Paste the <strong>Webhook URL</strong> from above</li>
-                    <li>Paste the <strong>Verify Token</strong> from above</li>
-                    <li>Click <strong>"Verify and Save"</strong></li>
-                    <li>Subscribe to these webhook fields:
-                      <ul className="ml-6 mt-1 space-y-1 list-disc">
-                        <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messages</code></li>
-                        <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">message_status</code></li>
-                      </ul>
-                    </li>
+                    {webhookConfig.platform === 'whatsapp' && (
+                      <>
+                        <li>Select your <strong>WhatsApp Business App</strong></li>
+                        <li>Navigate to <strong>WhatsApp → Configuration → Webhooks</strong></li>
+                        <li>Click <strong>"Edit"</strong> or <strong>"Add Callback URL"</strong></li>
+                        <li>Paste the <strong>Webhook URL</strong> from above</li>
+                        <li>Paste the <strong>Verify Token</strong> from above</li>
+                        <li>Click <strong>"Verify and Save"</strong></li>
+                        <li>Subscribe to these webhook fields:
+                          <ul className="ml-6 mt-1 space-y-1 list-disc">
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messages</code></li>
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">message_status</code></li>
+                          </ul>
+                        </li>
+                      </>
+                    )}
+                    {webhookConfig.platform === 'instagram' && (
+                      <>
+                        <li>Select your <strong>Instagram App</strong> (or the app with Instagram product)</li>
+                        <li>Navigate to <strong>Instagram → Configuration → Webhooks</strong></li>
+                        <li>Click <strong>"Edit"</strong> or <strong>"Add Callback URL"</strong></li>
+                        <li>Paste the <strong>Webhook URL</strong> from above</li>
+                        <li>Paste the <strong>Verify Token</strong> from above</li>
+                        <li>Click <strong>"Verify and Save"</strong></li>
+                        <li>Subscribe to these webhook fields:
+                          <ul className="ml-6 mt-1 space-y-1 list-disc">
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messages</code></li>
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messaging_postbacks</code></li>
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">message_reactions</code></li>
+                          </ul>
+                        </li>
+                      </>
+                    )}
+                    {webhookConfig.platform === 'facebook' && (
+                      <>
+                        <li>Select your <strong>Facebook App</strong> (with Messenger product)</li>
+                        <li>Navigate to <strong>Messenger → Settings → Webhooks</strong></li>
+                        <li>Click <strong>"Edit"</strong> or <strong>"Add Callback URL"</strong></li>
+                        <li>Paste the <strong>Webhook URL</strong> from above</li>
+                        <li>Paste the <strong>Verify Token</strong> from above</li>
+                        <li>Click <strong>"Verify and Save"</strong></li>
+                        <li>Subscribe your Facebook Page to the webhook</li>
+                        <li>Subscribe to these webhook fields:
+                          <ul className="ml-6 mt-1 space-y-1 list-disc">
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messages</code></li>
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">messaging_postbacks</code></li>
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">message_reads</code></li>
+                            <li><code className="bg-background px-1.5 py-0.5 rounded text-xs">message_deliveries</code></li>
+                          </ul>
+                        </li>
+                      </>
+                    )}
                   </ol>
                 </div>
 
