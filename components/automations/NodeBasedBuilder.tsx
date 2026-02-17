@@ -741,6 +741,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
           onClose={() => setSelectedNodeId(null)}
           onUpdate={handleUpdateNode}
           onDelete={() => handleDeleteNode(selectedNode.id)}
+          allNodes={selectedAutomation?.nodes ?? []}
         />
       )}
     </div>

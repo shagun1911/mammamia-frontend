@@ -153,6 +153,19 @@ class AutomationService {
       throw new Error(error.message || 'Failed to duplicate automation');
     }
   }
+
+  /**
+   * Suggest extraction_prompt and json_example from an agent's system prompt.
+   * Pass agent_id (MongoDB _id) to use that agent's prompt; backend fetches agent and uses LLM to suggest schema.
+   */
+  async suggestExtractionSchema(params: { agent_id?: string; system_prompt?: string }): Promise<{ extraction_prompt: string; json_example: Record<string, unknown> }> {
+    const response = await apiClient.post<{ data?: { extraction_prompt: string; json_example: Record<string, unknown> } }>(
+      '/automations/suggest-extraction-schema',
+      params
+    );
+    const envelope = response as { data?: { extraction_prompt: string; json_example: Record<string, unknown> }; extraction_prompt?: string; json_example?: Record<string, unknown> };
+    return envelope.data ?? (envelope as { extraction_prompt: string; json_example: Record<string, unknown> });
+  }
 }
 
 // Export singleton instance

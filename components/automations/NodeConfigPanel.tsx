@@ -10,12 +10,15 @@ import { useGoogleIntegrationsStatus } from "@/hooks/useGoogleIntegrationsStatus
 import { useSocialIntegrationsStatus } from "@/hooks/useSocialIntegrationsStatus";
 import { useAgents } from "@/hooks/useAgents";
 import { usePhoneNumbersList } from "@/hooks/usePhoneNumber";
+import { automationService } from "@/services/automation.service";
 
 interface NodeConfigPanelProps {
   node: AutomationNode;
   onClose: () => void;
   onUpdate: (config: AutomationNode["config"]) => void;
   onDelete: () => void;
+  /** All nodes in the automation; used to suggest {{extracted.*}} from the extract node's JSON example */
+  allNodes?: AutomationNode[];
 }
 
 export function NodeConfigPanel({
@@ -23,6 +26,7 @@ export function NodeConfigPanel({
   onClose,
   onUpdate,
   onDelete,
+  allNodes = [],
 }: NodeConfigPanelProps) {
   const [lists, setLists] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,6 +64,11 @@ export function NodeConfigPanel({
     wabaId: (node.config.wabaId as string) || ''
   });
 
+  // JSON example raw text for extract node (so textarea does not revert while typing)
+  const [jsonExampleRaw, setJsonExampleRaw] = useState<string>("");
+  const jsonExampleKey = node.id + (node.service === "aistein_extract_data" || node.service === "aistein_extract_appointment" ? "_extract" : "");
+  const [suggestingFromAgent, setSuggestingFromAgent] = useState(false);
+
   // Sync selectedSpreadsheetId with node.config.spreadsheetId when node changes
   // This ensures state persists when switching between nodes or reopening the panel
   useEffect(() => {
@@ -68,6 +77,20 @@ export function NodeConfigPanel({
     // Clear link input when node changes (will be populated if user pastes link)
     setSpreadsheetLink("");
   }, [node.id, node.config.spreadsheetId]);
+
+  // Sync jsonExampleRaw from node.config when opening extract node
+  useEffect(() => {
+    if (node.service === "aistein_extract_data" || node.service === "aistein_extract_appointment") {
+      const ex = node.config.json_example;
+      if (typeof ex === "object" && ex !== null && !Array.isArray(ex)) {
+        setJsonExampleRaw(JSON.stringify(ex, null, 2));
+      } else if (typeof ex === "string") {
+        setJsonExampleRaw(ex);
+      } else {
+        setJsonExampleRaw("");
+      }
+    }
+  }, [jsonExampleKey, node.service, node.config.json_example]);
 
   useEffect(() => {
     // Fetch lists for contact moved trigger or batch call
@@ -427,6 +450,115 @@ export function NodeConfigPanel({
             </div>
           )}
 
+          {/* CONDITION NODE - dynamic field from Extract node json_example */}
+          {(node.type === "condition" && node.service === "condition") && (() => {
+            const extractNodes = (allNodes || []).filter(
+              (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
+            );
+            const legacyFields: { value: string; label: string }[] = [
+              { value: "appointment.booked", label: "appointment.booked (legacy)" },
+            ];
+            const extractedFields: { value: string; label: string }[] = [];
+            extractNodes.forEach((extractNode) => {
+              const ex = extractNode.config?.json_example;
+              if (typeof ex === "object" && ex !== null && !Array.isArray(ex)) {
+                Object.keys(ex).forEach((key) => {
+                  const fieldValue = `extracted.${key}`;
+                  if (!extractedFields.some((f) => f.value === fieldValue)) {
+                    extractedFields.push({ value: fieldValue, label: fieldValue });
+                  }
+                });
+              }
+            });
+            const allFieldOptions = [...legacyFields, ...extractedFields];
+            const currentField = (node.config.field as string) || "";
+            const hasExtractKeys = extractedFields.length > 0;
+            return (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Field to check
+                  </label>
+                  <select
+                    value={currentField}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (hasExtractKeys && v.startsWith("extracted.")) {
+                        const key = v.replace("extracted.", "");
+                        const sample = extractNodes.map((n) => (n.config?.json_example as Record<string, unknown>)?.[key]).find((val) => val !== undefined);
+                        if (typeof sample === "boolean" && !node.config.operator) {
+                          onUpdate({ ...node.config, field: v, operator: "equals", value: true });
+                          return;
+                        }
+                      }
+                      onUpdate({ ...node.config, field: v });
+                    }}
+                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="">Select field...</option>
+                    {allFieldOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {hasExtractKeys
+                      ? "Use a field from your Extract node (e.g. extracted.interested_in_loan) or the legacy appointment.booked."
+                      : "Add an Extract node with a JSON example to see extracted.* options here."}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Operator
+                  </label>
+                  <select
+                    value={(node.config.operator as string) || "equals"}
+                    onChange={(e) =>
+                      onUpdate({ ...node.config, operator: e.target.value })
+                    }
+                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="equals">equals</option>
+                    <option value="not_equals">not equals</option>
+                    <option value="contains">contains</option>
+                    <option value="not_contains">not contains</option>
+                    <option value="greater_than">greater than</option>
+                    <option value="less_than">less than</option>
+                    <option value="is_true">is true</option>
+                    <option value="is_false">is false</option>
+                    <option value="exists">exists</option>
+                    <option value="not_exists">not exists</option>
+                  </select>
+                </div>
+                {!["is_true", "is_false", "exists", "not_exists"].includes((node.config.operator as string) || "") && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">
+                      Value
+                    </label>
+                    <input
+                      type="text"
+                      value={node.config.value !== undefined && node.config.value !== null ? String(node.config.value) : ""}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        let value: unknown = raw;
+                        if (raw === "true") value = true;
+                        else if (raw === "false") value = false;
+                        else if (!isNaN(Number(raw)) && raw.trim() !== "") value = Number(raw);
+                        onUpdate({ ...node.config, value });
+                      }}
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="e.g. true, false, or text"
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  When this condition is true, the &quot;Yes&quot; branch runs; otherwise the &quot;No&quot; branch. Use extracted fields from your Extract node (e.g. interested_in_loan) so the flow triggers on the right outcome.
+                </p>
+              </div>
+            );
+          })()}
+
           {/* AISTEIN-IT - CONTACT CREATED TRIGGER */}
           {node.service === "aistein_contact_created" && (
             <div className="space-y-4">
@@ -731,23 +863,131 @@ export function NodeConfigPanel({
             </div>
           )}
 
-          {/* AISTEIN-IT - EXTRACT DATA ACTION */}
-          {node.service === "aistein_extract_data" && (
+          {/* AISTEIN-IT - EXTRACT DATA / EXTRACT APPOINTMENT (dynamic extraction_prompt + json_example or legacy type) */}
+          {(node.service === "aistein_extract_data" || node.service === "aistein_extract_appointment") && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Extraction Type
+                  Extraction source
                 </label>
                 <select
-                  value={node.config.extraction_type || "appointment"}
-                  onChange={(e) =>
-                    onUpdate({ ...node.config, extraction_type: e.target.value })
-                  }
+                  value={(node.config.extraction_source as string) || "custom"}
+                  onChange={(e) => {
+                    const v = e.target.value as "custom" | "from_agent";
+                    onUpdate({
+                      ...node.config,
+                      extraction_source: v,
+                      ...(v === "custom" ? { extraction_agent_id: undefined } : {}),
+                    });
+                  }}
                   className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                 >
-                  <option value="appointment">Appointment Details</option>
-                  <option value="lead">Lead Information</option>
+                  <option value="custom">Custom (enter prompt + JSON manually)</option>
+                  <option value="from_agent">From agent (auto-fill from agent&apos;s system prompt)</option>
                 </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Choose &quot;From agent&quot; and select your loan/booking agent to auto-generate extraction prompt and JSON from the agent&apos;s system prompt.
+                </p>
+              </div>
+
+              {(node.config.extraction_source as string) === "from_agent" && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Agent
+                  </label>
+                  <select
+                    value={node.config.extraction_agent_id as string || ""}
+                    disabled={suggestingFromAgent}
+                    onChange={async (e) => {
+                      const agentId = e.target.value;
+                      onUpdate({ ...node.config, extraction_agent_id: agentId });
+                      if (!agentId) return;
+                      setSuggestingFromAgent(true);
+                      try {
+                        const result = await automationService.suggestExtractionSchema({ agent_id: agentId });
+                        const prompt = result?.extraction_prompt ?? "";
+                        const example = result?.json_example ?? {};
+                        setJsonExampleRaw(JSON.stringify(example, null, 2));
+                        onUpdate({
+                          ...node.config,
+                          extraction_agent_id: agentId,
+                          extraction_prompt: prompt,
+                          json_example: example,
+                        });
+                        toast.success("Extraction prompt and JSON filled from agent.");
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "Failed to suggest schema from agent");
+                      } finally {
+                        setSuggestingFromAgent(false);
+                      }
+                    }}
+                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors disabled:opacity-60"
+                  >
+                    <option value="">Select agent...</option>
+                    {(agents as { _id: string; name?: string; agent_id?: string }[]).map((agent) => (
+                      <option key={agent._id} value={agent._id}>
+                        {agent.name || agent.agent_id || agent._id}
+                      </option>
+                    ))}
+                  </select>
+                  {suggestingFromAgent && (
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Generating prompt and JSON from agent...
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Same agent used in batch/outbound call. Prompt and JSON below will be filled automatically from the agent&apos;s system prompt.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Extraction prompt
+                </label>
+                <textarea
+                  value={typeof node.config.extraction_prompt === "string" ? node.config.extraction_prompt : ""}
+                  onChange={(e) =>
+                    onUpdate({ ...node.config, extraction_prompt: e.target.value })
+                  }
+                  className="w-full min-h-[80px] bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-y"
+                  placeholder="e.g. Extract whether the person is interested in a loan, the product (e.g. auto insurance), the amount in euros, and their full name and location (city and country)."
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Instruct the AI what to extract from the call. Filled automatically when you choose &quot;From agent&quot; and select an agent.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  JSON example (schema for extracted data)
+                </label>
+                <textarea
+                  value={jsonExampleRaw}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setJsonExampleRaw(raw);
+                    const trimmed = raw.trim();
+                    if (!trimmed) {
+                      onUpdate({ ...node.config, json_example: undefined });
+                      return;
+                    }
+                    try {
+                      const parsed = JSON.parse(trimmed);
+                      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+                        onUpdate({ ...node.config, json_example: parsed });
+                      }
+                    } catch {
+                      // Keep previous valid object until they type valid JSON
+                    }
+                  }}
+                  className="w-full min-h-[120px] font-mono text-sm bg-secondary border border-border rounded-lg px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-y"
+                  placeholder='{"interested_in_loan": true, "product": "Home insurance", "amount_eur": 250, "customer_name": "", "city": "", "country": ""}'
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  One JSON object. Keys become available as &#123;&#123;extracted.key&#125;&#125; in Sheets, Gmail, and conditions. Column mapping and nodes use this + CSV variables.
+                </p>
               </div>
 
               <div>
@@ -761,15 +1001,15 @@ export function NodeConfigPanel({
                     onUpdate({ ...node.config, conversation_id: e.target.value })
                   }
                   className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                  placeholder="{{trigger.conversation_id}}"
+                  placeholder="{{conversation_id}}"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  If empty, it will use the conversation from the trigger.
+                  If empty, uses the conversation from the trigger.
                 </p>
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Uses AI to analyze the conversation transcript and extract structured data.
+                After the call ends, extraction runs with this prompt and JSON. If the user gave the data (success), remaining nodes run; Sheets column mapping uses contact + extracted keys.
               </p>
             </div>
           )}
@@ -902,12 +1142,43 @@ export function NodeConfigPanel({
           {/* AISTEIN-IT - SEND EMAIL ACTION */}
           {node.service === "aistein_send_email" && (
             <div className="space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">Email content</p>
+                {(() => {
+                  const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                  const ex = extractNode?.config?.json_example;
+                  const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                  if (keys.length === 0) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const to = keys.includes("email") ? "{{extracted.email}}" : "{{contact.email}}";
+                        const subject = keys.includes("customer_name") ? "Follow-up: {{extracted.customer_name}}" : "Hello {{contact.name}}";
+                        const bodyLines = ["Hi {{contact.name}},", "", "Based on our conversation:"];
+                        keys.forEach((k) => bodyLines.push(`- ${k.replace(/_/g, " ")}: {{extracted.${k}}}`));
+                        bodyLines.push("", "Best regards");
+                        onUpdate({
+                          ...node.config,
+                          to,
+                          subject,
+                          body: bodyLines.join("\n"),
+                          template: bodyLines.join("\n"),
+                        });
+                      }}
+                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
+                      Fill from Extract node
+                    </button>
+                  );
+                })()}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   To Email (optional - uses contact email if not provided)
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   value={node.config.to || ""}
                   onChange={(e) =>
                     onUpdate({ ...node.config, to: e.target.value })
@@ -916,7 +1187,7 @@ export function NodeConfigPanel({
                   placeholder="{{contact.email}}"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty to use contact's email, or use {'{'}{'{'}contact.email{'}'}{'}'} for dynamic values
+                  Leave empty to use contact's email, or use {'{'}{'{'}contact.email{'}'}{'}'} / {'{'}{'{'}extracted.email{'}'}{'}'}
                 </p>
               </div>
 
@@ -962,17 +1233,40 @@ export function NodeConfigPanel({
               </div>
 
               <div className="p-2 bg-secondary/50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
+                <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables (click to insert into body):</p>
                 <div className="flex flex-wrap gap-1.5">
                   {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{now}}'].map((varName) => (
-                    <span
+                    <button
+                      type="button"
                       key={varName}
-                      className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground"
+                      onClick={() => onUpdate({ ...node.config, body: (node.config.body || node.config.template || "") + varName, template: (node.config.body || node.config.template || "") + varName })}
+                      className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
                     >
                       {varName}
-                    </span>
+                    </button>
                   ))}
+                  {(() => {
+                    const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                    const ex = extractNode?.config?.json_example;
+                    const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                    return keys.map((key) => {
+                      const varName = `{{extracted.${key}}}`;
+                      return (
+                        <button
+                          type="button"
+                          key={varName}
+                          onClick={() => onUpdate({ ...node.config, body: (node.config.body || node.config.template || "") + varName, template: (node.config.body || node.config.template || "") + varName })}
+                          className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                        >
+                          {varName}
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Use &#123;&#123;extracted.key&#125;&#125; for keys from your Extract node JSON (e.g. customer_name, loan_amount_eur).
+                </p>
               </div>
             </div>
           )}
@@ -2011,13 +2305,35 @@ export function NodeConfigPanel({
                   <label className="block text-sm font-medium text-foreground">
                     Column Mapping *
                   </label>
-                  <button
-                    type="button"
-                    onClick={addColumnMapping}
-                    className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                  >
-                    + Add Column
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                      const ex = extractNode?.config?.json_example;
+                      const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                      if (keys.length === 0) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const base = ["{{contact.name}}", "{{contact.email}}", "{{contact.phone}}"];
+                            const extracted = keys.map((k) => `{{extracted.${k}}}`);
+                            const values = [...base, ...extracted, "{{now}}"];
+                            onUpdate({ ...node.config, values });
+                          }}
+                          className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                        >
+                          Fill from Extract node
+                        </button>
+                      );
+                    })()}
+                    <button
+                      type="button"
+                      onClick={addColumnMapping}
+                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
+                      + Add Column
+                    </button>
+                  </div>
                 </div>
 
                 {(!node.config.values || node.config.values.length === 0) && (
@@ -2073,9 +2389,30 @@ export function NodeConfigPanel({
                         {varName}
                       </button>
                     ))}
+                    {(() => {
+                      const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                      const ex = extractNode?.config?.json_example;
+                      const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                      return keys.map((key) => {
+                        const varName = `{{extracted.${key}}}`;
+                        return (
+                          <button
+                            type="button"
+                            key={varName}
+                            onClick={() => {
+                              const currentValues = node.config.values || [];
+                              updateColumnMapping(currentValues.length, varName);
+                            }}
+                            className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                          >
+                            {varName}
+                          </button>
+                        );
+                      });
+                    })()}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    💡 Tip: Click a variable to add it as a new column, or type custom text like "Booked"
+                    💡 Contact/appointment from CSV and trigger; use &#123;&#123;extracted.key&#125;&#125; for keys from your Extract node JSON.
                   </p>
                 </div>
               </div>
@@ -2105,19 +2442,44 @@ export function NodeConfigPanel({
                   </p>
                 </div>
               )}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-foreground">Email content</p>
+                {(() => {
+                  const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                  const ex = extractNode?.config?.json_example;
+                  const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                  if (keys.length === 0) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const to = keys.includes("email") ? "{{extracted.email}}" : "{{contact.email}}";
+                        const subject = keys.includes("customer_name") ? "Follow-up: {{extracted.customer_name}}" : "Hello {{contact.name}}";
+                        const bodyLines = ["Hi {{contact.name}},", "", "Based on our conversation:"];
+                        keys.forEach((k) => bodyLines.push(`- ${k.replace(/_/g, " ")}: {{extracted.${k}}}`));
+                        bodyLines.push("", "Best regards");
+                        onUpdate({ ...node.config, to, subject, body: bodyLines.join("\n") });
+                      }}
+                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
+                      Fill from Extract node
+                    </button>
+                  );
+                })()}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
                   To Email (optional - uses contact email if not provided)
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   value={node.config.to || ""}
                   onChange={(e) => onUpdate({ ...node.config, to: e.target.value })}
                   className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                   placeholder="{{contact.email}}"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Leave empty to use contact's email, or use {'{'}{'{'}contact.email{'}'}{'}'} for dynamic values
+                  Leave empty to use contact's email, or use {'{'}{'{'}contact.email{'}'}{'}'} / {'{'}{'{'}extracted.email{'}'}{'}'}
                 </p>
               </div>
               <div>
@@ -2167,17 +2529,40 @@ export function NodeConfigPanel({
                 </label>
               </div>
               <div className="p-2 bg-secondary/50 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
+                <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables (click to insert into body):</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{now}}'].map((varName) => (
-                    <span
+                  {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{appointment.date}}', '{{appointment.time}}', '{{now}}'].map((varName) => (
+                    <button
+                      type="button"
                       key={varName}
-                      className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground"
+                      onClick={() => onUpdate({ ...node.config, body: (node.config.body || "") + varName })}
+                      className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
                     >
                       {varName}
-                    </span>
+                    </button>
                   ))}
+                  {(() => {
+                    const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                    const ex = extractNode?.config?.json_example;
+                    const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                    return keys.map((key) => {
+                      const varName = `{{extracted.${key}}}`;
+                      return (
+                        <button
+                          type="button"
+                          key={varName}
+                          onClick={() => onUpdate({ ...node.config, body: (node.config.body || "") + varName })}
+                          className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                        >
+                          {varName}
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Use &#123;&#123;extracted.key&#125;&#125; for keys from your Extract node JSON. Click a variable to insert into body.
+                </p>
               </div>
             </div>
           )}
