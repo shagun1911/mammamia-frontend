@@ -24,6 +24,7 @@ export function AutomationBuilder({ onSave, onCancel }: AutomationBuilderProps) 
   return (
     <div className="max-w-6xl mx-auto p-10">
       {/* Name input */}
+      {/* Name input */}
       <div className="mb-8">
         <label className="block text-sm font-medium text-white mb-3">
           Automation Name
