@@ -886,7 +886,7 @@ export function NodeConfigPanel({
                   <option value="from_agent">From agent (auto-fill from agent&apos;s system prompt)</option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Choose &quot;From agent&quot; and select your loan/booking agent to auto-generate extraction prompt and JSON from the agent&apos;s system prompt.
+                  Choose &quot;From agent&quot; and select the same agent used in the batch call (e.g. HR, loan, booking) to auto-generate extraction prompt and JSON from that agent&apos;s system prompt.
                 </p>
               </div>
 
@@ -936,8 +936,39 @@ export function NodeConfigPanel({
                       Generating prompt and JSON from agent...
                     </p>
                   )}
+                  {!suggestingFromAgent && (node.config.extraction_agent_id as string) && (
+                    <button
+                      type="button"
+                      disabled={suggestingFromAgent}
+                      onClick={async () => {
+                        const agentId = node.config.extraction_agent_id as string;
+                        if (!agentId) return;
+                        setSuggestingFromAgent(true);
+                        try {
+                          const result = await automationService.suggestExtractionSchema({ agent_id: agentId });
+                          const prompt = result?.extraction_prompt ?? "";
+                          const example = result?.json_example ?? {};
+                          setJsonExampleRaw(JSON.stringify(example, null, 2));
+                          onUpdate({
+                            ...node.config,
+                            extraction_agent_id: agentId,
+                            extraction_prompt: prompt,
+                            json_example: example,
+                          });
+                          toast.success("Extraction prompt and JSON regenerated from agent.");
+                        } catch (err: unknown) {
+                          toast.error(err instanceof Error ? err.message : "Failed to regenerate schema from agent");
+                        } finally {
+                          setSuggestingFromAgent(false);
+                        }
+                      }}
+                      className="mt-2 w-full h-9 text-sm font-medium bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-lg transition-colors"
+                    >
+                      Regenerate prompt &amp; JSON from agent
+                    </button>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Same agent used in batch/outbound call. Prompt and JSON below will be filled automatically from the agent&apos;s system prompt.
+                    Same agent used in batch/outbound call. Prompt and JSON below will be filled automatically from the agent&apos;s system prompt. Click &quot;Regenerate&quot; to re-fetch if values look outdated.
                   </p>
                 </div>
               )}
@@ -952,7 +983,7 @@ export function NodeConfigPanel({
                     onUpdate({ ...node.config, extraction_prompt: e.target.value })
                   }
                   className="w-full min-h-[80px] bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-y"
-                  placeholder="e.g. Extract whether the person is interested in a loan, the product (e.g. auto insurance), the amount in euros, and their full name and location (city and country)."
+                  placeholder="e.g. Extract the data points the agent was instructed to collect (names, dates, choices, amounts, etc.). Filled automatically when you select an agent above."
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Instruct the AI what to extract from the call. Filled automatically when you choose &quot;From agent&quot; and select an agent.
