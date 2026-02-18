@@ -627,6 +627,12 @@ export default function SocialIntegrations() {
                       Webhook Verified
                     </Badge>
                   )}
+                  {(platform === 'instagram' || platform === 'facebook') && isConnected && !integration?.webhookVerified && (
+                    <Badge variant="outline" className="text-xs bg-amber-500/20 border-amber-500/50 text-amber-700 dark:text-amber-400">
+                      <Link2 className="w-3 h-3 mr-1" />
+                      Webhook not verified — no replies until configured
+                    </Badge>
+                  )}
                 </div>
               )}
             </div>
@@ -656,6 +662,11 @@ export default function SocialIntegrations() {
                     <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-0.5">
                       Connected and Active
                     </p>
+                    {(platform === 'instagram' || platform === 'facebook') && !integration?.webhookVerified && (
+                      <p className="text-xs text-amber-700 dark:text-amber-400 mb-1">
+                        Click &quot;Configure webhook&quot; and complete setup in Meta Dashboard to receive and reply to messages.
+                      </p>
+                    )}
                     {integration?.lastSyncedAt && (
                       <p className="text-xs text-green-700 dark:text-green-300">
                         Last synced: {new Date(integration.lastSyncedAt).toLocaleString()}
@@ -907,6 +918,33 @@ export default function SocialIntegrations() {
                 </>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-2.5">
+                  {(platform === 'instagram' || platform === 'facebook') && (
+                    <Button
+                      onClick={async () => {
+                        try {
+                          const res = await apiClient.get(`/social-integrations/${platform}`);
+                          if (res.success && res.data?.webhookConfiguration) {
+                            setWebhookConfig({
+                              url: res.data.webhookConfiguration.url,
+                              verifyToken: res.data.webhookConfiguration.verifyToken,
+                              subscribed: !!integration?.webhookVerified,
+                              show: true,
+                              platform: platform as 'instagram' | 'facebook'
+                            });
+                          } else {
+                            toast.error('Could not load webhook config');
+                          }
+                        } catch (e: any) {
+                          toast.error(e.message || 'Failed to load webhook config');
+                        }
+                      }}
+                      variant="outline"
+                      className="flex-1 h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
+                    >
+                      <Link2 className="mr-2 h-4 w-4" />
+                      <span>Configure webhook</span>
+                    </Button>
+                  )}
                   <Button
                     onClick={() => disconnectPlatform(platform)}
                     variant="destructive"
