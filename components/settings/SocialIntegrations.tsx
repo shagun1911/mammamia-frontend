@@ -578,7 +578,7 @@ export default function SocialIntegrations() {
         {/* Background gradient */}
         <div className={`absolute inset-0 bg-gradient-to-br ${platformGradients[platform]} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
         
-        <div className="relative p-6 flex flex-col flex-1">
+        <div className="relative p-6 flex flex-col flex-1 min-w-0">
           {/* Header Section */}
           <div className="flex items-start gap-4 mb-6">
             {/* Logo/Icon Container */}
@@ -917,7 +917,7 @@ export default function SocialIntegrations() {
                   )}
                 </>
               ) : (
-                <div className="flex flex-col sm:flex-row gap-2.5">
+                <div className="flex flex-wrap gap-2.5">
                   {(platform === 'instagram' || platform === 'facebook') && (
                     <Button
                       onClick={async () => {
@@ -939,35 +939,35 @@ export default function SocialIntegrations() {
                         }
                       }}
                       variant="outline"
-                      className="flex-1 h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
+                      className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
                     >
-                      <Link2 className="mr-2 h-4 w-4" />
-                      <span>Configure webhook</span>
+                      <Link2 className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">Configure webhook</span>
                     </Button>
                   )}
                   <Button
                     onClick={() => disconnectPlatform(platform)}
                     variant="destructive"
-                    className="flex-1 h-10 sm:h-11 text-sm font-medium shadow-sm hover:shadow-md transition-all"
+                    className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium shadow-sm hover:shadow-md transition-all"
                   >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    <span>Disconnect</span>
+                    <XCircle className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">Disconnect</span>
                   </Button>
                   <Button
                     onClick={() => initiateOAuth(platform)}
                     variant="outline"
-                    className="flex-1 h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
+                    className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
                     disabled={isConnecting}
                   >
                     {isConnecting ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        <span>Reconnecting...</span>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin flex-shrink-0" />
+                        <span className="truncate">Reconnecting...</span>
                       </>
                     ) : (
                       <>
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        <span>Reconnect</span>
+                        <ExternalLink className="mr-2 h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">Reconnect</span>
                       </>
                     )}
                   </Button>
