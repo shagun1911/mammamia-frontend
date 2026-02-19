@@ -757,6 +757,9 @@ export default function SocialIntegrations() {
                       </div>
                     </div>
                   ) : platform === 'instagram' && showInstagramForm ? (
+                    (() => {
+                      const isIGAA = instagramCredentials.accessToken?.trim().toUpperCase().startsWith('IGAA');
+                      return (
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
@@ -767,12 +770,13 @@ export default function SocialIntegrations() {
                           value={instagramCredentials.accessToken}
                           onChange={(e) => setInstagramCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
                           className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="Enter Meta Access Token"
+                          placeholder={isIGAA ? 'IGAA... (Instagram Business Login)' : 'EAAG... (Page Access Token)'}
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
-                          Instagram Account ID <span className="text-destructive">*</span>
+                          Instagram Account ID {!isIGAA && <span className="text-destructive">*</span>}
+                          {isIGAA && <span className="text-muted-foreground text-xs ml-1">(optional for IGAA — we’ll detect from token)</span>}
                         </label>
                         <input
                           type="text"
@@ -784,7 +788,8 @@ export default function SocialIntegrations() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-foreground mb-2">
-                          Facebook Page ID <span className="text-destructive">*</span>
+                          Facebook Page ID {!isIGAA && <span className="text-destructive">*</span>}
+                          {isIGAA && <span className="text-muted-foreground text-xs ml-1">(optional for IGAA)</span>}
                         </label>
                         <input
                           type="text"
@@ -825,6 +830,8 @@ export default function SocialIntegrations() {
                         </Button>
                       </div>
                     </div>
+                      );
+                    })()
                   ) : platform === 'facebook' && showFacebookForm ? (
                     <div className="space-y-4">
                       <div>
