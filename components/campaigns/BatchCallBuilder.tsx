@@ -62,6 +62,19 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     toast.success("Template downloaded (Excel format)");
   };
 
+  // Ensure a phone number always starts with '+'.
+  // Strips non-digit characters (except a leading +), then prepends '+' if missing.
+  const normalizePhone = (raw: string): string => {
+    const trimmed = raw.trim().replace(/^"|"$/g, "");
+    if (!trimmed) return trimmed;
+    // Keep only digits and a leading +
+    const cleaned = trimmed.startsWith("+")
+      ? "+" + trimmed.slice(1).replace(/\D/g, "")
+      : trimmed.replace(/\D/g, "");
+    if (!cleaned) return trimmed; // fallback: return original if nothing is left
+    return cleaned.startsWith("+") ? cleaned : "+" + cleaned;
+  };
+
   // Parse a single CSV line handling quoted fields (e.g. "Smith, John", "+123")
   const parseCSVLine = (line: string): string[] => {
     const result: string[] = [];
@@ -138,7 +151,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
             const parsedRecipients: Recipient[] = [];
             for (let i = 1; i < jsonData.length; i++) {
               const row = jsonData[i] || [];
-              const phone = String(row[phoneNumberIndex] || "").trim();
+              const phone = normalizePhone(String(row[phoneNumberIndex] || ""));
               const name = String(row[nameIndex] || "").trim();
 
               if (phone && name) {
@@ -202,7 +215,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
             const parsedRecipients: Recipient[] = [];
             for (let i = 1; i < lines.length; i++) {
               const values = parseCSVLine(lines[i]);
-              const phone = values[phoneNumberIndex]?.trim().replace(/^"|"$/g, "") ?? "";
+              const phone = normalizePhone(values[phoneNumberIndex] ?? "");
               const name = values[nameIndex]?.trim().replace(/^"|"$/g, "") ?? "";
               if (phone && name) {
                 const recipient: Recipient = {
