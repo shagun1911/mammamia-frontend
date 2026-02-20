@@ -14,7 +14,7 @@ interface UsageTrendsChartProps {
 }
 
 export function UsageTrendsChart({ data }: UsageTrendsChartProps) {
-  // Format date for display
+
   const formattedData = useMemo(() => {
     if (!data) return [];
     return data.map(item => {
