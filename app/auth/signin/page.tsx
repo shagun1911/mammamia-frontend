@@ -44,9 +44,12 @@ export default function SignInPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    // Trim and strip invisible/space-like chars so validation doesn't fail (e.g. copy-paste)
+    const trimmedEmail = email.trim().replace(/\s/g, '');
+    const trimmedPassword = password.trim();
 
     try {
-      const loggedInUser = await login(email, password);
+      const loggedInUser = await login(trimmedEmail, trimmedPassword);
       toast.success("Login successful! Welcome back.");
       
       // STRICT: Only redirect to admin if role === 'admin' in database
