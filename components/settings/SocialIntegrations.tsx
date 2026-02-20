@@ -96,14 +96,7 @@ export default function SocialIntegrations() {
   });
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showManualForm, setShowManualForm] = useState<string | null>(null);
   const [logoErrors, setLogoErrors] = useState<Record<string, boolean>>({});
-  const [manualForm, setManualForm] = useState<IntegrationConfig>({
-    apiKey: '',
-    phoneNumberId: '',
-    wabaId: ''
-  });
   const [showWhatsAppForm, setShowWhatsAppForm] = useState(false);
   const [whatsAppCredentials, setWhatsAppCredentials] = useState({
     accessToken: '',
@@ -457,33 +450,6 @@ export default function SocialIntegrations() {
     }
   };
 
-  const connectManual = async (platform: 'whatsapp') => {
-    // Manual connection only for WhatsApp (360dialog)
-    if (platform !== 'whatsapp') return;
-    
-    setConnecting(platform);
-    try {
-      const response = await apiClient.post(`/social-integrations/${platform}/connect`, {
-        apiKey: manualForm.apiKey,
-        phoneNumberId: manualForm.phoneNumberId,
-        wabaId: manualForm.wabaId
-      });
-
-      if (response.success) {
-        toast.success('WhatsApp connected successfully!');
-        setShowManualForm(null);
-        setManualForm({ apiKey: '', phoneNumberId: '', wabaId: '' });
-        await fetchIntegrations();
-      }
-    } catch (error: any) {
-      console.error('Error connecting platform:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to connect';
-      toast.error(errorMessage);
-    } finally {
-      setConnecting(null);
-    }
-  };
-
   const getStatusBadge = (integration: Integration | null) => {
     if (!integration) {
       return (
@@ -526,7 +492,6 @@ export default function SocialIntegrations() {
     const isConnected = integration?.status === 'connected';
     const hasError = integration?.status === 'error';
     const isConnecting = connecting === platform;
-    const showForm = showManualForm === platform;
     const logoError = logoErrors[platform] || false;
 
     const platformGradients = {
@@ -679,8 +644,7 @@ export default function SocialIntegrations() {
           </div>
 
           {/* Action Buttons - Fixed at bottom */}
-          {!showForm && (
-            <div className="mt-auto pt-4 border-t border-border">
+          <div className="mt-auto pt-4 border-t border-border">
               {!isConnected ? (
                 <>
                   {(() => {
@@ -981,7 +945,6 @@ export default function SocialIntegrations() {
                 </div>
               )}
             </div>
-          )}
         </div>
       </Card>
     );
@@ -1054,166 +1017,6 @@ export default function SocialIntegrations() {
           {renderPlatformCard('gmail')}
         </div>
 
-        {/* Advanced Section */}
-        <Card className="border-2 border-border hover:shadow-lg transition-shadow duration-300">
-          <div className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-lg bg-muted flex-shrink-0">
-                  <Settings className="h-5 w-5 text-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-foreground">Advanced Settings</h3>
-                  <p className="text-sm text-muted-foreground">Manual API configuration</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="font-medium self-start sm:self-auto"
-              >
-                {showAdvanced ? (
-                  <>
-                    Hide
-                    <span className="ml-1">↑</span>
-                  </>
-                ) : (
-                  <>
-                    Show
-                    <span className="ml-1">↓</span>
-                  </>
-                )}
-              </Button>
-            </div>
-            
-            {showAdvanced && (
-              <div className="space-y-6 pt-6 border-t border-border animate-in slide-in-from-top-2 duration-300">
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-                  <div className="flex items-start gap-3">
-                    <div className="p-1.5 rounded-md bg-blue-500/10 mt-0.5">
-                      <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
-                        Manual API Setup
-                      </p>
-                      <p className="text-sm text-blue-800 dark:text-blue-200">
-                        Manual setup is available for WhatsApp (360dialog API). Instagram, Facebook, and Gmail require OAuth authentication for security.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                {!showManualForm && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowManualForm('whatsapp')}
-                    className="w-full h-12 text-base font-medium border-2 hover:bg-accent transition-all"
-                  >
-                    <Settings className="mr-2 h-5 w-5" />
-                    Configure WhatsApp via 360dialog API
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-                
-                {showManualForm === 'whatsapp' && (
-                  <Card className="p-6 border-2 border-border bg-card/50 backdrop-blur-sm">
-                    <div className="space-y-5">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-foreground">360dialog Configuration</h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setShowManualForm(null);
-                            setManualForm({ apiKey: '', phoneNumberId: '', wabaId: '' });
-                          }}
-                          disabled={connecting === 'whatsapp'}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="manual-api-key" className="text-sm font-medium">
-                            360dialog API Key <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="manual-api-key"
-                            type="password"
-                            placeholder="Enter your 360dialog API key"
-                            value={manualForm.apiKey}
-                            onChange={(e) => setManualForm({ ...manualForm, apiKey: e.target.value })}
-                            className="h-11"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="manual-phone-number-id" className="text-sm font-medium">
-                            Phone Number ID <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="manual-phone-number-id"
-                            placeholder="Enter 360dialog Phone Number ID"
-                            value={manualForm.phoneNumberId || ''}
-                            onChange={(e) => setManualForm({ ...manualForm, phoneNumberId: e.target.value })}
-                            className="h-11"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="manual-waba-id" className="text-sm font-medium">
-                            WABA ID <span className="text-muted-foreground text-xs">(Optional)</span>
-                          </Label>
-                          <Input
-                            id="manual-waba-id"
-                            placeholder="Enter WhatsApp Business Account ID"
-                            value={manualForm.wabaId || ''}
-                            onChange={(e) => setManualForm({ ...manualForm, wabaId: e.target.value })}
-                            className="h-11"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-3 pt-2">
-                        <Button
-                          onClick={() => connectManual('whatsapp')}
-                          disabled={connecting === 'whatsapp' || !manualForm.apiKey || !manualForm.phoneNumberId}
-                          className="flex-1 h-11 font-medium shadow-sm hover:shadow-md transition-all"
-                        >
-                          {connecting === 'whatsapp' ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <Link2 className="mr-2 h-4 w-4" />
-                              Connect
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setShowManualForm(null);
-                            setManualForm({ apiKey: '', phoneNumberId: '', wabaId: '' });
-                          }}
-                          variant="outline"
-                          disabled={connecting === 'whatsapp'}
-                          className="h-11 font-medium"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
       </div>
 
       {/* Webhook Configuration Modal */}

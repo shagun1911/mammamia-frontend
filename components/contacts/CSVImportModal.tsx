@@ -104,10 +104,10 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
   };
 
   const downloadTemplate = () => {
-    const headers = ["name", "email", "phone_number", "customer_name", "customer_email", "customer_phone_number"];
+    const headers = ["name", "email", "phone", "Occupazione", "Provincia", "Geo"];
     const sampleData = [
-      ["Shagun", "19shagunyadavnnl@gmail.com", "919896941400", "Shagun", "19shagunyadavnnl@gmail.com", "919896941400"],
-      ["Vivek", "joshspecter8@gmail.com", "918979145539", "Vivek", "joshspecter8@gmail.com", "918979145539"]
+      ["John Doe", "john.doe@example.com", "15551234567", "Dipendente privato", "TO", "Piemonte"],
+      ["Jane Smith", "jane.smith@example.com", "15559876543", "Dipendente privato", "TO", "Piemonte"]
     ];
 
     // Create Excel file using xlsx library
@@ -386,7 +386,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                       </button>
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      CSV or Excel file should contain: name, email, phone_number, etc.
+                      Include <strong>name</strong>, <strong>email</strong>, and <strong>phone</strong> or <strong>phone_number</strong> (whichever you use). Any extra columns (e.g. Occupazione, Provincia, Geo) are stored as custom fields.
                     </p>
                   </div>
                 </div>
@@ -502,7 +502,7 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
           <div className="p-4 bg-background rounded-lg border border-border">
             <h4 className="text-sm font-medium text-foreground mb-2">Expected Format:</h4>
             <p className="text-xs text-muted-foreground mb-2">
-              Please use the following headers exactly as shown to ensure correct data mapping.
+              Required: <strong>name</strong>, <strong>email</strong>. Use <strong>phone</strong> or <strong>phone_number</strong> (whichever is present). Any other columns are stored as custom fields on the contact.
             </p>
             <div className="overflow-x-auto mb-3">
               <table className="w-full text-xs border-collapse">
@@ -510,32 +510,35 @@ export function CSVImportModal({ isOpen, onClose, onImport, listName }: CSVImpor
                   <tr className="bg-secondary/50">
                     <th className="border border-border/50 px-2 py-1 text-left">name</th>
                     <th className="border border-border/50 px-2 py-1 text-left">email</th>
-                    <th className="border border-border/50 px-2 py-1 text-left">phone_number</th>
-                    <th className="border border-border/50 px-2 py-1 text-left">customer_name</th>
-                    <th className="border border-border/50 px-2 py-1 text-left">customer_email</th>
-                    <th className="border border-border/50 px-2 py-1 text-left">customer_phone_number</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">phone</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">Occupazione</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">Provincia</th>
+                    <th className="border border-border/50 px-2 py-1 text-left">Geo</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td className="border border-border/50 px-2 py-1">Shagun</td>
-                    <td className="border border-border/50 px-2 py-1">19shagunyadavnnl@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">919896941400</td>
-                    <td className="border border-border/50 px-2 py-1">Shagun</td>
-                    <td className="border border-border/50 px-2 py-1">19shagunyadavnnl@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">919896941400</td>
+                    <td className="border border-border/50 px-2 py-1">John Doe</td>
+                    <td className="border border-border/50 px-2 py-1">john.doe@example.com</td>
+                    <td className="border border-border/50 px-2 py-1">15551234567</td>
+                    <td className="border border-border/50 px-2 py-1">Dipendente privato</td>
+                    <td className="border border-border/50 px-2 py-1">TO</td>
+                    <td className="border border-border/50 px-2 py-1">Piemonte</td>
                   </tr>
                   <tr>
-                    <td className="border border-border/50 px-2 py-1">Vivek</td>
-                    <td className="border border-border/50 px-2 py-1">joshspecter8@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">918979145539</td>
-                    <td className="border border-border/50 px-2 py-1">Vivek</td>
-                    <td className="border border-border/50 px-2 py-1">joshspecter8@gmail.com</td>
-                    <td className="border border-border/50 px-2 py-1">918979145539</td>
+                    <td className="border border-border/50 px-2 py-1">Jane Smith</td>
+                    <td className="border border-border/50 px-2 py-1">jane.smith@example.com</td>
+                    <td className="border border-border/50 px-2 py-1">15559876543</td>
+                    <td className="border border-border/50 px-2 py-1">Dipendente privato</td>
+                    <td className="border border-border/50 px-2 py-1">TO</td>
+                    <td className="border border-border/50 px-2 py-1">Piemonte</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <p className="text-xs text-muted-foreground">
+              <strong>phone_number</strong> is also accepted instead of <strong>phone</strong>. Extra columns (e.g. FONTE, DERIVAZIONE, OPERATORE) are imported and saved as custom fields.
+            </p>
 
             <button
               onClick={downloadTemplate}
