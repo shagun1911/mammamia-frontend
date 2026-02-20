@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { batchCallingService, BatchCallRequest, BatchCallResponse, BatchJobCallsResponse } from '@/services/batchCalling.service';
 import { toast } from 'sonner';
 
@@ -6,10 +6,13 @@ import { toast } from 'sonner';
  * Submit batch calling job mutation
  */
 export function useSubmitBatchCall() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: BatchCallRequest) => batchCallingService.submitBatchCall(data),
     onSuccess: (data: BatchCallResponse) => {
       toast.success(`Batch call "${data.name}" submitted successfully! ${data.total_calls_scheduled} calls scheduled.`);
+      // Immediately invalidate so the list fetches fresh data when it mounts
+      queryClient.invalidateQueries({ queryKey: ['batchCalls'] });
     },
     onError: (error: any) => {
       console.error('❌ [useSubmitBatchCall] Error:', error);
@@ -60,16 +63,16 @@ export function useBatchCalls() {
   return useQuery({
     queryKey: ['batchCalls'],
     queryFn: () => batchCallingService.getAllBatchCalls(),
+    staleTime: 0, // Always fetch fresh — never serve cached data when list mounts
     refetchInterval: (query) => {
-      // Auto-refetch every 15 seconds if there are any active batch calls
       const data = query.state.data as any[] | undefined;
       if (data && data.length > 0) {
-        const hasActiveCalls = data.some((call: any) => 
+        const hasActiveCalls = data.some((call: any) =>
           ['pending', 'running', 'scheduled', 'in_progress'].includes(call.status?.toLowerCase())
         );
-        return hasActiveCalls ? 15000 : 30000; // 15 seconds for active, 30 seconds for inactive
+        return hasActiveCalls ? 10000 : 30000; // 10 s for active batches, 30 s otherwise
       }
-      return false; // Don't auto-refetch if no batch calls
+      return 30000; // Still poll even with no calls so new ones appear quickly
     },
   });
 }

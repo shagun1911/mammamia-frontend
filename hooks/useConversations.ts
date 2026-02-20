@@ -9,6 +9,9 @@ export function useConversations(filters?: ConversationFilters) {
   return useQuery({
     queryKey: ['conversations', filters],
     queryFn: () => conversationService.getAll(filters),
+    staleTime: 0,          // Always treat data as stale so refetch fires on focus/mount
+    refetchInterval: 15000, // Poll every 15 s as a fallback when WebSocket is unavailable
+    refetchIntervalInBackground: false, // Only poll while the tab is active
   });
 }
 

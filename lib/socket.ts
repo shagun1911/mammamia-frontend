@@ -172,6 +172,13 @@ class SocketClient {
   }
 
   /**
+   * Listen for batch call conversations synced (all conversations from a batch are ready)
+   */
+  onBatchConversationsSynced(callback: (data: any) => void): void {
+    this.socket?.on('batch:conversations-synced', callback);
+  }
+
+  /**
    * Listen for typing indicators
    */
   onTyping(callback: (data: { conversationId: string; user: any }) => void): void {

@@ -98,6 +98,7 @@ export default function CampaignsPage() {
             onClose={() => setShowBatchCallBuilder(false)}
             onSuccess={() => {
               setShowBatchCallBuilder(false);
+              setShowBatchCallList(true);
             }}
           />
         </div>

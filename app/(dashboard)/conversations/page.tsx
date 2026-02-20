@@ -138,6 +138,14 @@ export default function ConversationsPage() {
       }
     };
 
+    const handleBatchConversationsSynced = (data: any) => {
+      try {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      } catch (error) {
+        console.error('[ConversationsPage] Error handling batch sync event:', error);
+      }
+    };
+
     const handleTranscriptUpdated = (data: any) => {
       try {
         console.log('[ConversationsPage] 📝 Transcript updated:', data);
@@ -187,6 +195,7 @@ export default function ConversationsPage() {
       socket.onNewConversation(handleNewConversation);
       socket.onNewMessageInOrg(handleNewMessage);
       socket.onTranscriptUpdated(handleTranscriptUpdated);
+      socket.onBatchConversationsSynced(handleBatchConversationsSynced);
 
       console.log('[ConversationsPage] ✅ WebSocket listeners registered');
     } catch (error) {
@@ -200,6 +209,7 @@ export default function ConversationsPage() {
         socket.off('conversation:new', handleNewConversation);
         socket.off('new-message', handleNewMessage);
         socket.off('conversation:transcript-updated', handleTranscriptUpdated);
+        socket.off('batch:conversations-synced', handleBatchConversationsSynced);
       } catch (error) {
         console.error('[ConversationsPage] Error during cleanup:', error);
       }

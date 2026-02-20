@@ -335,7 +335,12 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
 
         {/* Call Statistics */}
         <div>
-          <h5 className="text-sm font-semibold text-foreground mb-3">Call Statistics</h5>
+          <h5 className="text-sm font-semibold text-foreground mb-1">Call Statistics</h5>
+          <p className="text-xs text-muted-foreground mb-3">
+            <span className="font-medium text-blue-500">Dispatched</span> = call sent to provider (ringing / connecting).&nbsp;
+            <span className="font-medium text-green-500">Finished</span> = call fully ended (answered, no-answer, invalid number, etc.).
+            Invalid or unanswered numbers can take up to 60 s each to be marked Finished by the provider.
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-background p-3 rounded-lg border border-border">
               <div className="text-xs text-muted-foreground mb-1">Total Scheduled</div>
@@ -344,31 +349,34 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
             <div className="bg-background p-3 rounded-lg border border-border">
               <div className="text-xs text-muted-foreground mb-1">Dispatched</div>
               <div className="text-lg font-semibold text-blue-500">{batchCall.total_calls_dispatched}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">sent to provider</div>
             </div>
             <div className="bg-background p-3 rounded-lg border border-border">
               <div className="text-xs text-muted-foreground mb-1">Finished</div>
               <div className="text-lg font-semibold text-green-500">{batchCall.total_calls_finished}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">fully completed</div>
             </div>
             <div className="bg-background p-3 rounded-lg border border-border">
               <div className="text-xs text-muted-foreground mb-1">Remaining</div>
               <div className="text-lg font-semibold text-foreground">
-                {batchCall.total_calls_scheduled - batchCall.total_calls_finished}
+                {Math.max(0, batchCall.total_calls_scheduled - batchCall.total_calls_finished)}
               </div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">not yet finished</div>
             </div>
           </div>
         </div>
 
         {/* Individual Call Results */}
         <div>
-          <h5 className="text-sm font-semibold text-foreground mb-3">
+          <h5 className="text-sm font-semibold text-foreground mb-1">
             Individual Call Results
-            {callsData?.calls && (
+            {callsData?.calls && callsData.calls.length > 0 && (
               <span className="ml-2 text-xs text-muted-foreground font-normal">
                 ({callsData.calls.length} {callsData.calls.length === 1 ? 'call' : 'calls'})
               </span>
             )}
           </h5>
-          
+
           {callsLoading ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="w-5 h-5 text-primary animate-spin" />
@@ -397,31 +405,16 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
                           </span>
                         )}
                       </div>
-                      
                       {call.name && (
                         <div className="text-sm text-muted-foreground">
                           <span className="font-medium">Name:</span> {call.name}
                         </div>
                       )}
-                      
-                      {call.email && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="font-medium">Email:</span> {call.email}
-                        </div>
-                      )}
-
                       {call.duration && (
                         <div className="text-xs text-muted-foreground">
                           <span className="font-medium">Duration:</span> {call.duration}s
                         </div>
                       )}
-
-                      {call.created_at && (
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">Called:</span> {formatDate(call.created_at)}
-                        </div>
-                      )}
-
                       {call.error && (
                         <div className="text-xs text-red-500 bg-red-500/10 p-2 rounded mt-2">
                           <span className="font-medium">Error:</span> {call.error}
@@ -433,8 +426,25 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              No individual call results available yet
+            <div className="rounded-lg bg-muted/40 border border-border p-4 text-sm text-muted-foreground space-y-2">
+              {batchCall.status === 'in_progress' || batchCall.status === 'running' ? (
+                <>
+                  <div className="flex items-center gap-2 text-blue-500 font-medium">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Batch call is in progress — {batchCall.total_calls_dispatched} dispatched, {batchCall.total_calls_finished} finished
+                  </div>
+                  <p className="text-xs">
+                    Individual results will appear here once calls finish.
+                    <br />
+                    <span className="font-medium">Why is "Finished" lower than "Dispatched"?</span>{' '}
+                    "Dispatched" means the call was sent to the phone provider (Twilio/etc.) and is ringing or connecting.
+                    "Finished" means the call has fully ended — answered &amp; hung up, no-answer timeout (~60 s), invalid number rejected, etc.
+                    For fake/random numbers, each one takes up to 60 s to time out before the provider marks it finished.
+                  </p>
+                </>
+              ) : (
+                <p>No individual call results available from the provider for this batch.</p>
+              )}
             </div>
           )}
         </div>

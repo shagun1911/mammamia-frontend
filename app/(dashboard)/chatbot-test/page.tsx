@@ -1,7 +1,6 @@
 "use client";
 
 import { InstallationGuide } from "@/components/chatbot-test/InstallationGuide";
-import { WidgetSimulator } from "@/components/chatbot-test/WidgetSimulator";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { FlaskConical, Activity } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -34,14 +33,9 @@ export default function ChatbotTestPage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex min-h-0" style={{ height: 'calc(100vh - 5rem)' }}>
-        <div className="w-1/2 overflow-y-scroll overscroll-contain" style={{ height: 'calc(100vh - 5rem)' }}>
-          <InstallationGuide />
-        </div>
-        <div className="w-1/2 overflow-y-scroll overscroll-contain border-l border-border" style={{ height: 'calc(100vh - 5rem)' }}>
-          <WidgetSimulator />
-        </div>
+      {/* Main Content - Installation guide only; use "Open in New Tab" in Widget Link section to test widget */}
+      <div className="flex-1 overflow-y-auto min-h-0" style={{ height: 'calc(100vh - 5rem)' }}>
+        <InstallationGuide />
       </div>
     </div>
   );
