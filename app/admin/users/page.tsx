@@ -411,7 +411,7 @@ export default function AdminUsersPage() {
 
                         <div className="mb-4">
                           <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-bold text-primary">${plan.price}</span>
+                            <span className="text-3xl font-bold text-primary">€{plan.price}</span>
                             <span className="text-sm text-muted-foreground">/month</span>
                           </div>
                         </div>

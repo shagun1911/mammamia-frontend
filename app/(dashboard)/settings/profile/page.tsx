@@ -843,7 +843,7 @@ export default function ProfilePage() {
                       </div>
                       <h3 className="text-2xl font-bold mb-1">{plan.name}</h3>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-bold">${plan.price}</span>
+                        <span className="text-3xl font-bold">€{plan.price}</span>
                         <span className="text-sm opacity-90">/month</span>
                       </div>
                     </div>

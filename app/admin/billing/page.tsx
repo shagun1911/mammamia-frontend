@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CreditCard, RefreshCw, TrendingUp, DollarSign, Users, Loader2, ArrowLeft, Clock } from "lucide-react";
+import { CreditCard, RefreshCw, TrendingUp, Euro, Users, Loader2, ArrowLeft, Clock } from "lucide-react";
 import { adminService } from "@/services/admin.service";
 import { planService, Plan } from "@/services/plan.service";
 import { cn } from "@/lib/utils";
@@ -185,7 +185,7 @@ export default function AdminBillingPage() {
         <div className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-2 border-green-500/20 rounded-xl p-6 transition-all duration-300">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-muted-foreground">Monthly Revenue</h3>
-            <DollarSign className="w-5 h-5 text-green-500" />
+            <Euro className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-3xl font-bold text-foreground transition-all duration-300">
             ${monthlyRevenue.toFixed(2)}
@@ -244,7 +244,7 @@ export default function AdminBillingPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{plan.name}</span>
-                      <span className="text-xs text-muted-foreground">(${plan.price}/mo)</span>
+                      <span className="text-xs text-muted-foreground">(€{plan.price}/mo)</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">{percentage}%</span>
@@ -271,7 +271,7 @@ export default function AdminBillingPage() {
 
         <div className="bg-card border border-border rounded-xl p-6">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-primary" />
+            <Euro className="w-5 h-5 text-primary" />
             Revenue by Plan
           </h2>
           <div className="space-y-3">
@@ -284,15 +284,15 @@ export default function AdminBillingPage() {
                   <div>
                     <div className="font-medium">{plan.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {count} org{count !== 1 ? 's' : ''} × ${plan.price}/mo
+                      {count} org{count !== 1 ? 's' : ''} × €{plan.price}/mo
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                      ${revenue}/mo
+                      €{revenue}/mo
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      ${revenue * 12}/yr
+                      €{revenue * 12}/yr
                     </div>
                   </div>
                 </div>
@@ -346,7 +346,7 @@ export default function AdminBillingPage() {
                       </span>
                     </td>
                     <td className="p-3 text-right font-semibold text-foreground">
-                      ${orgPlan?.price || 0}
+                      €{orgPlan?.price || 0}
                     </td>
                   </tr>
                 );

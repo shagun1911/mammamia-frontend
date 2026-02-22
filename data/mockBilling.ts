@@ -3,7 +3,7 @@ import { BillingPlan, UsageStat, Invoice } from "@/lib/types";
 export const currentPlan: BillingPlan = {
   name: "Professional Plan",
   price: 99,
-  currency: "USD",
+  currency: "EUR",
   interval: "month",
   features: [
     "Unlimited conversations",

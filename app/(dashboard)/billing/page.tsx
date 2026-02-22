@@ -114,7 +114,7 @@ export default function BillingPage() {
               {plan?.name || currentUser?.selectedProfile || 'Free'}
             </div>
             <div className="text-sm text-muted-foreground">
-              ${plan?.price || 0}/month
+              €{plan?.price ?? 0}/month
             </div>
           </div>
         </div>
