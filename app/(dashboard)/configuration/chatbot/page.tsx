@@ -514,7 +514,7 @@ export default function ChatbotSettingsPage() {
                           type="text"
                           value={rule.condition}
                           onChange={(e) => updateEscalationRule(rule.id, e.target.value)}
-                          placeholder="E.g., Customer requests to speak with a manager, Complex technical issue, Refund request over $500..."
+                          placeholder="E.g., Customer requests to speak with a manager, Complex technical issue, Refund request over €500..."
                           className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                         />
                       </div>

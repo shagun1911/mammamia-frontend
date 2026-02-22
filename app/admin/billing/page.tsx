@@ -188,7 +188,7 @@ export default function AdminBillingPage() {
             <Euro className="w-5 h-5 text-green-500" />
           </div>
           <p className="text-3xl font-bold text-foreground transition-all duration-300">
-            ${monthlyRevenue.toFixed(2)}
+            €{monthlyRevenue.toFixed(2)}
           </p>
         </div>
 
@@ -198,7 +198,7 @@ export default function AdminBillingPage() {
             <TrendingUp className="w-5 h-5 text-blue-500" />
           </div>
           <p className="text-3xl font-bold text-foreground transition-all duration-300">
-            ${annualRevenue.toFixed(2)}
+            €{annualRevenue.toFixed(2)}
           </p>
         </div>
 

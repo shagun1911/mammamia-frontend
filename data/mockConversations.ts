@@ -266,7 +266,7 @@ export const mockConversations: Conversation[] = [
       {
         id: "m5-4",
         sender: "agent",
-        content: "The premium plan is $99/month, billed annually. We also offer a 14-day free trial.",
+        content: "The premium plan is €99/month, billed annually. We also offer a 14-day free trial.",
         timestamp: new Date(Date.now() - 1000 * 60 * 250).toISOString(),
         type: "text",
       },
