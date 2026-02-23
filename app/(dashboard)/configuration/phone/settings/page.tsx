@@ -66,6 +66,7 @@ export default function PhoneSettingsDetailPage() {
   const [genericSetupPassword, setGenericSetupPassword] = useState("");
   const [genericSetupTransport, setGenericSetupTransport] = useState("auto");
   const [genericSetupMediaEncryption, setGenericSetupMediaEncryption] = useState("allowed");
+  const [genericSetupInboundMediaEncryption, setGenericSetupInboundMediaEncryption] = useState("allowed");
   const [genericSetupSupportsInbound, setGenericSetupSupportsInbound] = useState(false);
   const [genericSetupSupportsOutbound, setGenericSetupSupportsOutbound] = useState(true);
   const [genericSetupInboundAddress, setGenericSetupInboundAddress] = useState("sip.rtc.elevenlabs.io:5060");
@@ -845,7 +846,8 @@ const handleSaveConfig = async (config: any) => {
       // For inbound-only: only include address, no credentials
       if (genericSetupSupportsInbound) {
         requestPayload.inbound_trunk_config = {
-          address: (genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060").trim()
+          address: (genericSetupInboundAddress || "sip.rtc.elevenlabs.io:5060").trim(),
+          media_encryption: genericSetupInboundMediaEncryption
         };
       }
 
@@ -980,6 +982,7 @@ const handleSaveConfig = async (config: any) => {
         setGenericSetupPassword("");
         setGenericSetupTransport("auto");
         setGenericSetupMediaEncryption("allowed");
+        setGenericSetupInboundMediaEncryption("allowed");
         setGenericSetupSupportsInbound(false);
         setGenericSetupSupportsOutbound(true);
         setGenericSetupInboundAddress("sip.rtc.elevenlabs.io:5060");
@@ -1665,6 +1668,20 @@ return (
                             Default: sip.rtc.elevenlabs.io:5060
                           </p>
                         </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Media Encryption <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={genericSetupInboundMediaEncryption}
+                            onChange={(e) => setGenericSetupInboundMediaEncryption(e.target.value)}
+                            className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                          >
+                            <option value="allowed">Allowed</option>
+                            <option value="required">Required</option>
+                            <option value="disabled">Disabled</option>
+                          </select>
+                        </div>
                       </div>
                     )}
 
@@ -1770,6 +1787,7 @@ return (
                             setGenericSetupPassword("");
                             setGenericSetupTransport("auto");
                             setGenericSetupMediaEncryption("allowed");
+                            setGenericSetupInboundMediaEncryption("allowed");
                             setGenericSetupSupportsInbound(false);
                             setGenericSetupSupportsOutbound(true);
                             setGenericSetupInboundAddress("sip.rtc.elevenlabs.io:5060");
