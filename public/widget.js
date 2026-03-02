@@ -288,7 +288,12 @@
       ${position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
       z-index: 10000;
     `;
-    toggleButton.innerHTML = '💬';
+
+  toggleButton.innerHTML = `
+<svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+  <path d="M21 15a4 4 0 0 1-4 4H8l-4 4V5a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4v10z"/>
+</svg>
+`;
 
     // Assemble
     inputArea.appendChild(input);
