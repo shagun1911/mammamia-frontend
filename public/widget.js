@@ -66,22 +66,22 @@
       return config.apiUrl.trim();
     }
     
-    // Priority 2: Derive from script source URL
-    const scripts = document.getElementsByTagName('script');
-    for (let i = 0; i < scripts.length; i++) {
-      const scriptSrc = scripts[i].src;
-      if (scriptSrc && scriptSrc.includes('widget.js')) {
-        try {
-          const scriptUrl = new URL(scriptSrc);
-          // If script is loaded from app.aistein.it, use that domain
-          if (scriptUrl.hostname === 'app.aistein.it' || scriptUrl.hostname.includes('aistein.it')) {
-            return scriptUrl.origin + '/api/v1';
-          }
-        } catch (e) {
-          // Invalid URL, continue to next priority
-        }
-      }
-    }
+    // // Priority 2: Derive from script source URL
+    // const scripts = document.getElementsByTagName('script');
+    // for (let i = 0; i < scripts.length; i++) {
+    //   const scriptSrc = scripts[i].src;
+    //   if (scriptSrc && scriptSrc.includes('widget.js')) {
+    //     try {
+    //       const scriptUrl = new URL(scriptSrc);
+    //       // If script is loaded from app.aistein.it, use that domain
+    //       if (scriptUrl.hostname === 'app.aistein.it' || scriptUrl.hostname.includes('aistein.it')) {
+    //         return scriptUrl.origin + '/api/v1';
+    //       }
+    //     } catch (e) {
+    //       // Invalid URL, continue to next priority
+    //     }
+    //   }
+    // }
     
     // Priority 3: Default production API URL
     // CRITICAL: This is the absolute URL that must be used for all embedded widgets
