@@ -13,7 +13,7 @@ export function PlanWarningBanner() {
     return null;
   }
 
-
+  // Filter out dismissed warnings
   const activeWarnings = warnings.filter(
     (w) => !dismissed.includes(`${w.type}-${w.level}`)
   );
