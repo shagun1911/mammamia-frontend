@@ -47,12 +47,60 @@
 
   // ========== WIDGET CONFIGURATION ==========
   const config = window.Aistein || {};
-  const API_URL = config.apiUrl || (window.location.origin.includes('localhost') 
-    ? 'http://localhost:5001/api/v1' 
-    : window.location.origin + '/api/v1');
+  
+  // ========== API URL RESOLUTION (CRITICAL: Use absolute URL, not window.location.origin) ==========
+  /**
+   * Resolves API base URL with priority:
+   * 1. config.apiUrl (explicit override from embed script)
+   * 2. Derive from script source URL (if loaded from app.aistein.it)
+   * 3. Default to https://app.aistein.it/api/v1 (production)
+   * 4. Localhost fallback for development
+   * 
+   * CRITICAL: Never use window.location.origin as it will point to the embedding website,
+   * not the API server. This ensures API calls always go to app.aistein.it regardless
+   * of where the widget is embedded.
+   */
+  function resolveApiUrl() {
+    // Priority 1: Explicit config override
+    if (config.apiUrl && typeof config.apiUrl === 'string' && config.apiUrl.trim() !== '') {
+      return config.apiUrl.trim();
+    }
+    
+    // Priority 2: Derive from script source URL
+    const scripts = document.getElementsByTagName('script');
+    for (let i = 0; i < scripts.length; i++) {
+      const scriptSrc = scripts[i].src;
+      if (scriptSrc && scriptSrc.includes('widget.js')) {
+        try {
+          const scriptUrl = new URL(scriptSrc);
+          // If script is loaded from app.aistein.it, use that domain
+          if (scriptUrl.hostname === 'app.aistein.it' || scriptUrl.hostname.includes('aistein.it')) {
+            return scriptUrl.origin + '/api/v1';
+          }
+        } catch (e) {
+          // Invalid URL, continue to next priority
+        }
+      }
+    }
+    
+    // Priority 3: Default production API URL
+    // CRITICAL: This is the absolute URL that must be used for all embedded widgets
+    const DEFAULT_API_BASE = 'https://app.aistein.it/api/v1';
+    
+    // Priority 4: Localhost fallback for development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5001/api/v1';
+    }
+    
+    return DEFAULT_API_BASE;
+  }
+  
+  const API_URL = resolveApiUrl();
+  console.log('[Aistein Widget] ✅ Resolved API URL:', API_URL);
+  
   const position = config.position || 'bottom-right';
   const primaryColor = config.primaryColor || '#6366f1';
-  const collection = config.collection || null;
+  const knowledgeBaseId = config.knowledgeBaseId || config.collection || null;
 
   // ========== WIDGET STATE ==========
   let isOpen = false;
@@ -77,16 +125,22 @@
   // ========== 3️⃣ API CALLS (USING RESOLVED widgetId) ==========
   async function sendMessage(query) {
     try {
+      const requestBody = {
+        query: query,
+        threadId: threadId
+      };
+      
+      // Use knowledgeBaseId if provided (preferred), fallback to collection for backward compatibility
+      if (knowledgeBaseId) {
+        requestBody.knowledgeBaseId = knowledgeBaseId;
+      }
+      
       const response = await fetch(`${API_URL}/chatbot/widget/${widgetId}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          query: query,
-          threadId: threadId,
-          collection: collection
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
