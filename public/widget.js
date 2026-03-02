@@ -85,7 +85,7 @@
     
     // Priority 3: Default production API URL
     // CRITICAL: This is the absolute URL that must be used for all embedded widgets
-    const DEFAULT_API_BASE = 'https://app.aistein.it/api/v1';
+    const DEFAULT_API_BASE = 'https://aisteinai-backend-2026.onrender.com/api/v1';
     
     // Priority 4: Localhost fallback for development
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
