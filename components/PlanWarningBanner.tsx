@@ -22,7 +22,7 @@ export function PlanWarningBanner() {
     return null;
   }
 
-  // Show the most critical warning
+
   const priorityOrder = { exceeded: 3, critical: 2, warning: 1 };
   const topWarning = activeWarnings.sort(
     (a, b) => priorityOrder[b.level] - priorityOrder[a.level]

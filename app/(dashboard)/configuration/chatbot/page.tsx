@@ -549,7 +549,7 @@ export default function ChatbotSettingsPage() {
                       Greeting Message <span className="text-red-500">*</span>
                     </label>
                     <p className="text-xs text-muted-foreground mb-3">
-                      The initial message shown when a user starts a conversation
+                      In the initial message, it is mandatory to ask the user for their name so the conversation can be properly tracked. The agent should politely request the user's name at the beginning before proceeding with the rest of the conversation.
                     </p>
                   </div>
                 </div>

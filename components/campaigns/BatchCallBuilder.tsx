@@ -75,8 +75,20 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     return cleaned.startsWith("+") ? cleaned : "+" + cleaned;
   };
 
-  // Parse a single CSV line handling quoted fields (e.g. "Smith, John", "+123")
-  const parseCSVLine = (line: string): string[] => {
+  // Detect delimiter from the header line (comma, semicolon, or tab).
+  // Italian/European Excel exports use semicolons because comma is the decimal separator.
+  const detectDelimiter = (headerLine: string): string => {
+    const commas    = (headerLine.match(/,/g)  || []).length;
+    const semicolons = (headerLine.match(/;/g) || []).length;
+    const tabs      = (headerLine.match(/\t/g) || []).length;
+    if (semicolons > commas && semicolons >= tabs) return ";";
+    if (tabs > commas && tabs > semicolons) return "\t";
+    return ",";
+  };
+
+  // Parse a single CSV line handling quoted fields (e.g. "Smith, John", "+123").
+  // Accepts an optional delimiter so semicolon/tab CSVs are handled correctly.
+  const parseCSVLine = (line: string, delimiter: string = ","): string[] => {
     const result: string[] = [];
     let current = "";
     let inQuotes = false;
@@ -96,9 +108,10 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       } else {
         if (c === '"') {
           inQuotes = true;
-        } else if (c === ",") {
+        } else if (line.startsWith(delimiter, i)) {
           result.push(current.trim());
           current = "";
+          i += delimiter.length - 1;
         } else {
           current += c;
         }
@@ -201,20 +214,23 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
               return;
             }
 
+            // Auto-detect delimiter (handles Italian/European CSVs that use semicolons)
+            const delimiter = detectDelimiter(lines[0]);
+
             // Parse header with quoted-field support
-            const headers = parseCSVLine(lines[0]).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
+            const headers = parseCSVLine(lines[0], delimiter).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
             const phoneNumberIndex = headers.findIndex((h) => h === "phone_number" || h === "phone");
             const nameIndex = headers.findIndex((h) => h === "name");
             const emailIndex = headers.findIndex((h) => h === "email");
 
             if (phoneNumberIndex === -1 || nameIndex === -1) {
-              reject(new Error("File must contain 'phone_number' (or 'phone') and 'name' columns"));
+              reject(new Error(`File must contain 'phone_number' (or 'phone') and 'name' columns. Detected columns: ${headers.join(", ") || "(none — check delimiter)"}`));
               return;
             }
 
             const parsedRecipients: Recipient[] = [];
             for (let i = 1; i < lines.length; i++) {
-              const values = parseCSVLine(lines[i]);
+              const values = parseCSVLine(lines[i], delimiter);
               const phone = normalizePhone(values[phoneNumberIndex] ?? "");
               const name = values[nameIndex]?.trim().replace(/^"|"$/g, "") ?? "";
               if (phone && name) {
