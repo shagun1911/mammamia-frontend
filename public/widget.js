@@ -98,9 +98,77 @@
   const API_URL = resolveApiUrl();
   console.log('[Aistein Widget] ✅ Resolved API URL:', API_URL);
   
-  const position = config.position || 'bottom-right';
-  const primaryColor = config.primaryColor || '#6366f1';
-  const knowledgeBaseId = config.knowledgeBaseId || config.collection || null;
+  // ========== WIDGET CONFIGURATION (will be loaded from backend) ==========
+  let widgetConfig = {
+    name: 'AI Assistant',
+    greeting: 'Hello! How can I help you today?',
+    primaryColor: '#6366f1',
+    collectName: true,
+    avatar: null,
+    position: 'bottom-right',
+    language: 'en'
+  };
+
+  // ========== LOAD WIDGET CONFIG FROM BACKEND ==========
+  async function loadWidgetConfig() {
+    try {
+      const res = await fetch(`${API_URL}/chatbot/widget/${widgetId}/config`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          // Merge backend config with defaults (backend config takes priority)
+          widgetConfig = {
+            name: data.data.name || widgetConfig.name,
+            greeting: data.data.greeting || widgetConfig.greeting,
+            primaryColor: data.data.primaryColor || widgetConfig.primaryColor,
+            collectName: data.data.collectName !== undefined ? data.data.collectName : widgetConfig.collectName,
+            avatar: data.data.avatar || widgetConfig.avatar,
+            position: data.data.position || widgetConfig.position,
+            language: data.data.language || widgetConfig.language
+          };
+          
+          // Update variables that depend on config
+          // Priority: embed script config > backend config > defaults
+          position = config.position || widgetConfig.position || 'bottom-right';
+          primaryColor = config.primaryColor || widgetConfig.primaryColor || '#6366f1';
+          isAskingName = widgetConfig.collectName;
+          
+          console.log('[Aistein Widget] Final config values:', {
+            position,
+            primaryColor,
+            name: widgetConfig.name,
+            collectName: widgetConfig.collectName,
+            hasGreeting: !!widgetConfig.greeting
+          });
+          
+          console.log('[Aistein Widget] ✅ Loaded config from backend:', widgetConfig);
+        }
+      } else {
+        console.warn('[Aistein Widget] ⚠️ Failed to load config, using defaults');
+      }
+    } catch (err) {
+      console.warn('[Aistein Widget] ⚠️ Failed to load config:', err.message);
+      // Continue with defaults - widget will still work
+    } finally {
+      // Always set position and primaryColor (from embed script config, backend config, or defaults)
+      // This ensures they're set even if config loading fails
+      position = config.position || widgetConfig.position || 'bottom-right';
+      primaryColor = config.primaryColor || widgetConfig.primaryColor || '#6366f1';
+      isAskingName = widgetConfig.collectName;
+    }
+  }
+
+  // These will be updated after backend config loads
+  // Priority: embed script config > backend config > defaults
+  let position = 'bottom-right';
+  let primaryColor = '#6366f1';
+  const knowledgeBaseIds = Array.isArray(config.knowledgeBaseId)
+  ? config.knowledgeBaseId
+  : config.knowledgeBaseId
+  ? [config.knowledgeBaseId]
+  : config.collection
+  ? [config.collection]
+  : [];
 
   // ========== WIDGET STATE ==========
   let isOpen = false;
@@ -108,7 +176,7 @@
   let messages = [];
   let threadId = generateThreadId();
   let userName = null;
-  let isAskingName = true;
+  let isAskingName = true; // Will be updated after config loads
 
   // ========== UTILITY FUNCTIONS ==========
   function generateThreadId() {
@@ -131,8 +199,8 @@
       };
       
       // Use knowledgeBaseId if provided (preferred), fallback to collection for backward compatibility
-      if (knowledgeBaseId) {
-        requestBody.knowledgeBaseId = knowledgeBaseId;
+      if (knowledgeBaseIds.length > 0) {
+        requestBody.knowledgeBaseId = knowledgeBaseIds;
       }
       
       const response = await fetch(`${API_URL}/chatbot/widget/${widgetId}/chat`, {
@@ -218,7 +286,7 @@
     `;
     header.innerHTML = `
       <div>
-        <div style="font-weight: 600; font-size: 16px;">AI Assistant</div>
+        <div style="font-weight: 600; font-size: 16px;">${widgetConfig.name}</div>
         <div style="font-size: 12px; opacity: 0.9;">Online</div>
       </div>
       <button id="aistein-toggle" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">−</button>
@@ -334,7 +402,13 @@
       if (isAskingName) {
         userName = query;
         isAskingName = false;
-        addMessage('bot', `Nice to meet you, ${userName}! How can I help you today?`);
+        // Use greeting from config, or personalized greeting
+        const personalizedGreeting = widgetConfig.greeting && widgetConfig.greeting.includes('{{name}}')
+          ? widgetConfig.greeting.replace('{{name}}', userName)
+          : widgetConfig.greeting && !widgetConfig.greeting.includes('name')
+          ? widgetConfig.greeting
+          : `Nice to meet you, ${userName}! How can I help you today?`;
+        addMessage('bot', personalizedGreeting);
         return;
       }
 
@@ -396,16 +470,29 @@
 
     // Initial welcome message
     if (isAskingName) {
-      addMessage('bot', '👋 Hello! Before we start, may I know your name?');
+      // Use greeting from config, or default name collection message
+      const nameGreeting = widgetConfig.greeting && widgetConfig.greeting.includes('name')
+        ? widgetConfig.greeting
+        : '👋 Hello! Before we start, may I know your name?';
+      addMessage('bot', nameGreeting);
+    } else if (widgetConfig.greeting) {
+      // Show greeting if not collecting name
+      addMessage('bot', widgetConfig.greeting);
     }
   }
 
   // ========== INITIALIZE ==========
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createWidget);
-  } else {
-    createWidget();
-  }
+  // Load config first, then create widget
+  (async () => {
+    await loadWidgetConfig();
+    
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', createWidget);
+    } else {
+      createWidget();
+    }
+  })();
 
 })();
 
