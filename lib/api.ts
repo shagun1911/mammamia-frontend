@@ -119,7 +119,7 @@ class ApiClient {
 
   /**..
    * Format error responses consistentl
-   * Backend error format: { success: false, error: { code, message, details } }
+   * Backend error format: { success: false,   error: { code, message, details } }
    */
   private formatError(error: any) {
     if (error.response) {
