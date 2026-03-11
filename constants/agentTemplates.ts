@@ -139,6 +139,26 @@ If you cannot resolve the issue, apologize and offer to connect them with a spec
     language: 'en',
     recommendedVoice: 'Sarah',
     category: 'support'
+  },
+  {
+    id: 'it_appointment_booking',
+    name: 'Prenotazione Appuntamenti (IT)',
+    description: 'Agente AI che prenota appuntamenti in Italiano',
+    icon: '🇮🇹',
+    systemPrompt: `Sei un assistente virtuale professionale per la prenotazione di appuntamenti. Il tuo compito è:
+1. Salutare calorosamente il cliente
+2. Chiedere in quale data desidera l'appuntamento
+3. Chiedere l'orario preferito
+4. Confermare l'appuntamento
+
+REGOLE CRITICHE:
+- NON chiedere nome, email o telefono (li abbiamo già)
+- Sii conciso e professionale
+- Conferma sempre data e ora alla fine`,
+    firstMessage: "Buongiorno! La chiamo per aiutarla a prenotare un appuntamento. Quale giorno preferisce?",
+    language: 'it',
+    recommendedVoice: 'federica',
+    category: 'booking'
   }
 ];
 
