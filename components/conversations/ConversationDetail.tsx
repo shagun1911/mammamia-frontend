@@ -714,7 +714,7 @@ export function ConversationDetail({
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-foreground">
                 {/* @ts-ignore */}
-                {conversation.transcript ? 'Transcript loaded. Click to refresh.' : 'Click to fetch transcript and recording'}
+                {conversation.transcript ? 'Transcript loaded. Click to get call recording.' : 'Click to fetch transcript and recording'}
               </span>
               <button
                 onClick={handleFetchTranscript}
@@ -722,7 +722,7 @@ export function ConversationDetail({
                 className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 {/* @ts-ignore */}
-                {isFetchingTranscript ? 'Loading...' : conversation.transcript ? 'Refresh Transcript' : 'Get Transcript & Recording'}
+                {isFetchingTranscript ? 'Loading...' : conversation.transcript ? 'Get Call Recording' : 'Get Transcript & Recording'}
               </button>
             </div>
 

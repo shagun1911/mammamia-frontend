@@ -36,8 +36,8 @@ export function PlanWarningBanner() {
     switch (level) {
       case "exceeded":
         return {
-          bg: "bg-red-500/10 border-red-500/30",
-          text: "text-red-600 dark:text-red-400",
+          bg: "bg-red-600 dark:bg-red-700 border-red-600 dark:border-red-700",
+          text: "text-white",
           icon: XCircle,
         };
       case "critical":
@@ -75,7 +75,7 @@ export function PlanWarningBanner() {
           <Icon className="w-5 h-5 flex-shrink-0" />
           <p className="flex-1 text-sm font-medium">{topWarning.message}</p>
           <Link
-            href="/billing"
+            href="/settings/profile"
             className="px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors flex-shrink-0"
           >
             Upgrade Plan

@@ -33,10 +33,20 @@ export function ConversationList({
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        (conv) =>
-          conv.customer.name.toLowerCase().includes(query) ||
-          conv.customer.email.toLowerCase().includes(query) ||
-          conv.lastMessage.toLowerCase().includes(query)
+        (conv) => {
+          // Safely check customer fields with null/undefined handling
+          const customerName = conv.customer?.name?.toLowerCase() || '';
+          const customerEmail = conv.customer?.email?.toLowerCase() || '';
+          const customerPhone = conv.customer?.phone?.toLowerCase() || '';
+          const lastMessage = conv.lastMessage?.toLowerCase() || '';
+          
+          return (
+            customerName.includes(query) ||
+            customerEmail.includes(query) ||
+            customerPhone.includes(query) ||
+            lastMessage.includes(query)
+          );
+        }
       );
     }
 
