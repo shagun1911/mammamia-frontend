@@ -32,10 +32,7 @@
   }
 
   async function sendMessage(query) {
-    const body = {
-      query,
-      threadId,
-    };
+    const body = { query, threadId };
 
     if (KB_IDS.length) body.knowledgeBaseId = KB_IDS;
 
@@ -55,10 +52,10 @@
     const container = el("div");
     container.style.cssText = `
       position:fixed;
-      ${position.includes("right") ? "right:20px" : "left:20px"};
-      ${position.includes("bottom") ? "bottom:20px" : "top:20px"};
-      z-index:9999;
-      font-family:sans-serif;
+      ${position.includes("right") ? "right:24px" : "left:24px"};
+      ${position.includes("bottom") ? "bottom:24px" : "top:24px"};
+      z-index:2147483647;
+      font-family:Arial, sans-serif;
     `;
 
     const windowBox = el("div");
@@ -67,10 +64,11 @@
       height:520px;
       background:white;
       border-radius:16px;
-      box-shadow:0 10px 30px rgba(0,0,0,.2);
+      box-shadow:0 10px 40px rgba(0,0,0,.25);
       display:flex;
       flex-direction:column;
       overflow:hidden;
+      margin-bottom:12px;
     `;
 
     const header = el("div");
@@ -79,6 +77,9 @@
       color:white;
       padding:14px;
       font-weight:600;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
     `;
     header.innerText = "AI Assistant";
 
@@ -105,6 +106,7 @@
       padding:10px;
       border:1px solid #ddd;
       border-radius:8px;
+      outline:none;
     `;
 
     const sendBtn = el("button");
@@ -123,7 +125,7 @@
       row.style.cssText = `
         margin-bottom:10px;
         display:flex;
-        ${user ? "justify-content:flex-end" : ""}
+        ${user ? "justify-content:flex-end;" : ""}
       `;
 
       const bubble = el("div");
@@ -177,18 +179,31 @@
     windowBox.appendChild(inputWrap);
 
     const bubble = el("button");
-    bubble.innerHTML = "💬";
+
     bubble.style.cssText = `
       width:60px;
       height:60px;
       border-radius:50%;
       background:${primaryColor};
-      color:white;
       border:none;
-      font-size:26px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
       cursor:pointer;
-      box-shadow:0 5px 20px rgba(0,0,0,.2);
+      box-shadow:0 5px 20px rgba(0,0,0,.3);
+      z-index:2147483647;
     `;
+
+    if (config.logoUrl) {
+      const img = el("img");
+      img.src = config.logoUrl;
+      img.style.width = "28px";
+      img.style.height = "28px";
+      img.style.objectFit = "contain";
+      bubble.appendChild(img);
+    } else {
+      bubble.innerHTML = "💬";
+    }
 
     bubble.onclick = () => {
       if (!isOpen) {
