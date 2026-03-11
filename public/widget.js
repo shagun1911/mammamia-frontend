@@ -1,497 +1,227 @@
-/**
- * Aistein Chatbot Widget
- * 
- * CRITICAL: This widget MUST resolve widgetId correctly to prevent backend errors.
- * Backend expects: widgetId === MongoDB ObjectId (24 hex chars)
- */
+(function () {
+  "use strict";
 
-(function() {
-  'use strict';
+  if (window.AISTEIN_WIDGET_LOADED) return;
+  window.AISTEIN_WIDGET_LOADED = true;
 
-  // ========== 1️⃣ SINGLE SOURCE OF TRUTH FOR widgetId ==========
-  /**
-   * Resolves widgetId with priority:
-   * 1. window.Aistein.widgetId (from embed script config)
-   * 2. URL path /widget/:widgetId
-   * 
-   * @returns {string|null} Resolved widgetId or null
-   */
-  function resolveWidgetId() {
-    // Priority 1: embed script config
-    if (window.Aistein && typeof window.Aistein.widgetId === 'string' && window.Aistein.widgetId.trim() !== '') {
-      return window.Aistein.widgetId.trim();
-    }
-
-    // Priority 2: URL path (/widget/:widgetId)
-    const match = window.location.pathname.match(/\/widget\/([^\/]+)/);
-    if (match && match[1] && match[1] !== 'undefined') {
-      return match[1];
-    }
-
-    return null;
-  }
-
-  // ========== 2️⃣ FAIL FAST — NO SILENT FALLBACKS ==========
-  const widgetId = resolveWidgetId();
+  const config = window.Aistein || {};
+  const widgetId = config.widgetId;
 
   if (!widgetId) {
-    console.error('[Aistein Widget] ❌ widgetId could not be resolved');
-    console.error('[Aistein Widget] pathname:', window.location.pathname);
-    console.error('[Aistein Widget] Aistein config:', window.Aistein);
-    throw new Error('Widget ID is required but was not found. Please ensure the widget is configured correctly.');
+    console.error("[Aistein] widgetId missing");
+    return;
   }
 
-  // ========== 4️⃣ TEMPORARY DEBUG LOG ==========
-  console.log('[Aistein Widget] ✅ Resolved widgetId:', widgetId);
-  console.log('[Aistein Widget] URL:', window.location.href);
+  const API_URL =
+    config.apiUrl || "https://aisteinai-backend-2026.onrender.com/api/v1";
 
-  // ========== WIDGET CONFIGURATION ==========
-  const config = window.Aistein || {};
-  
-  // ========== API URL RESOLUTION (CRITICAL: Use absolute URL, not window.location.origin) ==========
-  /**
-   * Resolves API base URL with priority:
-   * 1. config.apiUrl (explicit override from embed script)
-   * 2. Derive from script source URL (if loaded from app.aistein.it)
-   * 3. Default to https://app.aistein.it/api/v1 (production)
-   * 4. Localhost fallback for development
-   * 
-   * CRITICAL: Never use window.location.origin as it will point to the embedding website,
-   * not the API server. This ensures API calls always go to app.aistein.it regardless
-   * of where the widget is embedded.
-   */
-  function resolveApiUrl() {
-    // Priority 1: Explicit config override
-    if (config.apiUrl && typeof config.apiUrl === 'string' && config.apiUrl.trim() !== '') {
-      return config.apiUrl.trim();
-    }
-    
-    // // Priority 2: Derive from script source URL
-    // const scripts = document.getElementsByTagName('script');
-    // for (let i = 0; i < scripts.length; i++) {
-    //   const scriptSrc = scripts[i].src;
-    //   if (scriptSrc && scriptSrc.includes('widget.js')) {
-    //     try {
-    //       const scriptUrl = new URL(scriptSrc);
-    //       // If script is loaded from app.aistein.it, use that domain
-    //       if (scriptUrl.hostname === 'app.aistein.it' || scriptUrl.hostname.includes('aistein.it')) {
-    //         return scriptUrl.origin + '/api/v1';
-    //       }
-    //     } catch (e) {
-    //       // Invalid URL, continue to next priority
-    //     }
-    //   }
-    // }
-    
-    // Priority 3: Default production API URL
-    // CRITICAL: This is the absolute URL that must be used for all embedded widgets
-    const DEFAULT_API_BASE = 'https://aisteinai-backend-2026.onrender.com/api/v1';
-    
-    // Priority 4: Localhost fallback for development
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:5001/api/v1';
-    }
-    
-    return DEFAULT_API_BASE;
-  }
-  
-  const API_URL = resolveApiUrl();
-  console.log('[Aistein Widget] ✅ Resolved API URL:', API_URL);
-  
-  // ========== WIDGET CONFIGURATION (will be loaded from backend) ==========
-  let widgetConfig = {
-    name: 'AI Assistant',
-    greeting: 'Hello! How can I help you today?',
-    primaryColor: '#6366f1',
-    collectName: true,
-    avatar: null,
-    position: 'bottom-right',
-    language: 'en'
-  };
+  const KB_IDS = Array.isArray(config.knowledgeBaseId)
+    ? config.knowledgeBaseId
+    : config.knowledgeBaseId
+    ? [config.knowledgeBaseId]
+    : [];
 
-  // ========== LOAD WIDGET CONFIG FROM BACKEND ==========
-  async function loadWidgetConfig() {
-    try {
-      const res = await fetch(`${API_URL}/chatbot/widget/${widgetId}/config`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.data) {
-          // Merge backend config with defaults (backend config takes priority)
-          widgetConfig = {
-            name: data.data.name || widgetConfig.name,
-            greeting: data.data.greeting || widgetConfig.greeting,
-            primaryColor: data.data.primaryColor || widgetConfig.primaryColor,
-            collectName: data.data.collectName !== undefined ? data.data.collectName : widgetConfig.collectName,
-            avatar: data.data.avatar || widgetConfig.avatar,
-            position: data.data.position || widgetConfig.position,
-            language: data.data.language || widgetConfig.language
-          };
-          
-          // Update variables that depend on config
-          // Priority: embed script config > backend config > defaults
-          position = config.position || widgetConfig.position || 'bottom-right';
-          primaryColor = config.primaryColor || widgetConfig.primaryColor || '#6366f1';
-          isAskingName = widgetConfig.collectName;
-          
-          console.log('[Aistein Widget] Final config values:', {
-            position,
-            primaryColor,
-            name: widgetConfig.name,
-            collectName: widgetConfig.collectName,
-            hasGreeting: !!widgetConfig.greeting
-          });
-          
-          console.log('[Aistein Widget] ✅ Loaded config from backend:', widgetConfig);
-        }
-      } else {
-        console.warn('[Aistein Widget] ⚠️ Failed to load config, using defaults');
-      }
-    } catch (err) {
-      console.warn('[Aistein Widget] ⚠️ Failed to load config:', err.message);
-      // Continue with defaults - widget will still work
-    } finally {
-      // Always set position and primaryColor (from embed script config, backend config, or defaults)
-      // This ensures they're set even if config loading fails
-      position = config.position || widgetConfig.position || 'bottom-right';
-      primaryColor = config.primaryColor || widgetConfig.primaryColor || '#6366f1';
-      isAskingName = widgetConfig.collectName;
-    }
-  }
+  const primaryColor = config.primaryColor || "#6366f1";
+  const position = config.position || "bottom-right";
 
-  // These will be updated after backend config loads
-  // Priority: embed script config > backend config > defaults
-  let position = 'bottom-right';
-  let primaryColor = '#6366f1';
-  const knowledgeBaseIds = Array.isArray(config.knowledgeBaseId)
-  ? config.knowledgeBaseId
-  : config.knowledgeBaseId
-  ? [config.knowledgeBaseId]
-  : config.collection
-  ? [config.collection]
-  : [];
-
-  // ========== WIDGET STATE ==========
+  let threadId = "thread_" + Date.now();
   let isOpen = false;
-  let isMinimized = false;
-  let messages = [];
-  let threadId = generateThreadId();
-  let userName = null;
-  let isAskingName = true; // Will be updated after config loads
 
-  // ========== UTILITY FUNCTIONS ==========
-  function generateThreadId() {
-    return 'thread_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  function el(tag) {
+    return document.createElement(tag);
   }
 
-  function createElement(tag, className, text) {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (text) el.textContent = text;
-    return el;
-  }
-
-  // ========== 3️⃣ API CALLS (USING RESOLVED widgetId) ==========
   async function sendMessage(query) {
-    try {
-      const requestBody = {
-        query: query,
-        threadId: threadId
-      };
-      
-      // Use knowledgeBaseId if provided (preferred), fallback to collection for backward compatibility
-      if (knowledgeBaseIds.length > 0) {
-        requestBody.knowledgeBaseId = knowledgeBaseIds;
-      }
-      
-      const response = await fetch(`${API_URL}/chatbot/widget/${widgetId}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+    const body = { query, threadId };
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || errorData.message || 'Failed to get response');
-      }
+    if (KB_IDS.length) body.knowledgeBaseId = KB_IDS;
 
-      const data = await response.json();
-      return data.data?.answer || data.answer || "I'm having trouble connecting right now. Please try again later.";
-    } catch (error) {
-      console.error('[Aistein Widget] API error:', error);
-      throw error;
-    }
+    const res = await fetch(`${API_URL}/chatbot/widget/${widgetId}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+    return data.data?.answer || "Error getting response.";
   }
 
-  async function saveConversation(name, userMessage, botMessage) {
-    try {
-      await fetch(`${API_URL}/conversations/widget`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          widgetId: widgetId,
-          name: name,
-          threadId: threadId,
-          messages: [
-            { role: 'user', content: userMessage, timestamp: new Date() },
-            { role: 'assistant', content: botMessage, timestamp: new Date() }
-          ]
-        })
-      });
-    } catch (error) {
-      console.error('[Aistein Widget] Failed to save conversation:', error);
-    }
-  }
-
-  // ========== WIDGET UI ==========
   function createWidget() {
-    // Container
-    const container = createElement('div', 'aistein-widget-container');
+    const container = el("div");
     container.style.cssText = `
-      position: fixed;
-      ${position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
-      ${position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
-      z-index: 9999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      position:fixed;
+      ${position.includes("right") ? "right:24px" : "left:24px"};
+      ${position.includes("bottom") ? "bottom:24px" : "top:24px"};
+      z-index:2147483647;
+      font-family:Arial, sans-serif;
     `;
 
-    // Chat window
-    const chatWindow = createElement('div', 'aistein-widget-window');
-    chatWindow.style.cssText = `
-      width: 380px;
-      height: 600px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      transition: transform 0.3s ease;
-      ${isMinimized ? 'transform: translateY(calc(100% - 60px));' : ''}
+    const windowBox = el("div");
+    windowBox.style.cssText = `
+      width:360px;
+      height:520px;
+      background:white;
+      border-radius:16px;
+      box-shadow:0 10px 40px rgba(0,0,0,.25);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+      margin-bottom:12px;
     `;
 
-    // Header
-    const header = createElement('div', 'aistein-widget-header');
+    const header = el("div");
     header.style.cssText = `
-      background: ${primaryColor};
-      color: white;
-      padding: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
+      background:${primaryColor};
+      color:white;
+      padding:14px;
+      font-weight:600;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
     `;
-    header.innerHTML = `
-      <div>
-        <div style="font-weight: 600; font-size: 16px;">${widgetConfig.name}</div>
-        <div style="font-size: 12px; opacity: 0.9;">Online</div>
-      </div>
-      <button id="aistein-toggle" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">−</button>
+    header.innerText = "AI Assistant";
+
+    const messages = el("div");
+    messages.style.cssText = `
+      flex:1;
+      padding:12px;
+      overflow-y:auto;
+      background:#f5f5f5;
     `;
 
-    // Messages container
-    const messagesContainer = createElement('div', 'aistein-widget-messages');
-    messagesContainer.style.cssText = `
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      background: #f5f5f5;
+    const inputWrap = el("div");
+    inputWrap.style.cssText = `
+      display:flex;
+      padding:10px;
+      gap:6px;
+      border-top:1px solid #eee;
     `;
 
-    // Input area
-    const inputArea = createElement('div', 'aistein-widget-input-area');
-    inputArea.style.cssText = `
-      padding: 16px;
-      background: white;
-      border-top: 1px solid #e0e0e0;
-      display: flex;
-      gap: 8px;
-    `;
-
-    const input = createElement('input', 'aistein-widget-input');
-    input.type = 'text';
-    input.placeholder = 'Type your message...';
+    const input = el("input");
+    input.placeholder = "Type message...";
     input.style.cssText = `
-      flex: 1;
-      padding: 12px;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
+      flex:1;
+      padding:10px;
+      border:1px solid #ddd;
+      border-radius:8px;
+      outline:none;
     `;
 
-    const sendButton = createElement('button', 'aistein-widget-send');
-    sendButton.textContent = 'Send';
-    sendButton.style.cssText = `
-      padding: 12px 20px;
-      background: ${primaryColor};
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
+    const sendBtn = el("button");
+    sendBtn.innerText = "Send";
+    sendBtn.style.cssText = `
+      background:${primaryColor};
+      color:white;
+      border:none;
+      padding:10px 14px;
+      border-radius:8px;
+      cursor:pointer;
     `;
 
-    // Toggle button (floating)
-    const toggleButton = createElement('button', 'aistein-widget-toggle');
-    toggleButton.style.cssText = `
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: ${primaryColor};
-      color: white;
-      border: none;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      cursor: pointer;
-      font-size: 24px;
-      display: ${isOpen ? 'none' : 'flex'};
-      align-items: center;
-      justify-content: center;
-      position: fixed;
-      ${position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
-      ${position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
-      z-index: 10000;
-    `;
+    function addMsg(text, user) {
+      const row = el("div");
+      row.style.cssText = `
+        margin-bottom:10px;
+        display:flex;
+        ${user ? "justify-content:flex-end;" : ""}
+      `;
 
-  toggleButton.innerHTML = `
-<svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-  <path d="M21 15a4 4 0 0 1-4 4H8l-4 4V5a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4v10z"/>
-</svg>
-`;
+      const bubble = el("div");
+      bubble.style.cssText = `
+        padding:10px 14px;
+        border-radius:12px;
+        max-width:75%;
+        font-size:14px;
+        ${
+          user
+            ? `background:${primaryColor};color:white`
+            : "background:white;border:1px solid #eee"
+        }
+      `;
 
-    // Assemble
-    inputArea.appendChild(input);
-    inputArea.appendChild(sendButton);
-    chatWindow.appendChild(header);
-    chatWindow.appendChild(messagesContainer);
-    chatWindow.appendChild(inputArea);
-    container.appendChild(chatWindow);
-    document.body.appendChild(toggleButton);
-
-    // Event listeners
-    header.addEventListener('click', () => {
-      isMinimized = !isMinimized;
-      chatWindow.style.transform = isMinimized ? 'translateY(calc(100% - 60px))' : 'translateY(0)';
-      document.getElementById('aistein-toggle').textContent = isMinimized ? '+' : '−';
-    });
-
-    toggleButton.addEventListener('click', () => {
-      isOpen = true;
-      toggleButton.style.display = 'none';
-      document.body.appendChild(container);
-    });
-
-    sendButton.addEventListener('click', handleSend);
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleSend();
-    });
+      bubble.innerText = text;
+      row.appendChild(bubble);
+      messages.appendChild(row);
+      messages.scrollTop = messages.scrollHeight;
+    }
 
     async function handleSend() {
-      const query = input.value.trim();
-      if (!query) return;
+      const text = input.value.trim();
+      if (!text) return;
 
-      // Add user message
-      addMessage('user', query);
-      input.value = '';
+      addMsg(text, true);
+      input.value = "";
 
-      // Handle name collection
-      if (isAskingName) {
-        userName = query;
-        isAskingName = false;
-        // Use greeting from config, or personalized greeting
-        const personalizedGreeting = widgetConfig.greeting && widgetConfig.greeting.includes('{{name}}')
-          ? widgetConfig.greeting.replace('{{name}}', userName)
-          : widgetConfig.greeting && !widgetConfig.greeting.includes('name')
-          ? widgetConfig.greeting
-          : `Nice to meet you, ${userName}! How can I help you today?`;
-        addMessage('bot', personalizedGreeting);
-        return;
-      }
-
-      // Show loading
-      const loadingId = addMessage('bot', 'Thinking...');
+      const loading = el("div");
+      loading.innerText = "Thinking...";
+      messages.appendChild(loading);
 
       try {
-        const response = await sendMessage(query);
-        updateMessage(loadingId, response);
-
-        // Save conversation
-        if (userName) {
-          await saveConversation(userName, query, response);
-        }
-      } catch (error) {
-        updateMessage(loadingId, 'Sorry, I encountered an error. Please try again.');
-        console.error('[Aistein Widget] Error:', error);
+        const reply = await sendMessage(text);
+        messages.removeChild(loading);
+        addMsg(reply, false);
+      } catch {
+        messages.removeChild(loading);
+        addMsg("Error contacting server.", false);
       }
     }
 
-    function addMessage(role, content) {
-      const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      const messageEl = createElement('div', 'aistein-widget-message');
-      messageEl.id = messageId;
-      messageEl.style.cssText = `
-        margin-bottom: 12px;
-        display: flex;
-        ${role === 'user' ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}
-      `;
+    sendBtn.onclick = handleSend;
+    input.onkeypress = (e) => e.key === "Enter" && handleSend();
 
-      const bubble = createElement('div', 'aistein-widget-bubble');
-      bubble.style.cssText = `
-        max-width: 80%;
-        padding: 10px 14px;
-        border-radius: 12px;
-        font-size: 14px;
-        line-height: 1.4;
-        ${role === 'user' 
-          ? `background: ${primaryColor}; color: white; border-bottom-right-radius: 4px;` 
-          : 'background: white; color: #333; border-bottom-left-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);'}
-      `;
-      bubble.textContent = content;
+    inputWrap.appendChild(input);
+    inputWrap.appendChild(sendBtn);
 
-      messageEl.appendChild(bubble);
-      messagesContainer.appendChild(messageEl);
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    windowBox.appendChild(header);
+    windowBox.appendChild(messages);
+    windowBox.appendChild(inputWrap);
 
-      messages.push({ id: messageId, role, content });
-      return messageId;
+    const bubble = el("button");
+
+    bubble.style.cssText = `
+      width:60px;
+      height:60px;
+      border-radius:50%;
+      background:${primaryColor};
+      border:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      box-shadow:0 5px 20px rgba(0,0,0,.3);
+      z-index:2147483647;
+    `;
+
+    if (config.logoUrl) {
+      const img = el("img");
+      img.src = config.logoUrl;
+      img.style.width = "28px";
+      img.style.height = "28px";
+      img.style.objectFit = "contain";
+      bubble.appendChild(img);
+    } else {
+      bubble.innerHTML = "💬";
     }
 
-    function updateMessage(messageId, content) {
-      const messageEl = document.getElementById(messageId);
-      if (messageEl) {
-        const bubble = messageEl.querySelector('.aistein-widget-bubble');
-        if (bubble) bubble.textContent = content;
+    bubble.onclick = () => {
+      if (!isOpen) {
+        container.appendChild(windowBox);
+        bubble.style.display = "none";
+        isOpen = true;
       }
-    }
+    };
 
-    // Initial welcome message
-    if (isAskingName) {
-      // Use greeting from config, or default name collection message
-      const nameGreeting = widgetConfig.greeting && widgetConfig.greeting.includes('name')
-        ? widgetConfig.greeting
-        : '👋 Hello! Before we start, may I know your name?';
-      addMessage('bot', nameGreeting);
-    } else if (widgetConfig.greeting) {
-      // Show greeting if not collecting name
-      addMessage('bot', widgetConfig.greeting);
-    }
+    document.body.appendChild(container);
+    document.body.appendChild(bubble);
+
+    addMsg("👋 Hello! How can I help you today?");
   }
 
-  // ========== INITIALIZE ==========
-  // Load config first, then create widget
-  (async () => {
-    await loadWidgetConfig();
-    
-    // Wait for DOM to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', createWidget);
-    } else {
-      createWidget();
-    }
-  })();
-
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", createWidget);
+  } else {
+    createWidget();
+  }
 })();
