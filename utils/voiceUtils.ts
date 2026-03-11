@@ -349,8 +349,13 @@ async function fetchVoiceAudio(
   };
 
   const sampleText = sampleTexts[language.toLowerCase()] || sampleTexts.en;
-  const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || 'sk_3b1731773d047b2b8fd4612df9032faf9a8588c38454e1a4';
+  const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
   const baseUrl = process.env.NEXT_PUBLIC_ELEVENLABS_API_URL || 'https://api.elevenlabs.io/v1';
+
+  if (!apiKey) {
+    console.error('ElevenLabs API key is missing');
+    return;
+  }
 
   try {
     const response = await fetch(

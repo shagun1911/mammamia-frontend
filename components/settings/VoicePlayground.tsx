@@ -52,8 +52,13 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
 
       const sampleText = sampleTexts[voice.language] || sampleTexts['English'];
 
-      const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || 'sk_3b1731773d047b2b8fd4612df9032faf9a8588c38454e1a4';
+      const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
       const baseUrl = process.env.NEXT_PUBLIC_ELEVENLABS_API_URL || 'https://api.elevenlabs.io/v1';
+
+      if (!apiKey) {
+        toast.error('Voice preview is currently unavailable (API key missing)');
+        return;
+      }
 
       // Call ElevenLabs API
       const response = await fetch(
