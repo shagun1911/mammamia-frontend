@@ -166,12 +166,14 @@
     const iframe = createElement('iframe', 'aistein-widget-iframe');
     iframe.src = widgetUrl;
     iframe.style.cssText = `
-      width: min(${width}px, 95vw);
-      height: min(${height}px, 85vh);
-      border: none;
-      background: transparent;
-      overflow: hidden;
-    `;
+  width: min(${width}px, 95vw);
+  height: min(${height}px, 85vh);
+  border: none;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  overflow: hidden;
+`;
     iframe.setAttribute('allow', 'microphone');
     iframe.setAttribute('frameborder', '0');
     iframe.setAttribute('scrolling', 'no');
