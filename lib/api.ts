@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 // ============================================================================
 // STEP 3: SINGLE SOURCE OF TRUTH FOR API URL (FIX)
-// Enforce NEXT_PUBLIC_API_URL - crash build if m
+// Enforce NEXT_PUBLIC_API_URL - crash build if
 // ============================================================================
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
