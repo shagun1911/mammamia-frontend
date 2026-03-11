@@ -257,6 +257,7 @@ export const VOICE_OPTIONS: VoiceOption[] = [
   { value: 'vittorio', label: 'Vittorio', voiceId: 'nH7uLS5UdEnvKEOAXtlQ', language: 'Italian', gender: 'Male', flag: '🇮🇹' },
   
   // 🇮🇹 ITALIAN - FEMALE
+  { value: 'federica', label: 'Federica', voiceId: 'YoTg4iSbsCW96GVME4O6', language: 'Italian', gender: 'Female', flag: '🇮🇹' },
   { value: 'ginevra', label: 'Ginevra', voiceId: 'QITiGyM4owEZrBEf0QV8', language: 'Italian', gender: 'Female', flag: '🇮🇹' },
   { value: 'roberta', label: 'Roberta', voiceId: 'ZzFXkjuO1rPntDj6At5C', language: 'Italian', gender: 'Female', flag: '🇮🇹' },
   { value: 'giusy', label: 'Giusy', voiceId: '8KInRSd4DtD5L5gK7itu', language: 'Italian', gender: 'Female', flag: '🇮🇹' },

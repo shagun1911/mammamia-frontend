@@ -52,15 +52,23 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
 
       const sampleText = sampleTexts[voice.language] || sampleTexts['English'];
 
+      const apiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
+      const baseUrl = process.env.NEXT_PUBLIC_ELEVENLABS_API_URL || 'https://api.elevenlabs.io/v1';
+
+      if (!apiKey) {
+        toast.error('Voice preview is currently unavailable (API key missing)');
+        return;
+      }
+
       // Call ElevenLabs API
       const response = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voice.voiceId}`,
+        `${baseUrl}/text-to-speech/${voice.voiceId}`,
         {
           method: 'POST',
           headers: {
             'Accept': 'audio/mpeg',
             'Content-Type': 'application/json',
-            'xi-api-key': 'sk_3b1731773d047b2b8fd4612df9032faf9a8588c38454e1a4'
+            'xi-api-key': apiKey
           },
           body: JSON.stringify({
             text: sampleText,
@@ -134,8 +142,8 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
               key={voice.value}
               onClick={() => onVoiceSelect(voice.value)}
               className={`relative group p-4 rounded-lg border-2 transition-all text-left ${selectedVoice === voice.value
-                  ? "border-primary bg-primary/10"
-                  : "border-border bg-secondary hover:border-primary/50 hover:bg-secondary/80"
+                ? "border-primary bg-primary/10"
+                : "border-border bg-secondary hover:border-primary/50 hover:bg-secondary/80"
                 }`}
             >
               <div className="flex items-center justify-between">
@@ -159,10 +167,10 @@ export function VoicePlayground({ selectedVoice, onVoiceSelect }: VoicePlaygroun
                   }}
                   disabled={loadingVoice === voice.value}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${playingVoice === voice.value
-                      ? "bg-primary text-primary-foreground"
-                      : loadingVoice === voice.value
-                        ? "bg-primary/50 text-primary-foreground cursor-wait"
-                        : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : loadingVoice === voice.value
+                      ? "bg-primary/50 text-primary-foreground cursor-wait"
+                      : "bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground"
                     }`}
                   title={loadingVoice === voice.value ? "Loading..." : "Preview voice"}
                 >
