@@ -117,7 +117,7 @@ class ApiClient {
     );
   }
 
-  /**
+  /**..
    * Format error responses consistently
    * Backend error format: { success: false, error: { code, message, details } }
    */
