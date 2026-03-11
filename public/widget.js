@@ -153,6 +153,10 @@
       ${position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
       ${position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
       z-index: 9999;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
       transition: transform 0.25s ease, opacity 0.25s ease;
     `;
 
@@ -165,8 +169,9 @@
       width: min(${width}px, 95vw);
       height: min(${height}px, 85vh);
       border: none;
-      border-radius: 12px;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
     `;
     iframe.setAttribute('allow', 'microphone');
     iframe.setAttribute('frameborder', '0');
