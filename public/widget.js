@@ -169,9 +169,8 @@
       width: min(${width}px, 95vw);
       height: min(${height}px, 85vh);
       border: none;
-      border-radius: 16px;
+      background: transparent;
       overflow: hidden;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
     `;
     iframe.setAttribute('allow', 'microphone');
     iframe.setAttribute('frameborder', '0');
