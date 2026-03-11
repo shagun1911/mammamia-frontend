@@ -358,7 +358,13 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
               <Minimize2 className="w-5 h-5 text-white" />
             </button>
             <button
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                setIsOpen(false);
+                // If inside an iframe, notify parent to close
+                if (window.self !== window.top) {
+                  window.parent.postMessage('AISTEIN_WIDGET_CLOSE', '*');
+                }
+              }}
               className="w-8 h-8 hover:bg-white/10 rounded-lg flex items-center justify-center transition-colors"
             >
               <X className="w-5 h-5 text-white" />

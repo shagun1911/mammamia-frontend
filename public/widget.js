@@ -104,9 +104,9 @@
 
   // ========== WIDGET STATE ==========
   let isOpen = false;
-  let isMinimized = false;
   let position = config.position || 'bottom-right';
-  let primaryColor = config.primaryColor || '#6366f1';
+  let primaryColor = config.primaryColor || '#4F7DF3';
+  let clientLogoUrl = config.logoUrl || config.clientLogo || null;
 
   // ========== UTILITY FUNCTIONS ==========
   function createElement(tag, className) {
@@ -154,7 +154,6 @@
       ${position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
       z-index: 9999;
       transition: transform 0.25s ease, opacity 0.25s ease;
-      ${isMinimized ? 'transform: translateY(calc(100% - 60px)); opacity: 0; pointer-events: none;' : 'transform: translateY(0); opacity: 1;'}
     `;
 
     // Create iframe with responsive sizing
@@ -168,26 +167,24 @@
       border: none;
       border-radius: 12px;
       box-shadow: 0 8px 40px rgba(0,0,0,0.25);
-      background: transparent;
     `;
     iframe.setAttribute('allow', 'microphone');
     iframe.setAttribute('frameborder', '0');
     iframe.setAttribute('scrolling', 'no');
 
-    // Toggle button (floating) - shown when widget is closed
+    // Floating bubble button - shown when widget is closed
     const toggleButton = createElement('button', 'aistein-widget-toggle');
     toggleButton.style.cssText = `
       width: 60px;
       height: 60px;
       border-radius: 50%;
       background: ${primaryColor};
-      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border: none;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       cursor: pointer;
-      display: ${isOpen ? 'none' : 'flex'};
-      align-items: center;
-      justify-content: center;
       position: fixed;
       ${position.includes('right') ? 'right: 20px;' : 'left: 20px;'}
       ${position.includes('bottom') ? 'bottom: 20px;' : 'top: 20px;'}
@@ -203,81 +200,29 @@
       this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
     });
 
-    toggleButton.innerHTML = `
+    // Add client logo or default message icon
+    if (clientLogoUrl) {
+      const logoImg = createElement('img', 'aistein-widget-logo');
+      logoImg.src = clientLogoUrl;
+      logoImg.style.cssText = 'width: 28px; height: 28px; object-fit: contain;';
+      logoImg.alt = 'Chat';
+      toggleButton.appendChild(logoImg);
+    } else {
+      // Default message icon SVG
+      toggleButton.innerHTML = `
 <svg width="28" height="28" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
   <path d="M21 15a4 4 0 0 1-4 4H8l-4 4V5a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4v10z"/>
 </svg>
 `;
+    }
 
-    // Minimize button (overlay on iframe) - shown when widget is open
-    const minimizeButton = createElement('button', 'aistein-widget-minimize');
-    minimizeButton.style.cssText = `
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(4px);
-      border: none;
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10001;
-      transition: background 0.2s ease;
-      font-size: 18px;
-      font-weight: bold;
-    `;
-    minimizeButton.textContent = '−';
-    minimizeButton.addEventListener('mouseenter', function() {
-      this.style.background = 'rgba(0, 0, 0, 0.5)';
-    });
-    minimizeButton.addEventListener('mouseleave', function() {
-      this.style.background = 'rgba(0, 0, 0, 0.3)';
-    });
-
-    // Close button (overlay on iframe) - shown when widget is open
-    const closeButton = createElement('button', 'aistein-widget-close');
-    closeButton.style.cssText = `
-      position: absolute;
-      top: 8px;
-      right: 48px;
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(4px);
-      border: none;
-      color: white;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10001;
-      transition: background 0.2s ease;
-      font-size: 18px;
-      font-weight: bold;
-    `;
-    closeButton.innerHTML = '×';
-    closeButton.addEventListener('mouseenter', function() {
-      this.style.background = 'rgba(0, 0, 0, 0.5)';
-    });
-    closeButton.addEventListener('mouseleave', function() {
-      this.style.background = 'rgba(0, 0, 0, 0.3)';
-    });
-
-    // Assemble container
+    // Assemble container (only iframe, no overlay buttons)
     container.appendChild(iframe);
-    container.appendChild(minimizeButton);
-    container.appendChild(closeButton);
     
-    // Add to DOM
+    // Add toggle button to DOM
     document.body.appendChild(toggleButton);
 
-    // Event listeners
+    // Event listener: Open widget when bubble is clicked
     toggleButton.addEventListener('click', function() {
       isOpen = true;
       toggleButton.style.display = 'none';
@@ -293,24 +238,25 @@
       }, 10);
     });
 
-    minimizeButton.addEventListener('click', function() {
-      isMinimized = !isMinimized;
-      container.style.transform = isMinimized 
-        ? 'translateY(calc(100% - 60px))' 
-        : 'translateY(0)';
-      container.style.opacity = isMinimized ? '0' : '1';
-      container.style.pointerEvents = isMinimized ? 'none' : 'auto';
+    // Listen for close message from iframe
+    window.addEventListener('message', function(event) {
+      // Security: Only accept messages from the frontend URL origin
+      try {
+        const frontendOrigin = new URL(FRONTEND_URL).origin;
+        if (event.origin !== frontendOrigin) {
+          return;
+        }
+      } catch (e) {
+        // Invalid URL, reject message
+        return;
+      }
+      
+      if (event.data === 'AISTEIN_WIDGET_CLOSE') {
+        container.remove();
+        toggleButton.style.display = 'flex';
+        isOpen = false;
+      }
     });
-
-    closeButton.addEventListener('click', function() {
-      isOpen = false;
-      isMinimized = false;
-      container.remove();
-      toggleButton.style.display = 'flex';
-    });
-
-    // Initialize: Show toggle button initially (widget starts closed)
-    // Widget will be opened when user clicks the toggle button
   }
 
   // ========== INITIALIZE ==========
