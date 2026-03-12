@@ -183,15 +183,15 @@ export function NodeConfigPanel({
 
       const data = (response as any)?.data || response;
       const templatesData = data?.data?.data || data?.data || [];
-      
+
       // CRITICAL: Log template structure to debug language field
       if (templatesData.length > 0) {
         console.log('[WhatsApp Templates] Sample template structure:', templatesData[0]);
         console.log('[WhatsApp Templates] Total templates loaded:', templatesData.length);
       }
-      
+
       setWhatsappTemplates(Array.isArray(templatesData) ? templatesData : []);
-      
+
       if (templatesData.length > 0) {
         toast.success(`Loaded ${templatesData.length} WhatsApp template(s)`);
       }
@@ -645,11 +645,11 @@ export function NodeConfigPanel({
                   Enter the external webhook URL (e.g., n8n, Zapier, Make.com) where batch call data will be sent
                 </p>
               </div>
-              
+
               <div className="bg-secondary/50 border border-border rounded-lg p-4">
                 <h4 className="text-sm font-medium text-foreground mb-2">Webhook Payload Structure:</h4>
                 <pre className="text-xs text-muted-foreground overflow-x-auto">
-{`{
+                  {`{
   "event": "batch_call_completed",
   "timestamp": "2026-02-14T...",
   "organizationId": "...",
@@ -1446,36 +1446,37 @@ export function NodeConfigPanel({
           )}
 
           {/* LEGACY TRIGGERS */}
-          {(node.type === "trigger" && 
-            !node.service.startsWith("aistein_") && 
+          {(node.type === "trigger" &&
+            !node.service.startsWith("aistein_") &&
             node.service !== "batch_call_completed" &&
+            node.service !== "inbound_call_completed" &&
             node.service !== "conversation_created" &&
             node.service !== "batch_call" &&
             node.service !== "webhook") && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Event
-                </label>
-                <select
-                  value={node.config.event || ""}
-                  onChange={(e) =>
-                    onUpdate({ ...node.config, event: e.target.value })
-                  }
-                  className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                >
-                  <option value="">Select event...</option>
-                  <option value="lead_created">New Lead Created</option>
-                  <option value="order_created">Order Created</option>
-                  <option value="cart_abandoned">Cart Abandoned</option>
-                  <option value="form_submitted">Form Submitted</option>
-                </select>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Event
+                  </label>
+                  <select
+                    value={node.config.event || ""}
+                    onChange={(e) =>
+                      onUpdate({ ...node.config, event: e.target.value })
+                    }
+                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value="">Select event...</option>
+                    <option value="lead_created">New Lead Created</option>
+                    <option value="order_created">Order Created</option>
+                    <option value="cart_abandoned">Cart Abandoned</option>
+                    <option value="form_submitted">Form Submitted</option>
+                  </select>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Choose which event will trigger this automation.
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Choose which event will trigger this automation.
-              </p>
-            </div>
-          )}
+            )}
 
           {/* WHATSAPP TEMPLATE ACTION */}
           {node.service === "whatsapp_template" && (
@@ -1493,11 +1494,10 @@ export function NodeConfigPanel({
                       onUpdate({ ...node.config, mode: 'automatic' });
                       fetchWhatsappTemplates('automatic');
                     }}
-                    className={`flex-1 h-10 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors ${
-                      whatsappMode === 'automatic'
+                    className={`flex-1 h-10 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors ${whatsappMode === 'automatic'
                         ? 'bg-primary text-white border-primary'
                         : 'bg-secondary border-border text-foreground'
-                    }`}
+                      }`}
                   >
                     <span>Automatic</span>
                   </button>
@@ -1507,11 +1507,10 @@ export function NodeConfigPanel({
                       setWhatsappMode('manual');
                       onUpdate({ ...node.config, mode: 'manual' });
                     }}
-                    className={`flex-1 h-10 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors ${
-                      whatsappMode === 'manual'
+                    className={`flex-1 h-10 rounded-lg border text-sm flex items-center justify-center gap-2 transition-colors ${whatsappMode === 'manual'
                         ? 'bg-primary text-white border-primary'
                         : 'bg-secondary border-border text-foreground'
-                    }`}
+                      }`}
                   >
                     <span>Manual</span>
                   </button>
@@ -1626,27 +1625,27 @@ export function NodeConfigPanel({
                   value={node.config.templateName || node.config.template || ""}
                   onChange={(e) => {
                     const selectedTemplateName = e.target.value;
-                    
+
                     if (!selectedTemplateName) {
                       // Clear selection
-                      onUpdate({ 
-                        ...node.config, 
-                        templateName: '', 
+                      onUpdate({
+                        ...node.config,
+                        templateName: '',
                         template: '',
                         languageCode: ''
                       });
                       return;
                     }
-                    
+
                     // Find the selected template to get its language
                     const selectedTemplate = whatsappTemplates.find((tpl: any) => tpl.name === selectedTemplateName);
-                    
+
                     if (!selectedTemplate) {
                       console.warn('[WhatsApp Template] Template not found in list:', selectedTemplateName);
                       toast.error('Template not found. Please refresh the template list.');
                       return;
                     }
-                    
+
                     // CRITICAL: Extract language code from template
                     // Meta API can return language as string OR object
                     let languageCode = '';
@@ -1655,23 +1654,23 @@ export function NodeConfigPanel({
                     } else if (selectedTemplate.language?.code) {
                       languageCode = selectedTemplate.language.code;
                     }
-                    
+
                     console.log('[WhatsApp Template] Selected template:', selectedTemplate);
                     console.log('[WhatsApp Template] Extracted language:', languageCode);
-                    
+
                     if (!languageCode) {
                       console.error('[WhatsApp Template] Template missing language property:', selectedTemplate);
                       toast.error(`Template "${selectedTemplateName}" is missing language information. Cannot proceed.`);
                       return;
                     }
-                    
+
                     console.log(`[WhatsApp Template] ✅ Selected: ${selectedTemplateName} (${languageCode})`);
                     toast.success(`Template selected: ${selectedTemplateName} (${languageCode})`);
-                    
-                 
-                    onUpdate({ 
-                      ...node.config, 
-                      templateName: selectedTemplateName, 
+
+
+                    onUpdate({
+                      ...node.config,
+                      templateName: selectedTemplateName,
                       template: selectedTemplateName,
                       languageCode: languageCode
                     });
@@ -1691,8 +1690,8 @@ export function NodeConfigPanel({
                   {whatsappTemplates.length > 0 ? (
                     whatsappTemplates.map((tpl: any) => {
                       // Extract language for display - handle both string and object
-                      const langDisplay = typeof tpl.language === 'string' 
-                        ? tpl.language 
+                      const langDisplay = typeof tpl.language === 'string'
+                        ? tpl.language
                         : tpl.language?.code || '';
                       return (
                         <option key={tpl.id || tpl.name} value={tpl.name}>
@@ -1750,10 +1749,10 @@ export function NodeConfigPanel({
                           Template: {selectedTemplateInfo.name}
                         </h2>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Language: {typeof selectedTemplateInfo.language === 'string' 
-                            ? selectedTemplateInfo.language 
-                            : selectedTemplateInfo.language?.code || 'N/A'} • 
-                          Status: {selectedTemplateInfo.status || 'N/A'} • 
+                          Language: {typeof selectedTemplateInfo.language === 'string'
+                            ? selectedTemplateInfo.language
+                            : selectedTemplateInfo.language?.code || 'N/A'} •
+                          Status: {selectedTemplateInfo.status || 'N/A'} •
                           Category: {selectedTemplateInfo.category || 'N/A'}
                         </p>
                       </div>
@@ -1811,7 +1810,7 @@ export function NodeConfigPanel({
                           {selectedTemplateInfo.enrichedMetadata.headerParamCount > 0 && (
                             <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
                               <AlertCircle className="w-3 h-3" />
-                              This template requires {selectedTemplateInfo.enrichedMetadata.headerParamCount} header parameter(s). 
+                              This template requires {selectedTemplateInfo.enrichedMetadata.headerParamCount} header parameter(s).
                               Use the advanced "Components (JSON)" field to provide header parameters.
                             </p>
                           )}
@@ -1827,7 +1826,7 @@ export function NodeConfigPanel({
                           </div>
                           {selectedTemplateInfo.enrichedMetadata.bodyParamCount > 0 && (
                             <p className="text-xs text-muted-foreground mt-2">
-                              This template requires {selectedTemplateInfo.enrichedMetadata.bodyParamCount} body parameter(s). 
+                              This template requires {selectedTemplateInfo.enrichedMetadata.bodyParamCount} body parameter(s).
                               Enter them in the "Template Parameters" fields below.
                             </p>
                           )}
@@ -1848,7 +1847,7 @@ export function NodeConfigPanel({
                         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                           <p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
                             <AlertCircle className="w-4 h-4" />
-                            Make sure to provide exactly {selectedTemplateInfo.enrichedMetadata.totalParamCount} parameter(s) 
+                            Make sure to provide exactly {selectedTemplateInfo.enrichedMetadata.totalParamCount} parameter(s)
                             when using this template, or the automation will fail.
                           </p>
                         </div>
@@ -1884,10 +1883,10 @@ export function NodeConfigPanel({
                     // Get current parameters or default to 3 empty fields
                     const currentParams = node.config.templateParams || [];
                     const paramCount = Math.max(3, currentParams.length || 3);
-                    const params = Array.from({ length: paramCount }, (_, i) => 
+                    const params = Array.from({ length: paramCount }, (_, i) =>
                       currentParams[i] || ''
                     );
-                    
+
                     return (
                       <>
                         {params.map((param, index) => (
@@ -1963,8 +1962,8 @@ export function NodeConfigPanel({
                       typeof node.config.components === 'string'
                         ? node.config.components
                         : node.config.components
-                        ? JSON.stringify(node.config.components, null, 2)
-                        : ''
+                          ? JSON.stringify(node.config.components, null, 2)
+                          : ''
                     }
                     onChange={(e) =>
                       onUpdate({

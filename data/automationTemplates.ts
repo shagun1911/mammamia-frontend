@@ -392,4 +392,89 @@ export const automationTemplates: AutomationTemplate[] = [
       },
     ],
   },
+  {
+    id: "template_inbound_call_complete_flow",
+    name: "Inbound Call → Complete Booking Flow",
+    description: "Comprehensive flow: extract appointments, sync to Calendar, log to Sheets, and confirm via Email.",
+    icon: "📱",
+    color: "#10b981",
+    requiredIntegrations: ["google", "email"],
+    nodes: [
+      {
+        id: "node_1",
+        type: "trigger",
+        service: "inbound_call_completed",
+        config: {
+          event: "inbound_call_completed",
+        },
+        position: 0,
+      },
+      {
+        id: "node_2",
+        type: "action",
+        service: "aistein_extract_appointment",
+        config: {
+          conversation_id: "{{conversation_id}}",
+          extraction_type: "appointment",
+        },
+        position: 1,
+      },
+      {
+        id: "node_3",
+        type: "condition",
+        service: "condition",
+        config: {
+          field: "appointment.booked",
+          operator: "equals",
+          value: true,
+        },
+        position: 2,
+      },
+      {
+        id: "node_4",
+        type: "action",
+        service: "aistein_google_calendar_create_event",
+        config: {
+          summary: "Inbound Booking: {{contact.name}}",
+          description: "Booked via Inbound AI Call\nConversation ID: {{conversation_id}}",
+          startTime: "{{appointment.date}}T{{appointment.time}}:00Z",
+          endTime: "{{appointment.date}}T{{appointment.time_plus_30}}:00Z",
+          timeZone: "UTC",
+          attendees: [{ email: "{{contact.email}}" }],
+        },
+        position: 3,
+      },
+      {
+        id: "node_5",
+        type: "action",
+        service: "aistein_google_sheet_append_row",
+        config: {
+          spreadsheetId: "",
+          range: "Sheet1!A1",
+          values: [
+            "{{contact.name}}",
+            "{{contact.email}}",
+            "{{contact.phone}}",
+            "{{appointment.date}}",
+            "{{appointment.time}}",
+            "Inbound Call",
+            "{{now}}"
+          ],
+        },
+        position: 4,
+      },
+      {
+        id: "node_6",
+        type: "action",
+        service: "aistein_send_email",
+        config: {
+          to: "{{contact.email}}",
+          subject: "Booking Confirmed - {{contact.name}}",
+          body: "Hi {{contact.name}},\n\nYour appointment scheduled during our call has been confirmed for {{appointment.date}} at {{appointment.time}}.\n\nSee you then!",
+          is_html: false,
+        },
+        position: 5,
+      },
+    ],
+  },
 ];

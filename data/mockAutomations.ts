@@ -67,6 +67,8 @@ export const nodeServices = {
     { id: "aistein_contact_deleted", name: "Aistein-It - Contact Deleted", icon: "🗑️", color: "#ef4444" },
     { id: "aistein_contact_moved", name: "Aistein-It - Contact Moved", icon: "📋", color: "#8b5cf6" },
     { id: "conversation_created", name: "Aistein-It - Call Finished (AI Agent)", icon: "📞", color: "#10b981" },
+    { id: "inbound_call_completed", name: "Aistein-It - Inbound Call Completed", icon: "📱", color: "#10b981" },
+    { id: "batch_call_completed", name: "Aistein-It - Batch Call Completed", icon: "📤", color: "#f59e0b" },
     { id: "batch_call", name: "Aistein-It - Batch Call (CSV/List)", icon: "📤", color: "#f59e0b" },
     { id: "facebook_leads", name: "Facebook Leads", icon: "📘", color: "#1877f2" },
     { id: "shopify_order", name: "Shopify Order", icon: "🛍️", color: "#96bf48" },
@@ -76,6 +78,7 @@ export const nodeServices = {
   actions: [
     { id: "aistein_batch_calling", name: "Aistein-It - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },
     { id: "aistein_extract_data", name: "Aistein-It - Extract Conversation Data", icon: "🧠", color: "#8b5cf6" },
+    { id: "aistein_extract_appointment", name: "Aistein-It - Extract Appointment", icon: "📅", color: "#8b5cf6" },
     { id: "aistein_outbound_call", name: "Aistein-It - Outbound Call", icon: "📞", color: "#8b5cf6" },
     { id: "aistein_send_sms", name: "Aistein-It - Send SMS", icon: "💬", color: "#10b981" },
     { id: "aistein_send_email", name: "Aistein – Send Email", icon: "📧", color: "#3b82f6" },
