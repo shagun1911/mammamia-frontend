@@ -254,14 +254,14 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
     <div
       className={
         isEmbedded
-          ? "w-full h-full"
+          ? "w-full min-h-dvh bg-white dark:bg-gray-900"
           : "fixed inset-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
       }
     >
       <div
         className={
           isEmbedded
-            ? "w-full h-full bg-white dark:bg-gray-900 flex flex-col"
+            ? "w-full min-h-dvh bg-white dark:bg-gray-900 flex flex-col"
             : "w-full max-w-md h-[600px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         }
       >
