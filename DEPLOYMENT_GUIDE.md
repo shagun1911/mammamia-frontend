@@ -10,7 +10,8 @@ This guide will help you deploy your KepleroAI project completely **FREE** using
 - **Redis**: Upstash (Free Tier - 10K commands/day)
 - **File Storage**: Cloudinary (Free Tier - 25GB storage)
 
----
+-----
+
 
 ## 🗄️ Step 1: Setup MongoDB Atlas (Database)
 
