@@ -59,7 +59,7 @@ const PLATFORMS = {
     icon: MessageSquare,
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg',
     color: 'green',
-    oauthEnabled: false // Changed to manual connection
+    oauthEnabled: true // Supports both OAuth and manual connection
   },
   instagram: {
     name: 'Instagram Direct',
@@ -67,7 +67,7 @@ const PLATFORMS = {
     icon: Instagram,
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png',
     color: 'pink',
-    oauthEnabled: false // Changed to manual connection
+    oauthEnabled: true // Supports both OAuth and manual connection
   },
   facebook: {
     name: 'Facebook Messenger',
@@ -75,7 +75,7 @@ const PLATFORMS = {
     icon: Facebook,
     logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/5/51/Facebook_f_logo_%282019%29.svg',
     color: 'blue',
-    oauthEnabled: false // Changed to manual connection
+    oauthEnabled: true // Supports both OAuth and manual connection
   },
   gmail: {
     name: 'Gmail',
@@ -172,111 +172,79 @@ export default function SocialIntegrations() {
     }
   };
 
+  /**
+   * Initiate OAuth for a platform.
+   * For Meta platforms (whatsapp/instagram/facebook) this calls the backend
+   * OAuth initiate endpoint which returns a Meta auth URL, then redirects.
+   * For Gmail it also calls the backend OAuth initiate endpoint.
+   */
   const initiateOAuth = async (platform: 'whatsapp' | 'instagram' | 'facebook' | 'gmail') => {
-    console.log('[initiateOAuth] Called with platform:', platform);
-    
-    // For WhatsApp, show manual form instead of OAuth
-    if (platform === 'whatsapp') {
-      console.log('[initiateOAuth] WhatsApp detected, showing manual form');
-      setShowWhatsAppForm(true);
-      console.log('[initiateOAuth] showWhatsAppForm set to true');
-      return;
-    }
-    
-    // For Instagram, show manual form instead of OAuth
-    if (platform === 'instagram') {
-      console.log('[initiateOAuth] Instagram detected, showing manual form');
-      setShowInstagramForm(true);
-      return;
-    }
-    
-    // For Facebook, show manual form instead of OAuth
-    if (platform === 'facebook') {
-      console.log('[initiateOAuth] Facebook detected, showing manual form');
-      setShowFacebookForm(true);
-      return;
-    }
-    
-    console.log('[initiateOAuth] Not WhatsApp/Instagram/Facebook, proceeding with OAuth for:', platform);
+    console.log('[initiateOAuth] Starting OAuth for platform:', platform);
     setConnecting(platform);
     try {
       const response = await apiClient.post(`/social-integrations/${platform}/oauth/initiate`);
       
-      // Log raw response for debugging
-      console.log('OAuth initiate raw response:', response);
-      console.log('Response check:', {
+      console.log('[initiateOAuth] OAuth initiate response:', {
         success: response.success,
-        hasData: !!response.data,
         hasAuthUrl: !!response.data?.authUrl,
-        authUrl: response.data?.authUrl?.substring(0, 100)
       });
       
       // Backend returns: { success: true, data: { authUrl } }
-      // Handle both possible response shapes (flat or nested)
       const authUrl = response.data?.authUrl || response.data?.data?.authUrl;
       
       if (response.success && authUrl) {
-        // Redirect to Meta OAuth - full page redirect (not popup)
-        console.log('Redirecting to OAuth URL:', authUrl.substring(0, 100) + '...');
+        // Full page redirect to Meta OAuth dialog
+        console.log('[initiateOAuth] Redirecting to OAuth URL for:', platform);
         window.location.href = authUrl;
       } else {
-        console.error('Invalid response format:', {
-          success: response.success,
-          hasAuthUrl: !!authUrl,
-          responseKeys: Object.keys(response),
-          dataKeys: response.data ? Object.keys(response.data) : null
-        });
         throw new Error('Failed to get OAuth URL from server');
       }
     } catch (error: any) {
-      // Log full error structure for debugging
-      console.error('OAuth initiation error (full):', error);
-      console.error('Error structure breakdown:', {
-        'error.message': error.message,
-        'error.status': error.status,
-        'error.data': error.data,
-        'error.response': error.response,
-        'error.response?.status': error.response?.status,
-        'error.response?.data': error.response?.data,
-        'error.data?.error': error.data?.error,
-        'error.data?.error?.message': error.data?.error?.message,
-        'error.response?.data?.error': error.response?.data?.error,
-        'error.response?.data?.error?.message': error.response?.data?.error?.message,
-      });
+      console.error('[initiateOAuth] Error:', error);
       
-      // Extract error message from various possible locations
-      // Priority order:
-      // 1. error.data.error.message (from formatError interceptor)
-      // 2. error.response.data.error.message (direct axios error)
-      // 3. error.data.message (fallback)
-      // 4. error.response.data.message (fallback)
-      // 5. error.message (already formatted message)
-      const errorMessage = error.data?.error?.message || 
-                          error.response?.data?.error?.message ||
-                          error.data?.message ||
-                          error.response?.data?.message ||
-                          (error.message !== 'An error occurred' ? error.message : null) ||
-                          'Failed to initiate OAuth flow';
+      const errorMessage =
+        error.data?.error?.message ||
+        error.response?.data?.error?.message ||
+        error.data?.message ||
+        error.response?.data?.message ||
+        (error.message !== 'An error occurred' ? error.message : null) ||
+        'Failed to initiate OAuth flow';
       
       const statusCode = error.status || error.response?.status;
-      
-      console.log('Extracted error message:', errorMessage, 'Status:', statusCode);
       
       if (statusCode === 401) {
         toast.error('Authentication failed. Please log in again.');
       } else if (statusCode === 500) {
-        // Show detailed error message from backend
         if (errorMessage.includes('META_APP') || errorMessage.includes('Missing required environment variables')) {
           toast.error(`Configuration Error: ${errorMessage}`);
         } else if (errorMessage.includes('configured')) {
           toast.error('Meta OAuth is not configured. Please contact your administrator.');
         } else {
-          toast.error(`Error: ${errorMessage}`);
+          toast.error(`Server Error: ${errorMessage}`);
         }
       } else {
         toast.error(errorMessage);
       }
       setConnecting(null);
+    }
+  };
+
+  /**
+   * Show the manual credential form for a given Meta platform.
+   */
+  const showManualForm = (platform: 'whatsapp' | 'instagram' | 'facebook') => {
+    if (platform === 'whatsapp') {
+      setShowWhatsAppForm(true);
+      setShowInstagramForm(false);
+      setShowFacebookForm(false);
+    } else if (platform === 'instagram') {
+      setShowInstagramForm(true);
+      setShowWhatsAppForm(false);
+      setShowFacebookForm(false);
+    } else if (platform === 'facebook') {
+      setShowFacebookForm(true);
+      setShowWhatsAppForm(false);
+      setShowInstagramForm(false);
     }
   };
 
@@ -645,228 +613,229 @@ export default function SocialIntegrations() {
 
           {/* Action Buttons - Fixed at bottom */}
           <div className="mt-auto pt-4 border-t border-border">
-              {!isConnected ? (
-                <>
-                  {(() => {
-                    console.log('[Render] Platform:', platform, 'showWhatsAppForm:', showWhatsAppForm);
-                    return null;
-                  })()}
-                  {platform === 'whatsapp' && showWhatsAppForm ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Access Token <span className="text-destructive">*</span>
-                        </label>
-                        <input
-                          type="password"
-                          value={whatsAppCredentials.accessToken}
-                          onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="Enter Meta Access Token"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Phone Number ID <span className="text-destructive">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={whatsAppCredentials.phoneNumberId}
-                          onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, phoneNumberId: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="930062466863543"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          WABA ID <span className="text-destructive">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={whatsAppCredentials.wabaId}
-                          onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, wabaId: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="1559660438592434"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => {
-                            setShowWhatsAppForm(false);
-                            setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
-                          }}
-                          variant="outline"
-                          className="flex-1 h-10 text-sm"
-                          disabled={connecting === 'whatsapp'}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={connectWhatsAppManual}
-                          disabled={connecting === 'whatsapp'}
-                          className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
-                        >
-                          {connecting === 'whatsapp' ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span>Connecting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              <span>Connect</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
+            {!isConnected ? (
+              <>
+                {/* ── Manual credential forms (shown when user clicks "Enter credentials manually") ── */}
+                {platform === 'whatsapp' && showWhatsAppForm ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Access Token <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={whatsAppCredentials.accessToken}
+                        onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        placeholder="Enter Meta Access Token"
+                      />
                     </div>
-                  ) : platform === 'instagram' && showInstagramForm ? (
-                    (() => {
-                      const isIGAA = instagramCredentials.accessToken?.trim().toUpperCase().startsWith('IGAA');
-                      return (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Access Token <span className="text-destructive">*</span>
-                        </label>
-                        <input
-                          type="password"
-                          value={instagramCredentials.accessToken}
-                          onChange={(e) => setInstagramCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder={isIGAA ? 'IGAA... (Instagram Business Login)' : 'EAAG... (Page Access Token)'}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Instagram Account ID {!isIGAA && <span className="text-destructive">*</span>}
-                          {isIGAA && <span className="text-muted-foreground text-xs ml-1">(optional for IGAA — we’ll detect from token)</span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={instagramCredentials.instagramAccountId}
-                          onChange={(e) => setInstagramCredentials(prev => ({ ...prev, instagramAccountId: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="17841400123456789"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Facebook Page ID {!isIGAA && <span className="text-destructive">*</span>}
-                          {isIGAA && <span className="text-muted-foreground text-xs ml-1">(optional for IGAA)</span>}
-                        </label>
-                        <input
-                          type="text"
-                          value={instagramCredentials.facebookPageId}
-                          onChange={(e) => setInstagramCredentials(prev => ({ ...prev, facebookPageId: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="123456789012345"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => {
-                            setShowInstagramForm(false);
-                            setInstagramCredentials({ accessToken: '', instagramAccountId: '', facebookPageId: '' });
-                          }}
-                          variant="outline"
-                          className="flex-1 h-10 text-sm"
-                          disabled={connecting === 'instagram'}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={connectInstagramManual}
-                          disabled={connecting === 'instagram'}
-                          className="flex-1 h-10 bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold"
-                        >
-                          {connecting === 'instagram' ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span>Connecting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Instagram className="mr-2 h-4 w-4" />
-                              <span>Connect</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Phone Number ID <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={whatsAppCredentials.phoneNumberId}
+                        onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, phoneNumberId: e.target.value }))}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        placeholder="930062466863543"
+                      />
                     </div>
-                      );
-                    })()
-                  ) : platform === 'facebook' && showFacebookForm ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Page Access Token <span className="text-destructive">*</span>
-                        </label>
-                        <input
-                          type="password"
-                          value={facebookCredentials.pageAccessToken}
-                          onChange={(e) => setFacebookCredentials(prev => ({ ...prev, pageAccessToken: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="Enter Facebook Page Access Token (EAAG...)"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Facebook Page ID <span className="text-destructive">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={facebookCredentials.facebookPageId}
-                          onChange={(e) => setFacebookCredentials(prev => ({ ...prev, facebookPageId: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="123456789012345"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          App ID (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={facebookCredentials.appId}
-                          onChange={(e) => setFacebookCredentials(prev => ({ ...prev, appId: e.target.value }))}
-                          className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder="1234567890123456"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => {
-                            setShowFacebookForm(false);
-                            setFacebookCredentials({ pageAccessToken: '', facebookPageId: '', appId: '' });
-                          }}
-                          variant="outline"
-                          className="flex-1 h-10 text-sm"
-                          disabled={connecting === 'facebook'}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={connectFacebookManual}
-                          disabled={connecting === 'facebook'}
-                          className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
-                        >
-                          {connecting === 'facebook' ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              <span>Connecting...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Facebook className="mr-2 h-4 w-4" />
-                              <span>Connect</span>
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        WABA ID <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={whatsAppCredentials.wabaId}
+                        onChange={(e) => setWhatsAppCredentials(prev => ({ ...prev, wabaId: e.target.value }))}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        placeholder="1559660438592434"
+                      />
                     </div>
-                  ) : (
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          setShowWhatsAppForm(false);
+                          setWhatsAppCredentials({ accessToken: '', phoneNumberId: '', wabaId: '' });
+                        }}
+                        variant="outline"
+                        className="flex-1 h-10 text-sm"
+                        disabled={connecting === 'whatsapp'}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={connectWhatsAppManual}
+                        disabled={connecting === 'whatsapp'}
+                        className="flex-1 h-10 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
+                      >
+                        {connecting === 'whatsapp' ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <span>Connecting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            <span>Connect</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : platform === 'instagram' && showInstagramForm ? (
+                  (() => {
+                    const isIGAA = instagramCredentials.accessToken?.trim().toUpperCase().startsWith('IGAA');
+                    return (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Access Token <span className="text-destructive">*</span>
+                          </label>
+                          <input
+                            type="password"
+                            value={instagramCredentials.accessToken}
+                            onChange={(e) => setInstagramCredentials(prev => ({ ...prev, accessToken: e.target.value }))}
+                            className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                            placeholder={isIGAA ? 'IGAA... (Instagram Business Login)' : 'EAAG... (Page Access Token)'}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Instagram Account ID {!isIGAA && <span className="text-destructive">*</span>}
+                            {isIGAA && <span className="text-muted-foreground text-xs ml-1">(optional for IGAA — we'll detect from token)</span>}
+                          </label>
+                          <input
+                            type="text"
+                            value={instagramCredentials.instagramAccountId}
+                            onChange={(e) => setInstagramCredentials(prev => ({ ...prev, instagramAccountId: e.target.value }))}
+                            className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                            placeholder="17841400123456789"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-foreground mb-2">
+                            Facebook Page ID {!isIGAA && <span className="text-destructive">*</span>}
+                            {isIGAA && <span className="text-muted-foreground text-xs ml-1">(optional for IGAA)</span>}
+                          </label>
+                          <input
+                            type="text"
+                            value={instagramCredentials.facebookPageId}
+                            onChange={(e) => setInstagramCredentials(prev => ({ ...prev, facebookPageId: e.target.value }))}
+                            className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                            placeholder="123456789012345"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => {
+                              setShowInstagramForm(false);
+                              setInstagramCredentials({ accessToken: '', instagramAccountId: '', facebookPageId: '' });
+                            }}
+                            variant="outline"
+                            className="flex-1 h-10 text-sm"
+                            disabled={connecting === 'instagram'}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={connectInstagramManual}
+                            disabled={connecting === 'instagram'}
+                            className="flex-1 h-10 bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold"
+                          >
+                            {connecting === 'instagram' ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <span>Connecting...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Instagram className="mr-2 h-4 w-4" />
+                                <span>Connect</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : platform === 'facebook' && showFacebookForm ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Page Access Token <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={facebookCredentials.pageAccessToken}
+                        onChange={(e) => setFacebookCredentials(prev => ({ ...prev, pageAccessToken: e.target.value }))}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        placeholder="Enter Facebook Page Access Token (EAAG...)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        Facebook Page ID <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={facebookCredentials.facebookPageId}
+                        onChange={(e) => setFacebookCredentials(prev => ({ ...prev, facebookPageId: e.target.value }))}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        placeholder="123456789012345"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        App ID (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={facebookCredentials.appId}
+                        onChange={(e) => setFacebookCredentials(prev => ({ ...prev, appId: e.target.value }))}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                        placeholder="1234567890123456"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => {
+                          setShowFacebookForm(false);
+                          setFacebookCredentials({ pageAccessToken: '', facebookPageId: '', appId: '' });
+                        }}
+                        variant="outline"
+                        className="flex-1 h-10 text-sm"
+                        disabled={connecting === 'facebook'}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={connectFacebookManual}
+                        disabled={connecting === 'facebook'}
+                        className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
+                      >
+                        {connecting === 'facebook' ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <span>Connecting...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Facebook className="mr-2 h-4 w-4" />
+                            <span>Connect</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  // ── Default state: Primary "Connect via Meta" button + secondary "Enter credentials manually" ──
+                  <div className="space-y-3">
+                    {/* Primary: OAuth button */}
                     <Button
+                      id={`connect-${platform}-oauth`}
                       onClick={() => initiateOAuth(platform)}
                       disabled={isConnecting}
                       className={`w-full h-11 text-sm sm:text-base font-semibold ${colors.button} shadow-lg hover:shadow-xl transition-all duration-300 group/btn`}
@@ -880,71 +849,88 @@ export default function SocialIntegrations() {
                       ) : (
                         <>
                           <Icon className="mr-2 h-4 w-4 sm:h-5 sm:w-5 group-hover/btn:scale-110 transition-transform" />
-                          <span className="truncate">Connect {config.name.split(' ')[0]}</span>
+                          <span className="truncate">
+                            {platform === 'gmail' ? `Connect ${config.name}` : 'Connect via Meta'}
+                          </span>
                           <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform flex-shrink-0" />
                         </>
                       )}
                     </Button>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-wrap gap-2.5">
-                  {(platform === 'instagram' || platform === 'facebook') && (
-                    <Button
-                      onClick={async () => {
-                        try {
-                          const res = await apiClient.get(`/social-integrations/${platform}`);
-                          if (res.success && res.data?.webhookConfiguration) {
-                            setWebhookConfig({
-                              url: res.data.webhookConfiguration.url,
-                              verifyToken: res.data.webhookConfiguration.verifyToken,
-                              subscribed: !!integration?.webhookVerified,
-                              show: true,
-                              platform: platform as 'instagram' | 'facebook'
-                            });
-                          } else {
-                            toast.error('Could not load webhook config');
-                          }
-                        } catch (e: any) {
-                          toast.error(e.message || 'Failed to load webhook config');
+
+                    {/* Secondary: manual credentials link (Meta platforms only) */}
+                    {platform !== 'gmail' && (
+                      <button
+                        id={`connect-${platform}-manual`}
+                        type="button"
+                        onClick={() => showManualForm(platform as 'whatsapp' | 'instagram' | 'facebook')}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                        disabled={isConnecting}
+                      >
+                        <Settings className="h-3 w-3" />
+                        Enter credentials manually
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-wrap gap-2.5">
+                {(platform === 'instagram' || platform === 'facebook') && (
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const res = await apiClient.get(`/social-integrations/${platform}`);
+                        if (res.success && res.data?.webhookConfiguration) {
+                          setWebhookConfig({
+                            url: res.data.webhookConfiguration.url,
+                            verifyToken: res.data.webhookConfiguration.verifyToken,
+                            subscribed: !!integration?.webhookVerified,
+                            show: true,
+                            platform: platform as 'instagram' | 'facebook'
+                          });
+                        } else {
+                          toast.error('Could not load webhook config');
                         }
-                      }}
-                      variant="outline"
-                      className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
-                    >
-                      <Link2 className="mr-2 h-4 w-4 flex-shrink-0" />
-                      <span className="truncate">Configure webhook</span>
-                    </Button>
-                  )}
-                  <Button
-                    onClick={() => disconnectPlatform(platform)}
-                    variant="destructive"
-                    className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium shadow-sm hover:shadow-md transition-all"
-                  >
-                    <XCircle className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">Disconnect</span>
-                  </Button>
-                  <Button
-                    onClick={() => initiateOAuth(platform)}
+                      } catch (e: any) {
+                        toast.error(e.message || 'Failed to load webhook config');
+                      }
+                    }}
                     variant="outline"
                     className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
-                    disabled={isConnecting}
                   >
-                    {isConnecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin flex-shrink-0" />
-                        <span className="truncate">Reconnecting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ExternalLink className="mr-2 h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">Reconnect</span>
-                      </>
-                    )}
+                    <Link2 className="mr-2 h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">Configure webhook</span>
                   </Button>
-                </div>
-              )}
-            </div>
+                )}
+                <Button
+                  onClick={() => disconnectPlatform(platform)}
+                  variant="destructive"
+                  className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium shadow-sm hover:shadow-md transition-all"
+                >
+                  <XCircle className="mr-2 h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">Disconnect</span>
+                </Button>
+                <Button
+                  onClick={() => initiateOAuth(platform)}
+                  variant="outline"
+                  className="flex-1 min-w-[140px] sm:min-w-[160px] h-10 sm:h-11 text-sm font-medium border-2 hover:bg-accent transition-all"
+                  disabled={isConnecting}
+                >
+                  {isConnecting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin flex-shrink-0" />
+                      <span className="truncate">Reconnecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">Reconnect</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </Card>
     );

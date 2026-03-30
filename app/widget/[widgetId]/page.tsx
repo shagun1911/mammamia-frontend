@@ -179,9 +179,11 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
 
       const data = await response.json();
 
+      // If the backend returned an explicit error message (e.g., plan limits exceeded), show it.
       const answer =
         data.data?.answer ||
         data.answer ||
+        (!data.success ? data.message : null) ||
         "I'm having trouble connecting right now.";
 
       setMessages((prev) => [
