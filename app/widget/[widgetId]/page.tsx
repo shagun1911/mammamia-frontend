@@ -131,12 +131,20 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
       setInput("");
 
       setTimeout(() => {
+        const lang = widgetSettings.language || "en";
+        const afterNameTemplate =
+          widgetTranslations[lang]?.afterName ??
+          widgetTranslations.en.afterName;
+        const afterNameMessage = afterNameTemplate.replace(
+          /\{name\}/g,
+          name.trim()
+        );
         setMessages((prev) => [
           ...prev,
           {
             id: (Date.now() + 1).toString(),
             sender: "bot",
-            content: `Nice to meet you, ${name}! How can I help you today?`,
+            content: afterNameMessage,
             timestamp: new Date().toISOString(),
           },
         ]);
