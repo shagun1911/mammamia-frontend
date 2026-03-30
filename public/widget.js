@@ -155,7 +155,9 @@
       z-index: 9999;
       background: transparent;
       border: none;
-      box-shadow: none;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
       padding: 0;
       transition: transform 0.25s ease, opacity 0.25s ease;
     `;
@@ -166,13 +168,11 @@
     const iframe = createElement('iframe', 'aistein-widget-iframe');
     iframe.src = widgetUrl;
     iframe.style.cssText = `
+  display: block;
   width: min(${width}px, 95vw);
   height: min(${height}px, 85vh);
   border: none;
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(0,0,0,0.25);
-  overflow: hidden;
+  background: transparent;
 `;
     iframe.setAttribute('allow', 'microphone');
     iframe.setAttribute('frameborder', '0');
