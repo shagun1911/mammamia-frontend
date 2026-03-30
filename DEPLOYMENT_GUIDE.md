@@ -17,7 +17,7 @@ This guide will help you deploy your KepleroAI project completely **FREE** using
 
 ### 1.1 Create Account
 1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register)
-2. Sign up for free account
+2. Sign up for free account..
 3. Create a **FREE M0 Cluster** (512MB storage, shared)
 
 ### 1.2 Configure Database
