@@ -4,7 +4,7 @@ This guide will help you deploy your KepleroAI project completely **FREE** using
 ..
 ## 📋 Overview
 
-- **Frontend (Next.js)**: Vercel (Free Tier)
+- **Frontend (Next.js)**: Vercel (Free Tier)..
 - **Backend (Express API)**: Render (Free Tier)
 - **Database**: MongoDB Atlas (Free Tier - 512MB)
 - **Redis**: Upstash (Free Tier - 10K commands/day)
