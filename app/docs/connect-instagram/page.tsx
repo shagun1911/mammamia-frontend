@@ -63,7 +63,7 @@ export default function ConnectInstagramDocs() {
               <ul className="ml-6 mt-2 space-y-1 list-disc">
                 <li>Go to <strong>Tools → Graph API Explorer</strong></li>
                 <li>Select your app</li>
-                <li>Add permissions: <code className="bg-muted px-1 py-0.5 rounded">instagram_basic</code>, <code className="bg-muted px-1 py-0.5 rounded">instagram_manage_messages</code></li>
+                <li>Add permissions: <code className="bg-muted px-1 py-0.5 rounded">instagram_business_basic</code>, <code className="bg-muted px-1 py-0.5 rounded">instagram_business_manage_messages</code>, <code className="bg-muted px-1 py-0.5 rounded">instagram_business_manage_comments</code>, <code className="bg-muted px-1 py-0.5 rounded">pages_show_list</code>, <code className="bg-muted px-1 py-0.5 rounded">pages_messaging</code></li>
                 <li>Click <strong>"Generate Access Token"</strong></li>
                 <li>Log in and authorize</li>
               </ul>
