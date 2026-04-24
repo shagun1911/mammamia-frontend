@@ -36,15 +36,15 @@ export function LoadingLogo({
         </div>
         <div className="relative w-full h-full flex items-center justify-center">
           <img 
-            src="/Logo.webp" 
-            alt="Aistein.it Logo" 
-            className="w-full h-full object-cover rounded-lg"
+            src="/mammam-ia-logo.svg" 
+            alt="mammam-ia logo" 
+            className="w-full h-full object-contain rounded-lg"
             onError={(e) => {
               // Fallback to text if logo fails
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';
               if (target.parentElement) {
-                target.parentElement.innerHTML = '<div class="w-full h-full rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">I</div>';
+                target.parentElement.innerHTML = '<div class="w-full h-full rounded-lg bg-primary flex items-center justify-center text-white font-bold text-lg">M</div>';
               }
             }}
           />

@@ -179,7 +179,7 @@ export function PrebuiltTemplates({ onUseTemplate }: PrebuiltTemplatesProps) {
       aistein_contact_created: "Contact Created",
       aistein_create_contact: "Create Contact",
       whatsapp_template: "WhatsApp Message",
-      aistein_send_email: "Aistein – Send Email",
+      aistein_send_email: "mammam-ia - Send Email",
       aistein_outbound_call: "Outbound Call",
       aistein_mass_sending: "Mass Sending",
       batch_call: "Batch Call (CSV/List)",

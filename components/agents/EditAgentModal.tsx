@@ -324,7 +324,7 @@ export function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) 
                 setFirstMessage(e.target.value);
                 setHasCustomizedFirstMessage(true);
               }}
-              placeholder="Hi {{name}}, this is an AI assistant calling from Aistein.it."
+              placeholder="Hi {{name}}, this is an AI assistant calling from mammam-ia."
               rows={3}
               className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
               disabled={updateAgentPrompt.isPending}

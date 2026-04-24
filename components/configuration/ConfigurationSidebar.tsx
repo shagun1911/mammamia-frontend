@@ -29,10 +29,10 @@ export function ConfigurationSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 h-10 px-3 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                "flex items-center gap-3 h-10 px-3 rounded-md text-sm font-semibold transition-colors cursor-pointer",
                 isActive
-                  ? "bg-primary text-foreground"
-                  : "text-secondary-foreground hover:bg-secondary"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-foreground/85 hover:bg-secondary hover:text-foreground"
               )}
             >
               <Icon className="w-5 h-5 shrink-0" />

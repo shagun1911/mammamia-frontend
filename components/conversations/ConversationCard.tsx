@@ -102,14 +102,10 @@ export function ConversationCard({
         )}
       >
         <div className="flex items-center gap-4 h-full">
-          {/* Premium Avatar with Glow */}
+          {/* Neutral avatar style for consistent branding */}
           <div className="relative shrink-0">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-sm shadow-lg ring-2 ring-background/50 transition-transform group-hover:scale-105"
-              style={{ 
-                backgroundColor: conversation.customer.color,
-                boxShadow: `0 4px 12px ${conversation.customer.color}40`
-              }}
+              className="w-12 h-12 rounded-2xl flex items-center justify-center bg-zinc-500 text-zinc-100 font-bold text-sm shadow-md ring-2 ring-background/60 transition-transform group-hover:scale-105 dark:bg-zinc-600 dark:text-zinc-100"
             >
               {conversation.customer.avatar}
             </div>

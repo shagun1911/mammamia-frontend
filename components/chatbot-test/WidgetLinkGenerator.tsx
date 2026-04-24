@@ -34,9 +34,9 @@ export function WidgetLinkGenerator() {
   const widgetUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/widget/${widgetId}${selectedCollection ? `?collection=${encodeURIComponent(selectedCollection)}` : ''}`;
   
   // Generate embed code
-  const embedCode = `<!-- Aistein Chatbot Widget -->
+  const embedCode = `<!-- mammam-ia Chatbot Widget -->
 <script>
-  window.Aistein = {
+  window.mammamIa = {
     widgetId: "${widgetId}",
     collection: "${selectedCollection || ''}",
     position: "bottom-right",

@@ -234,7 +234,7 @@ export function EmailTemplateModal({
               <textarea
                 value={bodyTemplate}
                 onChange={(e) => setBodyTemplate(e.target.value)}
-                placeholder="Dear {{customer_name}},\n\nYour appointment has been confirmed.\n\nDate: {{date}}\nTime: {{time}}\nNotes: {{notes}}\n\nBest regards,\nAistein Team"
+                placeholder="Dear {{customer_name}},\n\nYour appointment has been confirmed.\n\nDate: {{date}}\nTime: {{time}}\nNotes: {{notes}}\n\nBest regards,\nmammam-ia Team"
                 rows={8}
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none font-mono text-sm"
                 disabled={createEmailTemplate.isPending}

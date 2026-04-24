@@ -1,0 +1,20 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="28" fill="#F5F5F5"/>
+  <g transform="translate(96 86)">
+    <path d="M56 44C56 33 65 24 76 24H236C247 24 256 33 256 44V170C256 181 247 190 236 190H154L114 226C101 238 80 229 80 211V190H76C65 190 56 181 56 170V44Z" stroke="#2B2B2E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M84 72H222" stroke="#2B2B2E" stroke-width="8" stroke-linecap="round"/>
+    <path d="M84 132H222" stroke="#2B2B2E" stroke-width="8" stroke-linecap="round"/>
+    <path d="M84 72L124 110L172 64L214 92" stroke="#2B2B2E" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M84 132L122 92L156 122L198 90L222 106" stroke="#2B2B2E" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="84" cy="72" r="8" fill="#2B2B2E"/>
+    <circle cx="124" cy="110" r="8" fill="#2B2B2E"/>
+    <circle cx="172" cy="64" r="8" fill="#2B2B2E"/>
+    <circle cx="214" cy="92" r="8" fill="#2B2B2E"/>
+    <circle cx="84" cy="132" r="8" fill="#2B2B2E"/>
+    <circle cx="122" cy="92" r="8" fill="#2B2B2E"/>
+    <circle cx="156" cy="122" r="8" fill="#2B2B2E"/>
+    <circle cx="198" cy="90" r="8" fill="#2B2B2E"/>
+    <circle cx="222" cy="106" r="8" fill="#2B2B2E"/>
+  </g>
+  <text x="256" y="420" text-anchor="middle" fill="#232327" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="56" font-weight="700" letter-spacing="0.5">mammam-ia</text>
+</svg>

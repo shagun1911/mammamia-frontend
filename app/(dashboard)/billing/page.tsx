@@ -317,7 +317,7 @@ export default function BillingPage() {
             Contact your administrator to upgrade your plan
           </div>
           <a
-            href="mailto:support@aistein.ai?subject=Plan%20Upgrade%20Request"
+            href="mailto:support@mammam-ia.com?subject=Plan%20Upgrade%20Request"
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors shadow-lg hover:shadow-xl"
           >
             <CreditCard className="w-4 h-4" />

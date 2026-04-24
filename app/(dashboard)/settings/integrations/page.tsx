@@ -303,11 +303,11 @@ export default function IntegrationsPage() {
     try {
       setUploadingToDrive(true);
       
-      const sampleContent = `Aistein-It - Sample File\n\nThis is a test file uploaded from Aistein-It integrations.\nTimestamp: ${new Date().toISOString()}\n`;
+      const sampleContent = `mammam-ia - Sample File\n\nThis is a test file uploaded from mammam-ia integrations.\nTimestamp: ${new Date().toISOString()}\n`;
       const blob = new Blob([sampleContent], { type: 'text/plain' });
       const formData = new FormData();
       formData.append('file', blob, 'kepleroai-test.txt');
-      formData.append('name', `Aistein-It Test - ${new Date().toLocaleDateString()}`);
+      formData.append('name', `mammam-ia Test - ${new Date().toLocaleDateString()}`);
       
       const data = await apiClient.uploadFile('/integrations/google/drive/upload', formData);
       
@@ -338,8 +338,8 @@ export default function IntegrationsPage() {
       endTime.setHours(endTime.getHours() + 1);
       
       const data = await apiClient.post('/integrations/google/calendar/events', {
-        summary: 'Aistein.It Test Meeting',
-        description: 'This is a test event created from Aistein.It integrations.',
+        summary: 'mammam-ia Test Meeting',
+        description: 'This is a test event created from mammam-ia integrations.',
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         attendees: [],

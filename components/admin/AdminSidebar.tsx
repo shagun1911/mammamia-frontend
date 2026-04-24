@@ -142,8 +142,8 @@ export function AdminSidebar({ onCollapseChange, collapsed = false, isMobile }: 
       {/* Header */}
       <div className="h-16 px-4 flex items-center justify-between border-b border-border flex-shrink-0">
         <Link href="/admin" className="flex items-center gap-2">
-          <img src="/Logo.webp" alt="Aistein.ai Logo" className="w-7 h-7 object-contain" />
-          {!isCollapsed && <span className="text-lg font-bold text-foreground">Aistein.ai Admin</span>}
+          <img src="/mammam-ia-logo.svg" alt="mammam-ia logo" className="w-7 h-7 object-contain" />
+          {!isCollapsed && <span className="text-lg font-bold text-foreground">mammam-ia Admin</span>}
         </Link>
         {!isMobile && (
           <button

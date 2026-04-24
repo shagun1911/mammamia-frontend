@@ -31,7 +31,7 @@ export function MessageThread({
       <div className="flex justify-center my-4">
         <div className="bg-secondary px-3 py-2 rounded-2xl">
           <span className="text-[13px] text-muted-foreground">
-            🤖 aistein is managing this conversation
+            🤖 mammam-ia is managing this conversation
           </span>
         </div>
       </div>

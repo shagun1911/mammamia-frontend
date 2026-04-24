@@ -91,7 +91,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-screen bg-gradient-to-b from-sidebar via-sidebar to-sidebar/95 border-r border-sidebar-border/60 transition-all duration-300 ease-in-out flex flex-col z-50 shadow-xl",
+        "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border/60 transition-all duration-300 ease-in-out flex flex-col z-50 shadow-xl",
         isCollapsed ? "w-[60px]" : "w-[240px]"
       )}
     >
@@ -111,22 +111,22 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
         >
           <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 overflow-hidden">
             <img
-              src="/Logo.webp"
-              alt="Aistein.it Logo"
-              className="w-full h-full object-cover rounded-lg"
+              src="/mammam-ia-logo.svg"
+              alt="mammam-ia logo"
+              className="w-full h-full object-contain rounded-lg"
               onError={(e) => {
                 // Fallback to initial if logo fails to load
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
                 if (target.parentElement) {
-                  target.parentElement.innerHTML = '<span class="text-lg">I</span>';
+                  target.parentElement.innerHTML = '<span class="text-lg">M</span>';
                 }
               }}
             />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col min-w-0">
-              <span className="text-base font-bold text-sidebar-foreground leading-tight">Aistein.It</span>
+              <span className="text-base font-bold text-sidebar-foreground leading-tight">mammam-ia</span>
             </div>
           )}
         </div>
@@ -146,7 +146,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                 "flex items-center h-11 rounded-xl transition-all duration-200 relative min-w-0 group cursor-pointer",
                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
                 active
-                  ? "bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground shadow-lg shadow-primary/20 ring-2 ring-primary/20"
+                  ? "bg-sidebar-accent text-sidebar-foreground shadow-md ring-1 ring-sidebar-border"
                   : "text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-md hover:scale-[1.02]"
               )}
               title={isCollapsed ? item.label : undefined}
@@ -179,7 +179,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                 "flex items-center h-11 rounded-xl transition-all duration-200 relative min-w-0 group cursor-pointer",
                 isCollapsed ? "justify-center px-0" : "px-3 gap-3",
                 active
-                  ? "bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground shadow-lg shadow-primary/20 ring-2 ring-primary/20"
+                  ? "bg-sidebar-accent text-sidebar-foreground shadow-md ring-1 ring-sidebar-border"
                   : "text-sidebar-foreground hover:bg-sidebar-accent/80 hover:shadow-md hover:scale-[1.02]"
               )}
               title={isCollapsed ? item.label : undefined}

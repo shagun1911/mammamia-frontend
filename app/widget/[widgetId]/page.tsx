@@ -370,7 +370,7 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         {/* Footer
 
         <div className="px-4 py-2 text-center text-xs text-gray-400 border-t">
-          Powered by <span className="font-semibold">Aistein-It</span>
+          Powered by <span className="font-semibold">mammam-ia</span>
         </div> */}
       </div>
     </div>

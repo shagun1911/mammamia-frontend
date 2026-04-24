@@ -1,5 +1,5 @@
 /**
- * Aistein Chatbot Widget
+ * mammam-ia Chatbot Widget
  * 
  * This widget loads the platform widget UI via iframe to ensure consistent
  * styling and behavior across all embedding environments.
@@ -13,7 +13,7 @@
 
   // ========== PREVENT MULTIPLE WIDGET LOADS ==========
   if (window.AISTEIN_WIDGET_LOADED) {
-    console.warn('[Aistein Widget] Widget already loaded.');
+    console.warn('[mammam-ia Widget] Widget already loaded.');
     return;
   }
   window.AISTEIN_WIDGET_LOADED = true;
@@ -21,13 +21,19 @@
   // ========== 1️⃣ SINGLE SOURCE OF TRUTH FOR widgetId ==========
   /**
    * Resolves widgetId with priority:
-   * 1. window.Aistein.widgetId (from embed script config)
-   * 2. URL path /widget/:widgetId
+   * 1. window.mammamIa.widgetId (from embed script config)
+   * 2. window.Aistein.widgetId (legacy compatibility)
+   * 3. URL path /widget/:widgetId
    * 
    * @returns {string|null} Resolved widgetId or null
    */
   function resolveWidgetId() {
     // Priority 1: embed script config
+    if (window.mammamIa && typeof window.mammamIa.widgetId === 'string' && window.mammamIa.widgetId.trim() !== '') {
+      return window.mammamIa.widgetId.trim();
+    }
+
+    // Legacy config support
     if (window.Aistein && typeof window.Aistein.widgetId === 'string' && window.Aistein.widgetId.trim() !== '') {
       return window.Aistein.widgetId.trim();
     }
@@ -45,17 +51,18 @@
   const widgetId = resolveWidgetId();
 
   if (!widgetId) {
-    console.error('[Aistein Widget] ❌ widgetId could not be resolved');
-    console.error('[Aistein Widget] pathname:', window.location.pathname);
-    console.error('[Aistein Widget] Aistein config:', window.Aistein);
+    console.error('[mammam-ia Widget] ❌ widgetId could not be resolved');
+    console.error('[mammam-ia Widget] pathname:', window.location.pathname);
+    console.error('[mammam-ia Widget] mammamIa config:', window.mammamIa);
+    console.error('[mammam-ia Widget] legacy Aistein config:', window.Aistein);
     throw new Error('Widget ID is required but was not found. Please ensure the widget is configured correctly.');
   }
 
-  console.log('[Aistein Widget] ✅ Resolved widgetId:', widgetId);
-  console.log('[Aistein Widget] URL:', window.location.href);
+  console.log('[mammam-ia Widget] ✅ Resolved widgetId:', widgetId);
+  console.log('[mammam-ia Widget] URL:', window.location.href);
 
   // ========== WIDGET CONFIGURATION ==========
-  const config = window.Aistein || {};
+  const config = window.mammamIa || window.Aistein || {};
   
   // ========== FRONTEND URL RESOLUTION ==========
   /**
@@ -100,7 +107,7 @@
   }
   
   const FRONTEND_URL = resolveFrontendUrl();
-  console.log('[Aistein Widget] ✅ Resolved Frontend URL:', FRONTEND_URL);
+  console.log('[mammam-ia Widget] ✅ Resolved Frontend URL:', FRONTEND_URL);
 
   // ========== WIDGET STATE ==========
   let isOpen = false;
@@ -144,7 +151,7 @@
   // ========== WIDGET UI (IFRAME-BASED) ==========
   function createWidget() {
     const widgetUrl = buildWidgetUrl();
-    console.log('[Aistein Widget] Loading widget from:', widgetUrl);
+    console.log('[mammam-ia Widget] Loading widget from:', widgetUrl);
 
     // Container for iframe
     const container = createElement('div', 'aistein-widget-container');

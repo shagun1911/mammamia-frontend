@@ -122,7 +122,7 @@ export default function AdminOrganizationsPage() {
           <option value="all">All Plans</option>
           <option value="mileva-pack">Mileva Pack</option>
           <option value="nobel-pack">Nobel Pack</option>
-          <option value="aistein-pro-pack">Aistein Pro Pack</option>
+          <option value="aistein-pro-pack">mammam-ia Pro Pack</option>
           <option value="set-up">Set Up</option>
         </select>
         <select

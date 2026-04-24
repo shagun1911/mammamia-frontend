@@ -12,7 +12,7 @@ const installationCode = {
 <script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://chat.Aistein.It.com/widget.js';
+    script.src = 'https://chat.mammam-ia.com/widget.js';
     script.setAttribute('data-widget-id', 'your-widget-id');
     script.async = true;
     document.body.appendChild(script);
@@ -27,7 +27,7 @@ const installationCode = {
 <script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://chat.Aistein.It.com/widget.js';
+    script.src = 'https://chat.mammam-ia.com/widget.js';
     script.setAttribute('data-widget-id', 'your-widget-id');
     script.async = true;
     document.body.appendChild(script);
@@ -41,7 +41,7 @@ const installationCode = {
 <script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://chat.Aistein.It.com/widget.js';
+    script.src = 'https://chat.mammam-ia.com/widget.js';
     script.setAttribute('data-widget-id', 'your-widget-id');
     script.async = true;
     document.body.appendChild(script);
@@ -55,7 +55,7 @@ const installationCode = {
 <script>
   (function() {
     var script = document.createElement('script');
-    script.src = 'https://chat.Aistein.It.com/widget.js';
+    script.src = 'https://chat.mammam-ia.com/widget.js';
     script.setAttribute('data-widget-id', 'your-widget-id');
     script.async = true;
     document.body.appendChild(script);
@@ -89,7 +89,7 @@ export function InstallationGuide() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  const widgetLink = "https://chat.Aistein.It.com/widget/your-widget-id";
+  const widgetLink = "https://chat.mammam-ia.com/widget/your-widget-id";
 
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(widgetLink);
