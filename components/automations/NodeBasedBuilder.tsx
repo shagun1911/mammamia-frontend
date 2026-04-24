@@ -10,21 +10,22 @@ import { AutomationList } from "./AutomationList";
 import { ExecutionsModal } from "./ExecutionsModal";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/lib/toast";
+import { readAutomationsSession, writeAutomationsSession } from "@/lib/automationsSessionStorage";
 
 interface NodeBasedBuilderProps {
   automations: Automation[];
   onAutomationsChange?: (automations: Automation[]) => void;
+  onSelectionChange?: (automationId: string | null, nodeId: string | null) => void;
+  onSaved?: () => void;
 }
 
 export interface NodeBasedBuilderRef {
   handleNewAutomation: () => void;
 }
 
-export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilderProps>(({ automations: initialAutomations, onAutomationsChange }, ref) => {
+export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilderProps>(({ automations: initialAutomations, onAutomationsChange, onSelectionChange, onSaved }, ref) => {
   const [automations, setAutomations] = useState(initialAutomations);
-  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(
-    initialAutomations[0]?.id || null
-  );
+  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(initialAutomations[0]?.id || null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showNodeSelector, setShowNodeSelector] = useState(false);
   const [insertPosition, setInsertPosition] = useState<number | null>(null);
@@ -32,6 +33,16 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
   const [deleting, setDeleting] = useState(false);
   const [showExecutions, setShowExecutions] = useState(false);
   const [runningBatch, setRunningBatch] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    const session = readAutomationsSession();
+    if (session) {
+      setSelectedAutomationId(session.selectedAutomationId);
+      setSelectedNodeId(session.selectedNodeId);
+      setIsDirty(session.dirty);
+    }
+  }, []);
 
   // Update automations when prop changes
   useEffect(() => {
@@ -44,10 +55,21 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
   // Helper function to update automations and notify parent
   const updateAutomations = (newAutomations: Automation[]) => {
     setAutomations(newAutomations);
+    setIsDirty(true);
     if (onAutomationsChange) {
       onAutomationsChange(newAutomations);
     }
   };
+
+  useEffect(() => {
+    onSelectionChange?.(selectedAutomationId, selectedNodeId);
+    writeAutomationsSession({
+      automationsDraft: automations,
+      selectedAutomationId,
+      selectedNodeId,
+      dirty: isDirty
+    });
+  }, [automations, selectedAutomationId, selectedNodeId, isDirty, onSelectionChange]);
 
   const selectedAutomation = automations.find(
     (a) => a.id === selectedAutomationId
@@ -348,6 +370,8 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       );
 
       toast.success("Automation saved successfully");
+      setIsDirty(false);
+      onSaved?.();
     } catch (error: any) {
       console.error("Save error:", error);
       toast.error("Failed to save automation");

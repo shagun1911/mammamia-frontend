@@ -8,6 +8,7 @@ import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useSettings } from "@/hooks/useSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
 import { v4 as uuidv4 } from "uuid";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChatMessage {
   id: string;
@@ -18,6 +19,7 @@ interface ChatMessage {
 }
 
 export function WidgetSimulator() {
+  const { user } = useAuth();
   const { collections, selectedCollection, setSelectedCollection, loadCollections } = useKnowledgeBase();
   const { data: dbSettings } = useSettings();
   const { aiBehavior } = useAIBehavior();
@@ -71,6 +73,7 @@ export function WidgetSimulator() {
   const saveConversation = async (message: string, response: string) => {
     try {
       const payload = {
+        widgetId: user?.id,
         name: userName,
         threadId: threadId,
         collection: selectedCollection,

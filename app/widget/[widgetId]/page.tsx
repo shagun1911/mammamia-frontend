@@ -43,8 +43,8 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
   const [isOpen, setIsOpen] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
-  const [isAskingName, setIsAskingName] = useState(true);
+  const [visitorName, setVisitorName] = useState<string | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>({
     chatbotName: "AI Assistant",
@@ -82,6 +82,8 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         }
       } catch (error) {
         console.error("Failed to fetch widget settings:", error);
+      } finally {
+        setSettingsLoading(false);
       }
     };
 
@@ -90,68 +92,32 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
 
   useEffect(() => {
     const collectionParam = searchParams.get("collection");
+    const visitorNameParam = searchParams.get("visitorName");
 
     if (collectionParam) {
       setSelectedCollection(collectionParam);
     }
+    if (visitorNameParam) {
+      setVisitorName(visitorNameParam.trim().slice(0, 80));
+    }
   }, [searchParams]);
 
   useEffect(() => {
-    if (isAskingName) {
-      setMessages([
-        {
-          id: "welcome",
-          sender: "bot",
-          content: widgetSettings.welcomeMessage,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-    }
-  }, [widgetSettings.welcomeMessage]);
+    const greeting = visitorName
+      ? `${widgetSettings.welcomeMessage} ${visitorName}`
+      : widgetSettings.welcomeMessage;
+    setMessages([
+      {
+        id: "welcome",
+        sender: "bot",
+        content: greeting,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  }, [widgetSettings.welcomeMessage, visitorName]);
 
   const handleSend = async () => {
     if (!input.trim() || isSending) return;
-
-    if (isAskingName) {
-      const name = input;
-
-      setUserName(name);
-      setIsAskingName(false);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          sender: "user",
-          content: name,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-
-      setInput("");
-
-      setTimeout(() => {
-        const lang = widgetSettings.language || "en";
-        const afterNameTemplate =
-          widgetTranslations[lang]?.afterName ??
-          widgetTranslations.en.afterName;
-        const afterNameMessage = afterNameTemplate.replace(
-          /\{name\}/g,
-          name.trim()
-        );
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            sender: "bot",
-            content: afterNameMessage,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-      }, 500);
-
-      return;
-    }
 
     const userQuery = input;
 
@@ -180,6 +146,7 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
           body: JSON.stringify({
             query: userQuery,
             threadId: threadId,
+            ...(visitorName && { visitorName }),
             ...(selectedCollection && { knowledgeBaseId: selectedCollection }),
           }),
         }
@@ -203,6 +170,23 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
           timestamp: new Date().toISOString(),
         },
       ]);
+
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
+      await fetch(`${API_URL}/conversations/widget`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          widgetId,
+          name: visitorName || "Visitor",
+          visitorName: visitorName || undefined,
+          threadId,
+          collection: selectedCollection,
+          messages: [
+            { role: "user", content: userQuery, timestamp: new Date() },
+            { role: "bot", content: answer, timestamp: new Date() }
+          ]
+        })
+      });
     } catch (error) {
       console.error(error);
     } finally {
@@ -236,6 +220,10 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
   };
 
   if (!isOpen) return null;
+
+  if (settingsLoading) {
+    return <div className="w-full min-h-dvh animate-pulse bg-gray-100 dark:bg-gray-900" />;
+  }
 
   if (isMinimized && !isEmbedded) {
     return (

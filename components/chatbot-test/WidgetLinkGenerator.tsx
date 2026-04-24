@@ -30,8 +30,14 @@ export function WidgetLinkGenerator() {
     );
   }
 
-  // Generate widget URL with collection parameter
-  const widgetUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/widget/${widgetId}${selectedCollection ? `?collection=${encodeURIComponent(selectedCollection)}` : ''}`;
+  const buildWidgetUrl = (name?: string) => {
+    const params = new URLSearchParams();
+    if (selectedCollection) params.set("collection", selectedCollection);
+    if (name && name.trim()) params.set("visitorName", name.trim().slice(0, 80));
+    const query = params.toString();
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/widget/${widgetId}${query ? `?${query}` : ""}`;
+  };
+  const widgetUrl = buildWidgetUrl();
   
   // Generate embed code
   const embedCode = `<!-- mammam-ia Chatbot Widget -->
@@ -92,15 +98,16 @@ export function WidgetLinkGenerator() {
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Copied!' : 'Copy Link'}
           </button>
-          <a
-            href={widgetUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => {
+              const visitorName = window.prompt("Visitor name (optional)") || "";
+              window.open(buildWidgetUrl(visitorName), "_blank", "noopener,noreferrer");
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
             Open in New Tab
-          </a>
+          </button>
         </div>
       </div>
 

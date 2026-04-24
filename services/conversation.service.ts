@@ -72,6 +72,7 @@ class ConversationService {
           lastMessageText = 'Processing call transcript...';
         }
         
+        const timestamp = conv.updatedAt || conv.lastMessage?.timestamp || conv.createdAt || new Date().toISOString();
         return {
           id: conv._id || conv.id,
           customer: {
@@ -84,7 +85,7 @@ class ConversationService {
           channel: conv.channel,
           status: conv.status,
           lastMessage: lastMessageText,
-          timestamp: conv.updatedAt || conv.createdAt || new Date().toISOString(),
+          timestamp,
           unread: conv.unread || false,
           labels: conv.labels || [],
           folder: conv.folderId || null,

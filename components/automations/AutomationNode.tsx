@@ -72,7 +72,9 @@ export function AutomationNode({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onDelete();
+            if (window.confirm("Delete this step?")) {
+              onDelete();
+            }
           }}
           className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
         >

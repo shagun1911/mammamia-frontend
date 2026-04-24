@@ -752,10 +752,9 @@ export default function IntegrationsPage() {
         </div>
 
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl mb-6">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl mb-6">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="ecommerce">E-commerce</TabsTrigger>
-            <TabsTrigger value="booking">Booking</TabsTrigger>
             <TabsTrigger value="productivity">Productivity</TabsTrigger>
           </TabsList>
 
@@ -998,17 +997,6 @@ export default function IntegrationsPage() {
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <IntegrationCard
-                name="Shopify"
-                description="Sync products, orders, and inventory"
-                icon={<SiShopify className="h-7 w-7 text-green-600" />}
-                category="E-commerce"
-                connected={isConnected('shopify')}
-                onSetup={() => openSetupModal('shopify')}
-                onEdit={() => openSetupModal('shopify')}
-                onTest={() => testConnection('shopify')}
-                onDisconnect={() => disconnectIntegration('shopify')}
-              />
 
               <IntegrationCard
                 name="WooCommerce"
@@ -1080,73 +1068,9 @@ export default function IntegrationsPage() {
                 </Card>
               )}
 
-              <IntegrationCard
-                name="Magento 2"
-                description="Adobe Commerce platform integration"
-                icon={<SiMagento className="h-7 w-7 text-orange-600" />}
-                category="E-commerce"
-                connected={isConnected('magento2')}
-                onSetup={() => openSetupModal('magento2')}
-                onEdit={() => openSetupModal('magento2')}
-                onTest={() => testConnection('magento2')}
-                onDisconnect={() => disconnectIntegration('magento2')}
-              />
-
-              <IntegrationCard
-                name="PrestaShop"
-                description="European e-commerce platform"
-                icon={<SiPrestashop className="h-7 w-7 text-pink-600" />}
-                category="E-commerce"
-                connected={isConnected('prestashop')}
-                onSetup={() => openSetupModal('prestashop')}
-                onEdit={() => openSetupModal('prestashop')}
-                onTest={() => testConnection('prestashop')}
-                onDisconnect={() => disconnectIntegration('prestashop')}
-              />
-
-              <IntegrationCard
-                name="Qapla"
-                description="Shipping and logistics platform"
-                icon={<Package className="h-7 w-7 text-blue-600" />}
-                category="E-commerce"
-                connected={isConnected('qapla')}
-                onSetup={() => openSetupModal('qapla')}
-                onEdit={() => openSetupModal('qapla')}
-                onTest={() => testConnection('qapla')}
-                onDisconnect={() => disconnectIntegration('qapla')}
-              />
             </div>
           </div>
 
-            {/* Booking Platforms */}
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-6">Booking Platforms</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <IntegrationCard
-                name="Vertical Booking"
-                description="Hotel booking engine integration"
-                icon={<Hotel className="h-7 w-7 text-indigo-600" />}
-                category="Booking"
-                connected={isConnected('vertical-booking')}
-                onSetup={() => openSetupModal('vertical-booking')}
-                onEdit={() => openSetupModal('vertical-booking')}
-                onTest={() => testConnection('vertical-booking')}
-                onDisconnect={() => disconnectIntegration('vertical-booking')}
-              />
-
-              <IntegrationCard
-                name="Booking Expert"
-                description="Accommodation booking system"
-                icon={<Hotel className="h-7 w-7 text-teal-600" />}
-                category="Booking"
-                connected={isConnected('booking-expert')}
-                onSetup={() => openSetupModal('booking-expert')}
-                onEdit={() => openSetupModal('booking-expert')}
-                onTest={() => testConnection('booking-expert')}
-                onDisconnect={() => disconnectIntegration('booking-expert')}
-              />
-            </div>
-          </div>
 
             {/* Custom Integration */}
             <div className="mb-8">
@@ -1168,17 +1092,6 @@ export default function IntegrationsPage() {
 
           <TabsContent value="ecommerce" className="space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <IntegrationCard
-              name="Shopify"
-              description="Sync products, orders, and inventory"
-              icon={<SiShopify className="h-7 w-7 text-green-600" />}
-              category="E-commerce"
-              connected={isConnected('shopify')}
-              onSetup={() => openSetupModal('shopify')}
-              onEdit={() => openSetupModal('shopify')}
-              onTest={() => testConnection('shopify')}
-              onDisconnect={() => disconnectIntegration('shopify')}
-            />
 
             <IntegrationCard
               name="WooCommerce"
@@ -1192,69 +1105,6 @@ export default function IntegrationsPage() {
               onDisconnect={() => disconnectIntegration('woocommerce')}
             />
 
-            <IntegrationCard
-              name="Magento 2"
-              description="Adobe Commerce platform integration"
-              icon={<SiMagento className="h-7 w-7 text-orange-600" />}
-              category="E-commerce"
-              connected={isConnected('magento2')}
-              onSetup={() => openSetupModal('magento2')}
-              onEdit={() => openSetupModal('magento2')}
-              onTest={() => testConnection('magento2')}
-              onDisconnect={() => disconnectIntegration('magento2')}
-            />
-
-            <IntegrationCard
-              name="PrestaShop"
-              description="European e-commerce platform"
-              icon={<SiPrestashop className="h-7 w-7 text-pink-600" />}
-              category="E-commerce"
-              connected={isConnected('prestashop')}
-              onSetup={() => openSetupModal('prestashop')}
-              onEdit={() => openSetupModal('prestashop')}
-              onTest={() => testConnection('prestashop')}
-              onDisconnect={() => disconnectIntegration('prestashop')}
-            />
-
-            <IntegrationCard
-              name="Qapla"
-              description="Shipping and logistics platform"
-              icon={<Package className="h-7 w-7 text-blue-600" />}
-              category="E-commerce"
-              connected={isConnected('qapla')}
-              onSetup={() => openSetupModal('qapla')}
-              onEdit={() => openSetupModal('qapla')}
-              onTest={() => testConnection('qapla')}
-              onDisconnect={() => disconnectIntegration('qapla')}
-            />
-          </div>
-        </TabsContent>
-
-          <TabsContent value="booking" className="space-y-6 mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <IntegrationCard
-              name="Vertical Booking"
-              description="Hotel booking engine integration"
-              icon={<Hotel className="h-7 w-7 text-indigo-600" />}
-              category="Booking"
-              connected={isConnected('vertical-booking')}
-              onSetup={() => openSetupModal('vertical-booking')}
-              onEdit={() => openSetupModal('vertical-booking')}
-              onTest={() => testConnection('vertical-booking')}
-              onDisconnect={() => disconnectIntegration('vertical-booking')}
-            />
-
-            <IntegrationCard
-              name="Booking Expert"
-              description="Accommodation booking system"
-              icon={<Hotel className="h-7 w-7 text-teal-600" />}
-              category="Booking"
-              connected={isConnected('booking-expert')}
-              onSetup={() => openSetupModal('booking-expert')}
-              onEdit={() => openSetupModal('booking-expert')}
-              onTest={() => testConnection('booking-expert')}
-              onDisconnect={() => disconnectIntegration('booking-expert')}
-            />
           </div>
         </TabsContent>
 

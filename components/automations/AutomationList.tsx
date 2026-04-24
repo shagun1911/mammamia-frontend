@@ -1,6 +1,7 @@
 import { Search, Plus, Zap } from "lucide-react";
 import { Automation } from "@/data/mockAutomations";
 import { cn } from "@/lib/utils";
+import { useMemo, useState } from "react";
 
 interface AutomationListProps {
   automations: Automation[];
@@ -15,6 +16,7 @@ export function AutomationList({
   onSelect,
   onNew,
 }: AutomationListProps) {
+  const [query, setQuery] = useState("");
   const getPreviewText = (automation: Automation) => {
     const nodeNames = automation.nodes.map((node) => {
       if (node.service === "delay") return "Delay";
@@ -26,16 +28,32 @@ export function AutomationList({
     return nodeNames.join(" → ");
   };
 
+  const filteredAutomations = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return automations;
+    return automations.filter((automation) => {
+      const preview = getPreviewText(automation).toLowerCase();
+      return automation.name.toLowerCase().includes(q) || preview.includes(q);
+    });
+  }, [automations, query]);
+
   return (
     <div className="w-[360px] bg-card border-r border-border h-full flex flex-col shadow-xl">
       {/* Header - Simplified */}
       <div className="p-6 border-b border-border bg-gradient-to-br from-card to-card/50">
-        {/* Search */}
+        <div className="flex items-center gap-2 mb-3">
+          <p className="text-sm font-semibold text-foreground">Automations</p>
+          <button onClick={onNew} className="ml-auto p-2 rounded-lg bg-primary text-primary-foreground" title="New automation">
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search automations..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             className="w-full h-11 bg-background/80 border border-border rounded-xl pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
           />
         </div>
@@ -43,7 +61,7 @@ export function AutomationList({
 
       {/* Automation List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {automations.map((automation) => {
+        {filteredAutomations.map((automation) => {
           const isSelected = selectedId === automation.id;
           const isEnabled = automation.status === "enabled";
           
@@ -99,7 +117,7 @@ export function AutomationList({
           );
         })}
         
-        {automations.length === 0 && (
+        {filteredAutomations.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full px-6 text-center py-12">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-4 border border-primary/20">
               <Zap className="w-10 h-10 text-primary/50" />

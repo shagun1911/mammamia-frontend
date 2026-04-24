@@ -140,6 +140,9 @@
       // Use first knowledge base ID (platform widget supports single collection via URL param)
       params.push(`collection=${encodeURIComponent(knowledgeBaseIds[0])}`);
     }
+    if (typeof config.visitorName === 'string' && config.visitorName.trim() !== '') {
+      params.push(`visitorName=${encodeURIComponent(config.visitorName.trim())}`);
+    }
     
     if (params.length > 0) {
       url += '?' + params.join('&');

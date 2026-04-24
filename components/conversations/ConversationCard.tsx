@@ -29,9 +29,14 @@ export function ConversationCard({
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "";
+    const now = new Date();
+    const isToday = now.toDateString() === date.toDateString();
     const hours = date.getHours().toString().padStart(2, "0");
     const minutes = date.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
+    if (isToday) return `${hours}:${minutes}`;
+    const day = date.toLocaleDateString();
+    return `${day} ${hours}:${minutes}`;
   };
 
   const isVoiceMessage = conversation.messages?.some((m) => m.type === "voice") || conversation.channel === "phone";
