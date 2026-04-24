@@ -122,6 +122,47 @@ export default function SocialIntegrations() {
     show: boolean;
     platform: 'whatsapp' | 'instagram' | 'facebook';
   } | null>(null);
+  const [resolvingPageSelection, setResolvingPageSelection] = useState(false);
+
+  const resolveOAuthPageSelection = async (
+    platform: 'facebook' | 'instagram',
+    session: string
+  ) => {
+    try {
+      setResolvingPageSelection(true);
+
+      // 1) Fetch pending pages cached by backend after OAuth callback.
+      const pendingResponse = await apiClient.get(`/social-integrations/${platform}/pending-pages?session=${encodeURIComponent(session)}`);
+      const pages = pendingResponse?.data?.pages || [];
+
+      if (!Array.isArray(pages) || pages.length === 0) {
+        throw new Error('No pages available for selection');
+      }
+
+      // 2) Auto-select first page to complete connection.
+      // This keeps OAuth flow seamless and prevents getting stuck on select_page URL.
+      const selectedPageId = pages[0].id;
+      await apiClient.post(`/social-integrations/${platform}/select-page`, {
+        sessionKey: session,
+        pageId: selectedPageId
+      });
+
+      toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} connected successfully!`);
+      window.history.replaceState({}, '', '/settings/socials');
+      await fetchIntegrations();
+    } catch (error: any) {
+      console.error(`[OAuth Page Selection] Failed for ${platform}:`, error);
+      const msg =
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Failed to complete page selection';
+      toast.error(msg);
+      window.history.replaceState({}, '', '/settings/socials');
+    } finally {
+      setResolvingPageSelection(false);
+    }
+  };
 
   useEffect(() => {
     fetchIntegrations();
@@ -131,6 +172,14 @@ export default function SocialIntegrations() {
     const success = params.get('success');
     const error = params.get('error');
     const platform = params.get('platform');
+    const selectPage = params.get('select_page');
+    const session = params.get('session');
+
+    // Handle multi-page OAuth completion flow
+    if (selectPage === 'true' && session && (platform === 'facebook' || platform === 'instagram')) {
+      resolveOAuthPageSelection(platform, session);
+      return;
+    }
     
     if (success === 'true' && platform) {
       toast.success(`${platform.charAt(0).toUpperCase() + platform.slice(1)} connected successfully!`);
@@ -942,6 +991,17 @@ export default function SocialIntegrations() {
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">Loading integrations...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (resolvingPageSelection) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Finalizing social connection...</p>
         </div>
       </div>
     );
