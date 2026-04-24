@@ -171,7 +171,6 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         },
       ]);
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
       await fetch(`${API_URL}/conversations/widget`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

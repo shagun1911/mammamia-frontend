@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const projectRoot = process.cwd();
+
 const nextConfig: NextConfig = {
   // Suppress workspace root warning by setting explicit root
   // This warning occurs when multiple lockfiles are detected
@@ -31,9 +33,10 @@ const nextConfig: NextConfig = {
   experimental: {
     turbopackUseSystemTlsCerts: true,
   },
-  // @ts-ignore
+  outputFileTracingRoot: projectRoot,
   turbopack: {
-    root: "..",
+    // Must be absolute and match outputFileTracingRoot in build environments.
+    root: projectRoot,
   },
   // Suppress font loading warnings (these are network-related and non-critical)
   onDemandEntries: {
