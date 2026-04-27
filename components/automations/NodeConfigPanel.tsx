@@ -1466,7 +1466,6 @@ export function NodeConfigPanel({
                     className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                   >
                     <option value="">Select event...</option>
-                    <option value="lead_created">New Lead Created</option>
                     <option value="order_created">Order Created</option>
                     <option value="cart_abandoned">Cart Abandoned</option>
                     <option value="form_submitted">Form Submitted</option>

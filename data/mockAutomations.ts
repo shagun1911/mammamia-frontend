@@ -70,7 +70,6 @@ export const nodeServices = {
     { id: "inbound_call_completed", name: "mammam-ia - Inbound Call Completed", icon: "📱", color: "#10b981" },
     { id: "batch_call_completed", name: "mammam-ia - Batch Call Completed", icon: "📤", color: "#f59e0b" },
     { id: "batch_call", name: "mammam-ia - Batch Call (CSV/List)", icon: "📤", color: "#f59e0b" },
-    { id: "facebook_leads", name: "Facebook Leads", icon: "📘", color: "#1877f2" },
     { id: "shopify_order", name: "Shopify Order", icon: "🛍️", color: "#96bf48" },
     { id: "cart_abandoned", name: "Cart Abandoned", icon: "🛒", color: "#f59e0b" },
     { id: "webhook", name: "Webhook", icon: "🔗", color: "#a855f7" },
@@ -103,7 +102,7 @@ export const mockAutomations: Automation[] = [
       {
         id: "node_1",
         type: "trigger",
-        service: "facebook_leads",
+        service: "webhook",
         config: { event: "" },
         position: 0,
       },
@@ -217,7 +216,7 @@ export const mockAutomations: Automation[] = [
   },
   {
     id: "auto_4",
-    name: "Lead Qualification",
+    name: "Contact Qualification",
     status: "disabled",
     nodes: [
       {

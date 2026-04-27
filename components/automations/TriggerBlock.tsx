@@ -1,6 +1,6 @@
 "use client";
 
-import { Facebook, ShoppingBag, ShoppingCart, Webhook, UserX, FileText } from "lucide-react";
+import { ShoppingBag, ShoppingCart, Webhook, UserX, FileText } from "lucide-react";
 
 interface TriggerBlockProps {
   selectedTrigger: string;
@@ -8,7 +8,6 @@ interface TriggerBlockProps {
 }
 
 const triggers = [
-  { value: "facebook_lead", label: "Facebook Lead", icon: Facebook },
   { value: "shopify_order", label: "Shopify Order", icon: ShoppingBag },
   { value: "cart_abandoned", label: "Cart Abandoned", icon: ShoppingCart },
   { value: "webhook", label: "Webhook", icon: Webhook },
