@@ -111,7 +111,7 @@ export default function SignInPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">
-            Welcome to Aistein-It
+            Welcome to mammam-ia
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             Sign in to your account to continue
