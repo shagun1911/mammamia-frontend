@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Phone, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, ChevronDown, ChevronUp, User, Mail, Calendar } from "lucide-react";
-import { useBatchCalls, useCancelBatchJob, useBatchJobCalls } from "@/hooks/useBatchCalling";
+import { Phone, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, ChevronDown, ChevronUp, User, Mail, Calendar, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { useBatchCalls, useCancelBatchJob, useResumeBatchJob, useBatchJobDetails } from "@/hooks/useBatchCalling";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,6 +39,7 @@ interface BatchCallListProps {
 export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
   const { data: batchCalls = [], isLoading, refetch } = useBatchCalls();
   const cancelBatchJob = useCancelBatchJob();
+  const resumeBatchJob = useResumeBatchJob();
   const queryClient = useQueryClient();
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
@@ -106,6 +107,23 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
   const canCancel = (status: string) => {
     const lowerStatus = status.toLowerCase();
     return ['pending', 'scheduled', 'running', 'in_progress'].includes(lowerStatus);
+  };
+
+  const canResume = (status: string) => {
+    const lowerStatus = status.toLowerCase();
+    return ['cancelled', 'canceled', 'paused'].includes(lowerStatus);
+  };
+
+  const handleResume = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await resumeBatchJob.mutateAsync(jobId);
+      queryClient.invalidateQueries({ queryKey: ['batchCalls'] });
+      queryClient.invalidateQueries({ queryKey: ['batchJobStatus', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['batchJobDetails', jobId] });
+    } catch (_) {
+      // Error handled by mutation
+    }
   };
 
   const formatDate = (unixTimestamp: number) => {
@@ -205,6 +223,15 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
                     </div>
 
                     <div className="flex items-center gap-2 ml-4">
+                      {canResume(batchCall.status) && (
+                        <button
+                          onClick={(e) => handleResume(batchCall.batch_call_id, e)}
+                          disabled={resumeBatchJob.isPending}
+                          className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {resumeBatchJob.isPending ? 'Resuming...' : 'Resume'}
+                        </button>
+                      )}
                       {canCancel(batchCall.status) && (
                         <button
                           onClick={(e) => {
@@ -214,7 +241,7 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
                           disabled={cancelBatchJob.isPending}
                           className="px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {cancelBatchJob.isPending ? 'Cancelling...' : 'Cancel'}
+                          {cancelBatchJob.isPending ? 'Pausing...' : 'Pause / Cancel'}
                         </button>
                       )}
                       {isExpanded ? (
@@ -244,7 +271,11 @@ interface BatchCallDetailsProps {
 }
 
 function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
-  const { data: callsData, isLoading: callsLoading } = useBatchJobCalls(batchCall.batch_call_id);
+  const { data: detailsData, isLoading: detailsLoading } = useBatchJobDetails(batchCall.batch_call_id);
+  const [selectedContactKey, setSelectedContactKey] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "transcript" | "metadata">("overview");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const formatDate = (unixTimestamp: number) => {
     return new Date(unixTimestamp * 1000).toLocaleString();
@@ -256,6 +287,15 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
       case 'finished':
       case 'success':
         return <CheckCircle className="w-3 h-3 text-green-500" />;
+      case 'busy':
+      case 'line_busy':
+      case 'user_busy':
+        return <AlertCircle className="w-3 h-3 text-amber-500" />;
+      case 'voicemail':
+        return <Phone className="w-3 h-3 text-purple-500" />;
+      case 'no_answer':
+      case 'no-answer':
+        return <Clock className="w-3 h-3 text-orange-500" />;
       case 'failed':
       case 'error':
         return <XCircle className="w-3 h-3 text-red-500" />;
@@ -274,6 +314,15 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
       case 'finished':
       case 'success':
         return 'text-green-500 bg-green-500/10';
+      case 'busy':
+      case 'line_busy':
+      case 'user_busy':
+        return 'text-amber-600 bg-amber-500/10';
+      case 'voicemail':
+        return 'text-purple-600 bg-purple-500/10';
+      case 'no_answer':
+      case 'no-answer':
+        return 'text-orange-600 bg-orange-500/10';
       case 'failed':
       case 'error':
         return 'text-red-500 bg-red-500/10';
@@ -285,6 +334,106 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
         return 'text-yellow-500 bg-yellow-500/10';
     }
   };
+
+  const getDisplayFailureReason = (contact: any): string => {
+    if (contact?.failed_reason) return contact.failed_reason;
+    const status = String(contact?.status || "").toLowerCase();
+    if (status === "busy") return "Line busy";
+    if (status === "voicemail") return "Reached voicemail";
+    if (status === "no_answer" || status === "no-answer") return "No answer";
+    if (status === "failed") return "Call failed before completion";
+    return "";
+  };
+
+  const contacts = detailsData?.contacts || [];
+  const totalContacts = contacts.length;
+  const totalPages = Math.max(1, Math.ceil(totalContacts / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalContacts);
+  const paginatedContacts = contacts.slice(startIndex, endIndex);
+
+  const goToPrevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
+  const goToNextPage = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+
+  const normalizeTranscript = (transcript: any): Array<{ speaker: string; text: string; time?: string }> => {
+    if (!transcript) return [];
+    const rows: Array<{ speaker: string; text: string; time?: string }> = [];
+    const items = Array.isArray(transcript)
+      ? transcript
+      : (transcript.items || transcript.messages || transcript.turns || []);
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        const text = item?.message || item?.content || item?.text || '';
+        if (!String(text).trim()) continue;
+        const role = item?.role || item?.speaker || 'unknown';
+        rows.push({
+          speaker: String(role).toLowerCase().includes('agent') || String(role).toLowerCase().includes('assistant') ? 'Agent' : 'User',
+          text: String(text).trim(),
+          time: item?.timestamp ? new Date(item.timestamp).toLocaleTimeString() : undefined
+        });
+      }
+      return rows;
+    }
+    if (typeof transcript === 'string') {
+      return transcript
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          if (line.toLowerCase().startsWith('agent:') || line.toLowerCase().startsWith('assistant:')) {
+            return { speaker: 'Agent', text: line.replace(/^[^:]+:\s*/, '') };
+          }
+          if (line.toLowerCase().startsWith('user:') || line.toLowerCase().startsWith('customer:')) {
+            return { speaker: 'User', text: line.replace(/^[^:]+:\s*/, '') };
+          }
+          return { speaker: 'Transcript', text: line };
+        });
+    }
+    return [];
+  };
+
+  const selectedContact = (() => {
+    if (!contacts.length) return null;
+    if (selectedContactKey) {
+      const existing = contacts.find((c: any, idx: number) => (c.conversation_id || c.phone_number || `${idx}`) === selectedContactKey);
+      if (existing) return existing;
+    }
+    return contacts[0];
+  })();
+
+  const selectedTranscript = normalizeTranscript(selectedContact?.transcript);
+
+  const PaginationBar = () => (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
+      <div className="text-xs text-muted-foreground">
+        Showing <span className="font-semibold text-foreground">{totalContacts === 0 ? 0 : startIndex + 1}</span>
+        {" "}to <span className="font-semibold text-foreground">{endIndex}</span> of{" "}
+        <span className="font-semibold text-foreground">{totalContacts}</span> contacts
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={goToPrevPage}
+          disabled={safePage <= 1}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs border border-border rounded-md bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          Prev
+        </button>
+        <span className="text-xs text-muted-foreground min-w-[76px] text-center">
+          Page {safePage} / {totalPages}
+        </span>
+        <button
+          onClick={goToNextPage}
+          disabled={safePage >= totalPages}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs border border-border rounded-md bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="border-t border-border bg-muted/30">
@@ -366,65 +515,185 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
           </div>
         </div>
 
-        {/* Individual Call Results */}
-        <div>
-          <h5 className="text-sm font-semibold text-foreground mb-1">
-            Individual Call Results
-            {callsData?.calls && callsData.calls.length > 0 && (
-              <span className="ml-2 text-xs text-muted-foreground font-normal">
-                ({callsData.calls.length} {callsData.calls.length === 1 ? 'call' : 'calls'})
-              </span>
-            )}
-          </h5>
+        {/* Individual Contact Results */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h5 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Contact Details
+              {totalContacts > 0 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary text-xs text-muted-foreground font-normal">
+                  {totalContacts} {totalContacts === 1 ? 'contact' : 'contacts'}
+                </span>
+              )}
+            </h5>
+            {totalContacts > pageSize && <PaginationBar />}
+          </div>
 
-          {callsLoading ? (
+          {detailsLoading ? (
             <div className="flex items-center justify-center py-8">
               <RefreshCw className="w-5 h-5 text-primary animate-spin" />
-              <span className="ml-2 text-sm text-muted-foreground">Loading call results...</span>
+              <span className="ml-2 text-sm text-muted-foreground">Loading contact details...</span>
             </div>
-          ) : callsData?.calls && callsData.calls.length > 0 ? (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {callsData.calls.map((call: any, index: number) => (
-                <div
-                  key={call.id || call.call_id || index}
-                  className="bg-background border border-border rounded-lg p-3 hover:border-primary/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        {getCallStatusIcon(call.status || call.call_status || 'pending')}
-                        <span className={cn(
-                          "px-2 py-0.5 rounded text-xs font-medium",
-                          getCallStatusColor(call.status || call.call_status || 'pending')
-                        )}>
-                          {call.status || call.call_status || 'pending'}
-                        </span>
-                        {call.phone_number && (
-                          <span className="text-sm text-foreground font-medium">
-                            {call.phone_number}
-                          </span>
+          ) : totalContacts > 0 ? (
+            <>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+              <div className="xl:col-span-5 border border-border rounded-xl overflow-hidden bg-background">
+                <div className="px-4 py-3 border-b border-border bg-muted/30 text-xs font-semibold text-muted-foreground grid grid-cols-[1.1fr_1fr_0.7fr] gap-3">
+                  <span>Phone / Name</span>
+                  <span>Status</span>
+                  <span className="text-right">Duration</span>
+                </div>
+                <div className="max-h-[520px] overflow-y-auto">
+                  {paginatedContacts.map((call: any, index: number) => {
+                    const rowKey = call.conversation_id || call.phone_number || `${safePage}_${index}`;
+                    const isSelected = (selectedContact?.conversation_id || selectedContact?.phone_number) === (call.conversation_id || call.phone_number);
+                    return (
+                      <button
+                        key={rowKey}
+                        onClick={() => {
+                          setSelectedContactKey(rowKey);
+                          setActiveTab("overview");
+                        }}
+                        className={cn(
+                          "w-full text-left px-4 py-3 border-b border-border/70 grid grid-cols-[1.1fr_1fr_0.7fr] gap-3 items-center hover:bg-accent/40 transition-colors",
+                          isSelected && "bg-blue-500/8 border-l-2 border-l-blue-500"
                         )}
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-foreground truncate">{call.phone_number || "Unknown"}</div>
+                          <div className="text-xs text-muted-foreground truncate">{call.name || "-"}</div>
+                        </div>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {getCallStatusIcon(call.status || "pending")}
+                          <span className={cn("px-2 py-0.5 rounded text-[11px] font-medium", getCallStatusColor(call.status || "pending"))}>
+                            {call.status || "pending"}
+                          </span>
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground font-medium">
+                          {(call.duration_seconds || call.duration || 0)}s
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="xl:col-span-7 border border-border rounded-xl bg-background overflow-hidden">
+                {selectedContact ? (
+                  <>
+                    <div className="p-4 border-b border-border bg-muted/20">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h6 className="text-base font-semibold text-foreground">{selectedContact.name || "Unknown contact"}</h6>
+                          <p className="text-xs text-muted-foreground">{selectedContact.phone_number || "-"}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={cn("px-2 py-1 rounded text-xs font-medium", getCallStatusColor(selectedContact.status || "pending"))}>
+                            {selectedContact.status || "pending"}
+                          </span>
+                        </div>
                       </div>
-                      {call.name && (
-                        <div className="text-sm text-muted-foreground">
-                          <span className="font-medium">Name:</span> {call.name}
-                        </div>
-                      )}
-                      {call.duration && (
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">Duration:</span> {call.duration}s
-                        </div>
-                      )}
-                      {call.error && (
-                        <div className="text-xs text-red-500 bg-red-500/10 p-2 rounded mt-2">
-                          <span className="font-medium">Error:</span> {call.error}
+
+                      {getDisplayFailureReason(selectedContact) && (
+                        <div className="mt-3 rounded-lg border border-red-300/40 bg-red-500/10 px-3 py-2">
+                          <div className="text-xs font-semibold text-red-600">Call Failed Reason</div>
+                          <div className="text-xs text-red-700 mt-0.5">{getDisplayFailureReason(selectedContact)}</div>
                         </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
+
+                    <div className="px-4 pt-3 border-b border-border flex items-center gap-2">
+                      <button
+                        onClick={() => setActiveTab("overview")}
+                        className={cn("px-3 py-1.5 text-xs rounded-t-md border-b-2", activeTab === "overview" ? "border-blue-500 text-blue-600 font-semibold" : "border-transparent text-muted-foreground")}
+                      >
+                        Overview
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("transcript")}
+                        className={cn("px-3 py-1.5 text-xs rounded-t-md border-b-2", activeTab === "transcript" ? "border-blue-500 text-blue-600 font-semibold" : "border-transparent text-muted-foreground")}
+                      >
+                        Transcript
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("metadata")}
+                        className={cn("px-3 py-1.5 text-xs rounded-t-md border-b-2", activeTab === "metadata" ? "border-blue-500 text-blue-600 font-semibold" : "border-transparent text-muted-foreground")}
+                      >
+                        Metadata
+                      </button>
+                    </div>
+
+                    <div className="p-4 min-h-[360px]">
+                      {activeTab === "overview" && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div className="rounded-lg bg-muted/40 p-3">
+                              <div className="text-muted-foreground">Email</div>
+                              <div className="text-foreground font-medium mt-1 break-all">{selectedContact.email || "-"}</div>
+                            </div>
+                            <div className="rounded-lg bg-muted/40 p-3">
+                              <div className="text-muted-foreground">Duration</div>
+                              <div className="text-foreground font-medium mt-1">{selectedContact.duration_seconds || 0}s</div>
+                            </div>
+                            <div className="rounded-lg bg-muted/40 p-3">
+                              <div className="text-muted-foreground">End reason</div>
+                              <div className="text-foreground font-medium mt-1">{selectedContact.end_reason || "-"}</div>
+                            </div>
+                            <div className="rounded-lg bg-muted/40 p-3 col-span-2">
+                              <div className="text-muted-foreground">Failure reason</div>
+                              <div className="text-foreground font-medium mt-1">{getDisplayFailureReason(selectedContact) || "-"}</div>
+                            </div>
+                            <div className="rounded-lg bg-muted/40 p-3">
+                              <div className="text-muted-foreground">Messages</div>
+                              <div className="text-foreground font-medium mt-1">{selectedContact?.conversation?.message_count ?? 0}</div>
+                            </div>
+                          </div>
+                          {selectedContact.summary && (
+                            <div className="rounded-lg border border-blue-400/25 bg-blue-500/5 p-3 text-xs">
+                              <span className="font-semibold text-foreground">Summary: </span>
+                              <span className="text-muted-foreground">{selectedContact.summary}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {activeTab === "transcript" && (
+                        <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                          {selectedTranscript.length > 0 ? selectedTranscript.map((row, idx) => (
+                            <div
+                              key={`${row.speaker}_${idx}`}
+                              className={cn(
+                                "rounded-xl px-3 py-2 text-xs border max-w-[92%]",
+                                row.speaker === "Agent"
+                                  ? "bg-blue-500/7 border-blue-500/20"
+                                  : "bg-muted/40 border-border ml-auto"
+                              )}
+                            >
+                              <div className="font-semibold text-foreground mb-1">{row.speaker}</div>
+                              <div className="text-muted-foreground whitespace-pre-wrap">{row.text}</div>
+                              {row.time && <div className="text-[10px] text-muted-foreground mt-1">{row.time}</div>}
+                            </div>
+                          )) : (
+                            <div className="text-xs text-muted-foreground">No transcript available for this contact yet.</div>
+                          )}
+                        </div>
+                      )}
+
+                      {activeTab === "metadata" && (
+                        <pre className="text-[11px] whitespace-pre-wrap bg-muted/40 border border-border rounded-lg p-3 max-h-[360px] overflow-y-auto">
+{JSON.stringify(selectedContact.metadata || {}, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-6 text-sm text-muted-foreground">Select a contact to view details.</div>
+                )}
+              </div>
             </div>
+            {totalContacts > pageSize && <PaginationBar />}
+            </>
           ) : (
             <div className="rounded-lg bg-muted/40 border border-border p-4 text-sm text-muted-foreground space-y-2">
               {batchCall.status === 'in_progress' || batchCall.status === 'running' ? (

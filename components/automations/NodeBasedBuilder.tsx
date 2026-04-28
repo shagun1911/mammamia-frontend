@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react";
 import { Plus, List, Trash2, Check, Zap, X, ArrowLeft, Loader2 } from "lucide-react";
 import { Automation, AutomationNode as NodeType, nodeServices } from "@/data/mockAutomations";
 import { AutomationNode } from "./AutomationNode";
@@ -10,39 +10,48 @@ import { AutomationList } from "./AutomationList";
 import { ExecutionsModal } from "./ExecutionsModal";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/lib/toast";
-import { readAutomationsSession, writeAutomationsSession } from "@/lib/automationsSessionStorage";
+
+export type AutomationBuilderSelection = {
+  selectedAutomationId: string | null;
+  selectedNodeId: string | null;
+};
 
 interface NodeBasedBuilderProps {
   automations: Automation[];
   onAutomationsChange?: (automations: Automation[]) => void;
-  onSelectionChange?: (automationId: string | null, nodeId: string | null) => void;
+  /** Report selection changes so the page can persist session (scroll/selection survive navigation). */
+  onSelectionChange?: (selection: AutomationBuilderSelection) => void;
+  /** Called after a successful Save so session dirty state can clear. */
   onSaved?: () => void;
+  /** Applied once when automations are available (e.g. restore from session). */
+  defaultSelection?: AutomationBuilderSelection | null;
+  /** Bumps when the page finishes a fresh list load so selection restore can run again. */
+  selectionRevision?: number;
 }
 
 export interface NodeBasedBuilderRef {
   handleNewAutomation: () => void;
 }
 
-export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilderProps>(({ automations: initialAutomations, onAutomationsChange, onSelectionChange, onSaved }, ref) => {
+export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilderProps>(({ automations: initialAutomations, onAutomationsChange, onSelectionChange, onSaved, defaultSelection, selectionRevision = 0 }, ref) => {
   const [automations, setAutomations] = useState(initialAutomations);
-  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(initialAutomations[0]?.id || null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(() =>
+    defaultSelection?.selectedAutomationId ?? initialAutomations[0]?.id ?? null
+  );
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(
+    () => defaultSelection?.selectedNodeId ?? null
+  );
+  const consumedDefaultSelection = useRef(false);
+
+  useEffect(() => {
+    consumedDefaultSelection.current = false;
+  }, [selectionRevision]);
   const [showNodeSelector, setShowNodeSelector] = useState(false);
   const [insertPosition, setInsertPosition] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showExecutions, setShowExecutions] = useState(false);
   const [runningBatch, setRunningBatch] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
-
-  useEffect(() => {
-    const session = readAutomationsSession();
-    if (session) {
-      setSelectedAutomationId(session.selectedAutomationId);
-      setSelectedNodeId(session.selectedNodeId);
-      setIsDirty(session.dirty);
-    }
-  }, []);
 
   // Update automations when prop changes
   useEffect(() => {
@@ -52,24 +61,36 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     }
   }, [initialAutomations]);
 
+  // One-shot restore of selection from session (after API + merge lists are ready)
+  useEffect(() => {
+    if (consumedDefaultSelection.current || !defaultSelection || initialAutomations.length === 0) {
+      return;
+    }
+    const aid = defaultSelection.selectedAutomationId;
+    const nid = defaultSelection.selectedNodeId;
+    if (aid && initialAutomations.some((a) => a.id === aid)) {
+      setSelectedAutomationId(aid);
+      const auto = initialAutomations.find((a) => a.id === aid);
+      if (nid && auto?.nodes.some((n) => n.id === nid)) {
+        setSelectedNodeId(nid);
+      } else {
+        setSelectedNodeId(null);
+      }
+    }
+    consumedDefaultSelection.current = true;
+  }, [defaultSelection, initialAutomations, selectionRevision]);
+
+  useEffect(() => {
+    onSelectionChange?.({ selectedAutomationId, selectedNodeId });
+  }, [selectedAutomationId, selectedNodeId, onSelectionChange]);
+
   // Helper function to update automations and notify parent
   const updateAutomations = (newAutomations: Automation[]) => {
     setAutomations(newAutomations);
-    setIsDirty(true);
     if (onAutomationsChange) {
       onAutomationsChange(newAutomations);
     }
   };
-
-  useEffect(() => {
-    onSelectionChange?.(selectedAutomationId, selectedNodeId);
-    writeAutomationsSession({
-      automationsDraft: automations,
-      selectedAutomationId,
-      selectedNodeId,
-      dirty: isDirty
-    });
-  }, [automations, selectedAutomationId, selectedNodeId, isDirty, onSelectionChange]);
 
   const selectedAutomation = automations.find(
     (a) => a.id === selectedAutomationId
@@ -153,13 +174,16 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     let finalConfig = { ...config };
     const node = selectedAutomation.nodes.find(n => n.id === selectedNodeId);
 
-    if (node?.service === "aistein_google_sheet_append_row") {
-      // Ensure values array is properly formatted
+    if (
+      node?.service === "aistein_google_sheet_append_row" ||
+      node?.service === "aistein_user_google_sheet_append_row"
+    ) {
+      // Keep empty strings so column indices stay aligned with the sheet
       if (finalConfig.values && Array.isArray(finalConfig.values)) {
-        // Filter out empty values but preserve array structure
-        finalConfig.values = finalConfig.values.filter((v: string) => v && typeof v === 'string' && v.trim() !== "");
+        finalConfig.values = finalConfig.values.map((v: string) =>
+          typeof v === "string" ? v : String(v ?? "")
+        );
       } else {
-        // Ensure values is always an array
         finalConfig.values = [];
       }
 
@@ -202,10 +226,18 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
     if (!selectedAutomation) return true;
 
     // Check if any Google Sheets node is incomplete
-    const incompleteNode = selectedAutomation.nodes.find(node => {
-      if (node.service === "aistein_google_sheet_append_row") {
+    const incompleteNode = selectedAutomation.nodes.find((node) => {
+      if (
+        node.service === "aistein_google_sheet_append_row" ||
+        node.service === "aistein_user_google_sheet_append_row"
+      ) {
         const hasSpreadsheetId = !!(node.config.spreadsheetId && node.config.spreadsheetId.trim() !== "");
-        const hasValues = !!(node.config.values && Array.isArray(node.config.values) && node.config.values.length > 0 && node.config.values.some((v: string) => v && v.trim() !== ""));
+        const hasValues = !!(
+          node.config.values &&
+          Array.isArray(node.config.values) &&
+          node.config.values.length > 0 &&
+          node.config.values.some((v: string) => v && String(v).trim() !== "")
+        );
         return !hasSpreadsheetId || !hasValues;
       }
       return false;
@@ -320,10 +352,13 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       const backendNodes = selectedAutomation.nodes.map(node => {
         let config = { ...node.config };
 
-        if (node.service === "aistein_google_sheet_append_row") {
+        if (
+          node.service === "aistein_google_sheet_append_row" ||
+          node.service === "aistein_user_google_sheet_append_row"
+        ) {
           if (config.values && Array.isArray(config.values)) {
-            config.values = config.values.filter(
-              (v: string) => v && typeof v === "string" && v.trim() !== ""
+            config.values = config.values.map((v: string) =>
+              typeof v === "string" ? v : String(v ?? "")
             );
           } else {
             config.values = [];
@@ -370,7 +405,6 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
       );
 
       toast.success("Automation saved successfully");
-      setIsDirty(false);
       onSaved?.();
     } catch (error: any) {
       console.error("Save error:", error);
@@ -550,7 +584,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
                     No steps configured
                   </h3>
                   <p className="text-sm text-muted-foreground mb-6">
-                    Click the button above to add your first automation step
+                    Use <span className="font-medium text-foreground/90">Add first step</span> or the + between steps to build your workflow
                   </p>
                   <button
                     onClick={() => handleAddNode(0)}
@@ -657,7 +691,7 @@ export const NodeBasedBuilder = forwardRef<NodeBasedBuilderRef, NodeBasedBuilder
                   <span>Back</span>
                 </button>
                 <h3 className="text-lg font-semibold text-foreground">
-                  Add Action
+                  {insertPosition === 0 ? "Add trigger" : "Add step"}
                 </h3>
                 <button
                   onClick={() => {

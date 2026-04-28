@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { batchCallingService, BatchCallRequest, BatchCallResponse, BatchJobCallsResponse } from '@/services/batchCalling.service';
+import { batchCallingService, BatchCallRequest, BatchCallResponse, BatchJobCallsResponse, BatchJobDetailsResponse } from '@/services/batchCalling.service';
 import { toast } from 'sonner';
 
 /**
@@ -9,8 +9,23 @@ export function useSubmitBatchCall() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: BatchCallRequest) => batchCallingService.submitBatchCall(data),
-    onSuccess: (data: BatchCallResponse) => {
-      toast.success(`Batch call "${data.name}" submitted successfully! ${data.total_calls_scheduled} calls scheduled.`);
+    onSuccess: (data: unknown) => {
+      const response = data as {
+        total_batches_created?: number;
+        total_requested_recipients?: number;
+        name?: string;
+        total_calls_scheduled?: number;
+      };
+
+      if (response.total_batches_created && response.total_requested_recipients) {
+        toast.success(
+          `Batch call submitted in ${response.total_batches_created} batches for ${response.total_requested_recipients} recipients.`
+        );
+      } else if (response.name && typeof response.total_calls_scheduled === 'number') {
+        toast.success(`Batch call "${response.name}" submitted successfully! ${response.total_calls_scheduled} calls scheduled.`);
+      } else {
+        toast.success('Batch call submitted successfully.');
+      }
       // Immediately invalidate so the list fetches fresh data when it mounts
       queryClient.invalidateQueries({ queryKey: ['batchCalls'] });
     },
@@ -57,6 +72,22 @@ export function useCancelBatchJob() {
 }
 
 /**
+ * Resume batch job mutation
+ */
+export function useResumeBatchJob() {
+  return useMutation({
+    mutationFn: (jobId: string) => batchCallingService.resumeBatchJob(jobId),
+    onSuccess: (data) => {
+      toast.success(data.message || 'Batch job resumed successfully');
+    },
+    onError: (error: any) => {
+      console.error('❌ [useResumeBatchJob] Error:', error);
+      toast.error(error.message || 'Failed to resume batch job');
+    },
+  });
+}
+
+/**
  * Get all batch calls query
  */
 export function useBatchCalls() {
@@ -98,5 +129,17 @@ export function useBatchJobCalls(
     }),
     enabled: (options?.enabled !== false) && !!jobId,
     refetchInterval: 20000, // Refetch every 20 seconds
+  });
+}
+
+/**
+ * Get complete per-contact batch details
+ */
+export function useBatchJobDetails(jobId: string | null, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['batchJobDetails', jobId],
+    queryFn: () => batchCallingService.getBatchJobDetails(jobId!),
+    enabled: enabled && !!jobId,
+    refetchInterval: 15000,
   });
 }

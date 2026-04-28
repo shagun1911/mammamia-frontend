@@ -1477,7 +1477,7 @@ return (
                         type="text"
                         value={fullSetupTwilioSid}
                         onChange={(e) => setFullSetupTwilioSid(e.target.value)}
-                        placeholder="TWILIO_ACCOUNT_SID"
+                        placeholder="Enter your provider account SID"
                         className="w-full h-10 bg-background border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                       />
                     </div>

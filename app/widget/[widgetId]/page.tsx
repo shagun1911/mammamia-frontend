@@ -43,18 +43,23 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
   const [isOpen, setIsOpen] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(null);
-  const [visitorName, setVisitorName] = useState<string | null>(null);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  /** Set when opened with ?visitorName= (e.g. Chatbot Test → Open in New Tab) — sent with chat requests */
+  const [userName, setUserName] = useState<string | null>(null);
 
+  /** Defaults used only after load fails; UI stays on skeleton until settings resolve to avoid FOUC */
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>({
     chatbotName: "AI Assistant",
     chatbotAvatar: null,
     primaryColor: "#6366f1",
-    welcomeMessage: "👋 Hello! Before we start, may I know your name?",
+    welcomeMessage: "Hello! How can I help you today?",
     language: "en",
   });
 
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
   useEffect(() => {
+    let cancelled = false;
+
     const fetchSettings = async () => {
       try {
         const API_URL =
@@ -62,7 +67,7 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
 
         const response = await fetch(`${API_URL}/settings/widget/${widgetId}`);
 
-        if (response.ok) {
+        if (!cancelled && response.ok) {
           const data = await response.json();
 
           if (data.success && data.data) {
@@ -74,8 +79,8 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
               primaryColor: data.data.primaryColor || "#6366f1",
               welcomeMessage:
                 data.data.welcomeMessage ||
-                widgetTranslations[lang]?.askName ||
-                widgetTranslations.en.askName,
+                widgetTranslations[lang]?.welcomeDefault ||
+                widgetTranslations.en.welcomeDefault,
               language: lang,
             });
           }
@@ -83,38 +88,64 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
       } catch (error) {
         console.error("Failed to fetch widget settings:", error);
       } finally {
-        setSettingsLoading(false);
+        if (!cancelled) {
+          setSettingsLoaded(true);
+        }
       }
     };
 
     fetchSettings();
+
+    return () => {
+      cancelled = true;
+    };
   }, [widgetId]);
 
   useEffect(() => {
     const collectionParam = searchParams.get("collection");
-    const visitorNameParam = searchParams.get("visitorName");
 
     if (collectionParam) {
       setSelectedCollection(collectionParam);
     }
-    if (visitorNameParam) {
-      setVisitorName(visitorNameParam.trim().slice(0, 80));
-    }
   }, [searchParams]);
 
+  const visitorNameFromUrl = searchParams.get("visitorName")?.trim() || null;
+
   useEffect(() => {
-    const greeting = visitorName
-      ? `${widgetSettings.welcomeMessage} ${visitorName}`
-      : widgetSettings.welcomeMessage;
-    setMessages([
-      {
-        id: "welcome",
-        sender: "bot",
-        content: greeting,
-        timestamp: new Date().toISOString(),
-      },
-    ]);
-  }, [widgetSettings.welcomeMessage, visitorName]);
+    setUserName(visitorNameFromUrl);
+  }, [visitorNameFromUrl]);
+
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    const lang = widgetSettings.language || "en";
+    const t = widgetTranslations[lang] ?? widgetTranslations.en;
+
+    if (visitorNameFromUrl) {
+      const greeting = t.afterName.replace(/\{name\}/g, visitorNameFromUrl);
+      setMessages([
+        {
+          id: "welcome",
+          sender: "bot",
+          content: greeting,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    } else {
+      setMessages([
+        {
+          id: "welcome",
+          sender: "bot",
+          content: widgetSettings.welcomeMessage,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    }
+  }, [
+    settingsLoaded,
+    widgetSettings.welcomeMessage,
+    widgetSettings.language,
+    visitorNameFromUrl,
+  ]);
 
   const handleSend = async () => {
     if (!input.trim() || isSending) return;
@@ -146,8 +177,8 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
           body: JSON.stringify({
             query: userQuery,
             threadId: threadId,
-            ...(visitorName && { visitorName }),
             ...(selectedCollection && { knowledgeBaseId: selectedCollection }),
+            ...(userName && { visitorName: userName }),
           }),
         }
       );
@@ -171,21 +202,37 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         },
       ]);
 
-      await fetch(`${API_URL}/conversations/widget`, {
+      // Persist to inbox (Conversations list) — same endpoint as dashboard widget test
+      const displayName =
+        userName?.trim() ||
+        visitorNameFromUrl?.trim() ||
+        "Visitor";
+      const API_BASE =
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001/api/v1";
+      void fetch(`${API_BASE}/conversations/widget`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           widgetId,
-          name: visitorName || "Visitor",
-          visitorName: visitorName || undefined,
+          name: displayName,
           threadId,
-          collection: selectedCollection,
+          ...(selectedCollection && { collection: selectedCollection }),
           messages: [
-            { role: "user", content: userQuery, timestamp: new Date() },
-            { role: "bot", content: answer, timestamp: new Date() }
-          ]
-        })
-      });
+            {
+              role: "user",
+              content: userQuery,
+              timestamp: new Date().toISOString(),
+            },
+            {
+              role: "assistant",
+              content: answer,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }),
+      }).catch((err) =>
+        console.warn("[Widget] Could not sync conversation to inbox:", err)
+      );
     } catch (error) {
       console.error(error);
     } finally {
@@ -220,8 +267,36 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
 
   if (!isOpen) return null;
 
-  if (settingsLoading) {
-    return <div className="w-full min-h-dvh animate-pulse bg-gray-100 dark:bg-gray-900" />;
+  /** Skeleton only — no placeholder title/welcome so configured UI never flashes */
+  if (!settingsLoaded) {
+    return (
+      <div
+        className={
+          isEmbedded
+            ? "w-full min-h-dvh bg-white dark:bg-gray-900"
+            : "fixed inset-0 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        }
+        aria-busy="true"
+        aria-label="Loading chat widget"
+      >
+        <div
+          className={
+            isEmbedded
+              ? "w-full min-h-dvh bg-white dark:bg-gray-900 flex flex-col"
+              : "w-full max-w-md h-[600px] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          }
+        >
+          <div className="h-[72px] bg-muted animate-pulse" />
+          <div className="flex-1 bg-gray-50 dark:bg-gray-800 p-4">
+            <div className="h-24 max-w-[80%] rounded-2xl bg-muted animate-pulse" />
+          </div>
+          <div className="p-4 border-t border-border/60 flex gap-2 shrink-0">
+            <div className="flex-1 h-11 rounded-xl bg-muted animate-pulse" />
+            <div className="w-11 h-11 rounded-xl bg-muted animate-pulse shrink-0" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (isMinimized && !isEmbedded) {
@@ -357,7 +432,7 @@ export default function WidgetPage({ params }: { params?: { widgetId?: string } 
         {/* Footer
 
         <div className="px-4 py-2 text-center text-xs text-gray-400 border-t">
-          Powered by <span className="font-semibold">mammam-ia</span>
+          Powered by <span className="font-semibold">Aistein-It</span>
         </div> */}
       </div>
     </div>

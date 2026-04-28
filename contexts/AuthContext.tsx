@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (email: string, password: string, captchaToken: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 
@@ -68,8 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
               console.warn('⚠️ API returned invalid user data, keeping stored user');
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             console.error('❌ Failed to fetch current user:', error);
+            const status = typeof error === 'object' && error !== null && 'status' in error
+              ? (error as { status?: number }).status
+              : undefined;
+            const message = error instanceof Error ? error.message : '';
 
             // If we're returning from OAuth callback, preserve the session
             // The user is still authenticated, just the API call might have failed temporarily
@@ -78,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // Keep the stored user, don't log out
             } else if (!storedUser) {
               // Only log out if we don't have a stored user AND it's not an OAuth callback
-              if (error.status === 401 || error.message?.includes('401')) {
+              if (status === 401 || message.includes('401')) {
                 console.log('🔐 No stored user and 401 error - logging out');
                 authService.logout();
                 setUser(null);
@@ -103,10 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Login user (email/password)
    */
   const login = useCallback(
-    async (email: string, password: string): Promise<User> => {
+    async (email: string, password: string, captchaToken: string): Promise<User> => {
       try {
         setLoading(true);
-        const user = await authService.login({ email, password });
+        const user = await authService.login({ email, password, captchaToken });
         setUser(user);
         return user;
       } finally {

@@ -3,7 +3,7 @@
 import { X, Trash2, Loader2, FileSpreadsheet, CheckCircle2, AlertCircle, ArrowLeft, Check } from "lucide-react";
 import { AutomationNode } from "@/data/mockAutomations";
 import { nodeServices } from "@/data/mockAutomations";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { apiClient } from "@/lib/api";
 import { toast } from "@/lib/toast";
 import { useGoogleIntegrationsStatus } from "@/hooks/useGoogleIntegrationsStatus";
@@ -37,6 +37,17 @@ export function NodeConfigPanel({
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
+  const nodeRef = useRef(node);
+  nodeRef.current = node;
+
+  const isGoogleSheetsAppend =
+    node.service === "aistein_google_sheet_append_row" ||
+    node.service === "aistein_user_google_sheet_append_row";
+
+  const [sheetHeaders, setSheetHeaders] = useState<string[]>([]);
+  const [loadingHeaders, setLoadingHeaders] = useState(false);
+  const [headersError, setHeadersError] = useState<string | null>(null);
+  const [sheetSourceTab, setSheetSourceTab] = useState<"url" | "drive">("url");
 
   const { status: googleIntegrationStatus, isLoading: isLoadingGoogleStatus } = useGoogleIntegrationsStatus();
   const { integrations: socialIntegrations, isLoading: isLoadingSocialStatus } = useSocialIntegrationsStatus();
@@ -69,14 +80,15 @@ export function NodeConfigPanel({
   const jsonExampleKey = node.id + (node.service === "aistein_extract_data" || node.service === "aistein_extract_appointment" ? "_extract" : "");
   const [suggestingFromAgent, setSuggestingFromAgent] = useState(false);
 
-  // Sync selectedSpreadsheetId with node.config.spreadsheetId when node changes
-  // This ensures state persists when switching between nodes or reopening the panel
+  // Sync spreadsheet UI state only when switching to a different node.
+  // Do not depend on node.config.spreadsheetId — updating the link would clear local state before the parent applies the new id.
   useEffect(() => {
     const spreadsheetId = node.config.spreadsheetId || "";
     setSelectedSpreadsheetId(spreadsheetId);
-    // Clear link input when node changes (will be populated if user pastes link)
     setSpreadsheetLink("");
-  }, [node.id, node.config.spreadsheetId]);
+    setSheetHeaders([]);
+    setHeadersError(null);
+  }, [node.id]);
 
   // Sync jsonExampleRaw from node.config when opening extract node
   useEffect(() => {
@@ -114,7 +126,7 @@ export function NodeConfigPanel({
     fetchLists();
 
     // Fetch Google Sheets spreadsheets when configuring Google Sheets action
-    if (node.service === "aistein_google_sheet_append_row") {
+    if (isGoogleSheetsAppend) {
       loadSpreadsheets();
     }
   }, [node.service]);
@@ -255,6 +267,21 @@ export function NodeConfigPanel({
     onUpdate({ ...node.config, values: currentValues });
   };
 
+  /** Insert a variable into the first empty mapped cell (or append when not using sheet headers) */
+  const insertVariableIntoMapping = (varName: string) => {
+    const vals = node.config.values || [];
+    if (sheetHeaders.length > 0) {
+      const idx = vals.findIndex(
+        (v: unknown, i: number) =>
+          i < sheetHeaders.length && (!v || !String(v).trim())
+      );
+      const target = idx >= 0 ? idx : 0;
+      updateColumnMapping(target, varName);
+      return;
+    }
+    updateColumnMapping(vals.length, varName);
+  };
+
   const removeColumnMapping = (index: number) => {
     const currentValues = [...(node.config.values || [])];
     currentValues.splice(index, 1);
@@ -263,11 +290,80 @@ export function NodeConfigPanel({
     onUpdate({ ...node.config, values: filteredValues });
   };
 
+  const resolvedSpreadsheetId = useMemo(() => {
+    const fromLink = spreadsheetLink ? extractSpreadsheetIdFromUrl(spreadsheetLink) : null;
+    return (selectedSpreadsheetId || fromLink || String(node.config.spreadsheetId || "")).trim();
+  }, [selectedSpreadsheetId, spreadsheetLink, node.config.spreadsheetId]);
+
+  /** Load row 1 from the selected tab as column labels; debounced when spreadsheet or tab changes */
+  useEffect(() => {
+    if (!isGoogleSheetsAppend) {
+      return;
+    }
+    if (!googleIntegrationStatus?.services?.sheets) {
+      return;
+    }
+
+    const sid = resolvedSpreadsheetId;
+    const sn = (node.config.sheetName || "Sheet1").trim() || "Sheet1";
+    if (!sid) {
+      setSheetHeaders([]);
+      setHeadersError(null);
+      return;
+    }
+
+    const t = window.setTimeout(() => {
+      void (async () => {
+        setLoadingHeaders(true);
+        setHeadersError(null);
+        try {
+          const params = new URLSearchParams({ spreadsheetId: sid, sheetName: sn });
+          const res = (await apiClient.get(
+            `/integrations/google/sheets/headers?${params.toString()}`
+          )) as { data?: { headers?: string[] } };
+          const payload = (res as any)?.data ?? res;
+          const headers = Array.isArray(payload?.headers) ? payload.headers : [];
+          setSheetHeaders(headers);
+
+          if (headers.length > 0) {
+            const vals = nodeRef.current.config.values || [];
+            if (vals.length === 0 || vals.length !== headers.length) {
+              const merged = headers.map((_: string, i: number) => vals[i] ?? "");
+              onUpdate({
+                ...nodeRef.current.config,
+                spreadsheetId: sid,
+                sheetName: sn,
+                values: merged,
+              });
+            }
+          }
+        } catch (e: any) {
+          setSheetHeaders([]);
+          const msg =
+            e?.response?.data?.error?.message ||
+            e?.response?.data?.message ||
+            e?.message ||
+            "Could not load column headers";
+          setHeadersError(msg);
+        } finally {
+          setLoadingHeaders(false);
+        }
+      })();
+    }, 450);
+
+    return () => clearTimeout(t);
+  }, [
+    isGoogleSheetsAppend,
+    resolvedSpreadsheetId,
+    node.config.sheetName,
+    googleIntegrationStatus?.services?.sheets,
+  ]);
+
   // Ensure Google Sheets config is properly formatted before save
   // CRITICAL: This function MUST use the current form state (selectedSpreadsheetId, spreadsheetLink, node.config.values)
   // to ensure all user inputs are captured, not just what's in node.config
   const ensureGoogleSheetsConfig = (): AutomationNode["config"] => {
-    if (node.service === "aistein_google_sheet_append_row") {
+    if (isGoogleSheetsAppend) {
       // Start with current node.config as base
       const config = { ...node.config };
 
@@ -305,12 +401,16 @@ export function NodeConfigPanel({
         config.sheetName = "Sheet1";
       }
 
-      // CRITICAL FIX: Use current values from node.config (which is updated by updateColumnMapping)
-      // Filter out empty values but preserve the array structure
+      // Preserve column alignment: keep empty strings; only trim trailing empties
       let valuesArray: string[] = [];
       if (config.values && Array.isArray(config.values)) {
-        // Filter empty values but keep the structure
-        valuesArray = config.values.filter((v: string) => v && typeof v === 'string' && v.trim() !== "");
+        valuesArray = config.values.map((v: string) => (typeof v === "string" ? v : String(v ?? "")));
+      }
+      while (
+        valuesArray.length > 0 &&
+        (!valuesArray[valuesArray.length - 1] || String(valuesArray[valuesArray.length - 1]).trim() === "")
+      ) {
+        valuesArray.pop();
       }
       config.values = valuesArray;
 
@@ -331,7 +431,7 @@ export function NodeConfigPanel({
 
   // Validate Google Sheets config before save
   const validateGoogleSheetsConfig = (config: AutomationNode["config"]): { valid: boolean; error?: string } => {
-    if (node.service === "aistein_google_sheet_append_row") {
+    if (isGoogleSheetsAppend) {
       // Check if spreadsheetId is set (either from link or dropdown)
       const hasSpreadsheetId = config.spreadsheetId &&
         (typeof config.spreadsheetId === 'string' && config.spreadsheetId.trim() !== "");
@@ -342,8 +442,10 @@ export function NodeConfigPanel({
       if (!hasSpreadsheetId && !hasValidLink) {
         return { valid: false, error: "Please paste a Google Sheet link or select a spreadsheet from the list" };
       }
-      if (!config.values || !Array.isArray(config.values) || config.values.length === 0) {
-        return { valid: false, error: "At least one column mapping is required" };
+      const vals = config.values && Array.isArray(config.values) ? config.values : [];
+      const hasAny = vals.some((v) => v && String(v).trim() !== "");
+      if (!hasAny) {
+        return { valid: false, error: "At least one column must have a value or variable" };
       }
     }
     return { valid: true };
@@ -1466,6 +1568,7 @@ export function NodeConfigPanel({
                     className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
                   >
                     <option value="">Select event...</option>
+                    <option value="lead_created">New Lead Created</option>
                     <option value="order_created">Order Created</option>
                     <option value="cart_abandoned">Cart Abandoned</option>
                     <option value="form_submitted">Form Submitted</option>
@@ -2211,110 +2314,147 @@ export function NodeConfigPanel({
               {/* Spreadsheet Selection */}
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Select Spreadsheet *
+                  Select spreadsheet *
                 </label>
 
-                {/* Option 1: Paste Google Sheet Link */}
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1.5">
-                    Option 1: Paste Google Sheet Link
-                  </label>
-                  <input
-                    type="text"
-                    value={spreadsheetLink}
-                    onChange={(e) => handleSpreadsheetLinkChange(e.target.value)}
-                    className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                    placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-                  />
-                  {spreadsheetLink && !extractSpreadsheetIdFromUrl(spreadsheetLink) && (
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Invalid Google Sheets URL format
-                    </p>
-                  )}
-                  {spreadsheetLink && extractSpreadsheetIdFromUrl(spreadsheetLink) && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Spreadsheet ID extracted successfully
-                    </p>
-                  )}
+                <div className="flex rounded-lg border border-border p-0.5 bg-secondary/40 gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSheetSourceTab("url")}
+                    className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                      sheetSourceTab === "url"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Paste link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSheetSourceTab("drive")}
+                    className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                      sheetSourceTab === "drive"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    My Drive
+                  </button>
                 </div>
 
-                {/* Option 2: Select from List */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs text-muted-foreground">
-                      Option 2: Select from My Spreadsheets
-                    </label>
-                    <button
-                      type="button"
-                      onClick={loadSpreadsheets}
-                      disabled={loadingSpreadsheets}
-                      className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-                    >
-                      {loadingSpreadsheets ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>Loading...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FileSpreadsheet className="w-3 h-3" />
-                          <span>{spreadsheets.length > 0 ? 'Refresh list' : 'Load my spreadsheets'}</span>
-                        </>
-                      )}
-                    </button>
+                {sheetSourceTab === "url" && (
+                  <div>
+                    <input
+                      type="text"
+                      value={spreadsheetLink}
+                      onChange={(e) => handleSpreadsheetLinkChange(e.target.value)}
+                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                    />
+                    {spreadsheetLink && !extractSpreadsheetIdFromUrl(spreadsheetLink) && (
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Invalid Google Sheets URL format
+                      </p>
+                    )}
+                    {spreadsheetLink && extractSpreadsheetIdFromUrl(spreadsheetLink) && (
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Link recognized — column headers load below
+                      </p>
+                    )}
                   </div>
-                  {loadingSpreadsheets ? (
-                    <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Loading spreadsheets...</span>
+                )}
+
+                {sheetSourceTab === "drive" && (
+                  <div>
+                    <div className="flex items-center justify-end mb-1.5">
+                      <button
+                        type="button"
+                        onClick={loadSpreadsheets}
+                        disabled={loadingSpreadsheets}
+                        className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                      >
+                        {loadingSpreadsheets ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>Loading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileSpreadsheet className="w-3 h-3" />
+                            <span>{spreadsheets.length > 0 ? "Refresh list" : "Load my spreadsheets"}</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                  ) : spreadsheets.length > 0 ? (
-                    <select
-                      value={selectedSpreadsheetId && !spreadsheetLink ? selectedSpreadsheetId : ""}
-                      onChange={(e) => handleSpreadsheetSelect(e.target.value)}
-                      className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
-                    >
-                      <option value="">Select a spreadsheet...</option>
-                      {spreadsheets.map((sheet: any) => (
-                        <option key={sheet.id} value={sheet.id}>
-                          {sheet.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="p-3 bg-secondary/50 rounded-lg border border-border">
-                      <p className="text-xs text-muted-foreground text-center">
-                        {googleIntegrationStatus?.connected
-                          ? 'Click "Load my spreadsheets" to see your Google Sheets'
-                          : 'Connect Google Workspace to load your spreadsheets'}
+                    {loadingSpreadsheets ? (
+                      <div className="flex items-center gap-2 p-3 bg-secondary rounded-lg">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Loading spreadsheets...</span>
+                      </div>
+                    ) : spreadsheets.length > 0 ? (
+                      <select
+                        value={selectedSpreadsheetId && !spreadsheetLink ? selectedSpreadsheetId : ""}
+                        onChange={(e) => handleSpreadsheetSelect(e.target.value)}
+                        className="w-full h-10 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                      >
+                        <option value="">Select a spreadsheet...</option>
+                        {spreadsheets.map((sheet: any) => (
+                          <option key={sheet.id} value={sheet.id}>
+                            {sheet.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="p-3 bg-secondary/50 rounded-lg border border-border">
+                        <p className="text-xs text-muted-foreground text-center">
+                          {googleIntegrationStatus?.connected
+                            ? 'Click "Load my spreadsheets" to see your Google Sheets'
+                            : "Connect Google Workspace to load your spreadsheets"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {resolvedSpreadsheetId && loadingHeaders && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span>Reading column headers from row 1…</span>
+                  </div>
+                )}
+                {headersError && (
+                  <div className="p-2 rounded-lg border border-destructive/30 bg-destructive/10 text-xs text-destructive">
+                    {headersError}
+                  </div>
+                )}
+
+                {!resolvedSpreadsheetId && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Paste a Google Sheet link or pick a file from My Drive
+                  </p>
+                )}
+                {resolvedSpreadsheetId &&
+                  spreadsheets.length > 0 &&
+                  !spreadsheets.find((s: any) => s.id === resolvedSpreadsheetId) &&
+                  !spreadsheetLink && (
+                    <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                        <span>
+                          This spreadsheet may not be in your recent list. If append fails, re-open sharing or use Paste link.
+                        </span>
                       </p>
                     </div>
                   )}
-                </div>
-
-                {/* Validation Messages */}
-                {!selectedSpreadsheetId && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    Please paste a Google Sheet link or select a spreadsheet from the list
-                  </p>
-                )}
-                {selectedSpreadsheetId && spreadsheets.length > 0 && !spreadsheets.find((s: any) => s.id === selectedSpreadsheetId) && !spreadsheetLink && (
-                  <div className="mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                    <p className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                      <span>Spreadsheet may not be accessible. Please verify the link or select from the list.</span>
-                    </p>
-                  </div>
-                )}
               </div>
 
-              {/* Sheet Name */}
+              {/* Sheet tab name — must match the tab where row 1 holds headers */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Sheet Name (optional)
+                  Sheet tab name
                 </label>
                 <input
                   type="text"
@@ -2324,7 +2464,7 @@ export function NodeConfigPanel({
                   placeholder="Sheet1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Name of the sheet/tab within the spreadsheet (default: Sheet1)
+                  Tab whose <span className="font-medium text-foreground/90">row 1</span> contains column titles (default: Sheet1). Change this if your headers are on another tab.
                 </p>
               </div>
 
@@ -2332,13 +2472,16 @@ export function NodeConfigPanel({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-foreground">
-                    Column Mapping *
+                    Column mapping *
                   </label>
                   <div className="flex items-center gap-2">
                     {(() => {
-                      const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                      const extractNode = allNodes.find(
+                        (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
+                      );
                       const ex = extractNode?.config?.json_example;
-                      const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                      const keys =
+                        typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
                       if (keys.length === 0) return null;
                       return (
                         <button
@@ -2346,8 +2489,13 @@ export function NodeConfigPanel({
                           onClick={() => {
                             const base = ["{{contact.name}}", "{{contact.email}}", "{{contact.phone}}"];
                             const extracted = keys.map((k) => `{{extracted.${k}}}`);
-                            const values = [...base, ...extracted, "{{now}}"];
-                            onUpdate({ ...node.config, values });
+                            const combined = [...base, ...extracted, "{{now}}"];
+                            if (sheetHeaders.length > 0) {
+                              const merged = sheetHeaders.map((_, i) => combined[i] ?? "");
+                              onUpdate({ ...node.config, values: merged });
+                            } else {
+                              onUpdate({ ...node.config, values: combined });
+                            }
                           }}
                           className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                         >
@@ -2355,45 +2503,97 @@ export function NodeConfigPanel({
                         </button>
                       );
                     })()}
-                    <button
-                      type="button"
-                      onClick={addColumnMapping}
-                      className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                    >
-                      + Add Column
-                    </button>
-                  </div>
-                </div>
-
-                {(!node.config.values || node.config.values.length === 0) && (
-                  <div className="p-3 bg-secondary/50 border border-border rounded-lg mb-2">
-                    <p className="text-xs text-muted-foreground text-center">
-                      No columns mapped. Click "Add Column" to start mapping.
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {(node.config.values || []).map((value: string, index: number) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => updateColumnMapping(index, e.target.value)}
-                        className="flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                        placeholder={`Column ${index + 1} (e.g., {{contact.name}})`}
-                      />
+                    {sheetHeaders.length === 0 && (
                       <button
                         type="button"
-                        onClick={() => removeColumnMapping(index)}
-                        className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Remove column"
+                        onClick={addColumnMapping}
+                        className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                       >
-                        <X className="w-4 h-4" />
+                        + Add column
                       </button>
-                    </div>
-                  ))}
+                    )}
+                  </div>
                 </div>
+
+                {sheetHeaders.length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Values append in column order (A, B, C…). Row 1 in your sheet is treated as the header row.
+                  </p>
+                )}
+
+                {resolvedSpreadsheetId &&
+                  !loadingHeaders &&
+                  sheetHeaders.length === 0 &&
+                  !headersError && (
+                    <div className="p-2 rounded-lg border border-border bg-secondary/40 text-xs text-muted-foreground mb-2">
+                      No headers found in row 1 for this tab — map columns manually below, or add titles in row 1 and we will pick them up on save.
+                    </div>
+                  )}
+
+                {sheetHeaders.length > 0 ? (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-3 py-2 bg-secondary/80 text-xs font-medium text-muted-foreground border-b border-border">
+                      <span>Sheet column (row 1)</span>
+                      <span>Value / variable</span>
+                    </div>
+                    {sheetHeaders.map((header, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-3 py-2 border-b border-border/60 last:border-b-0 items-center"
+                      >
+                        <span
+                          className="text-sm text-foreground truncate"
+                          title={header || `Column ${index + 1}`}
+                        >
+                          {header?.trim() ? (
+                            header
+                          ) : (
+                            <span className="italic text-muted-foreground">(empty — column {index + 1})</span>
+                          )}
+                        </span>
+                        <input
+                          type="text"
+                          value={(node.config.values || [])[index] ?? ""}
+                          onChange={(e) => updateColumnMapping(index, e.target.value)}
+                          className="w-full flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                          placeholder={`{{contact.name}} or {{extracted.field}}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {(!node.config.values || node.config.values.length === 0) && (
+                      <div className="p-3 bg-secondary/50 border border-border rounded-lg mb-2">
+                        <p className="text-xs text-muted-foreground text-center">
+                          No columns mapped. Add a spreadsheet above (we load row 1 when possible) or use &quot;Add column&quot;.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {(node.config.values || []).map((value: string, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={value}
+                            onChange={(e) => updateColumnMapping(index, e.target.value)}
+                            className="flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                            placeholder={`Column ${index + 1} (e.g., {{contact.name}})`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeColumnMapping(index)}
+                            className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Remove column"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 {(!node.config.values || node.config.values.length === 0) && (
                   <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
@@ -2403,35 +2603,39 @@ export function NodeConfigPanel({
                 )}
 
                 <div className="mt-3 p-2 bg-secondary/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1 font-medium">Available Variables:</p>
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Available variables (click to insert)</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {['{{contact.name}}', '{{contact.email}}', '{{contact.phone}}', '{{appointment.date}}', '{{appointment.time}}', '{{now}}'].map((varName) => (
+                    {[
+                      "{{contact.name}}",
+                      "{{contact.email}}",
+                      "{{contact.phone}}",
+                      "{{appointment.date}}",
+                      "{{appointment.time}}",
+                      "{{now}}",
+                    ].map((varName) => (
                       <button
                         type="button"
                         key={varName}
-                        onClick={() => {
-                          const currentValues = node.config.values || [];
-                          updateColumnMapping(currentValues.length, varName);
-                        }}
+                        onClick={() => insertVariableIntoMapping(varName)}
                         className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
                       >
                         {varName}
                       </button>
                     ))}
                     {(() => {
-                      const extractNode = allNodes.find((n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment");
+                      const extractNode = allNodes.find(
+                        (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
+                      );
                       const ex = extractNode?.config?.json_example;
-                      const keys = typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
+                      const keys =
+                        typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
                       return keys.map((key) => {
                         const varName = `{{extracted.${key}}}`;
                         return (
                           <button
                             type="button"
                             key={varName}
-                            onClick={() => {
-                              const currentValues = node.config.values || [];
-                              updateColumnMapping(currentValues.length, varName);
-                            }}
+                            onClick={() => insertVariableIntoMapping(varName)}
                             className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
                           >
                             {varName}
@@ -2441,7 +2645,7 @@ export function NodeConfigPanel({
                     })()}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    💡 Contact/appointment from CSV and trigger; use &#123;&#123;extracted.key&#125;&#125; for keys from your Extract node JSON.
+                    Contact and appointment fields come from the trigger; use {"{{extracted.key}}"} for keys from your Extract node JSON.
                   </p>
                 </div>
               </div>
@@ -2617,7 +2821,7 @@ export function NodeConfigPanel({
               }
 
               // Ensure Google Sheets config is properly formatted before saving
-              if (node.service === "aistein_google_sheet_append_row") {
+              if (isGoogleSheetsAppend) {
                 // CRITICAL: Build final config from current form state
                 const finalConfig = ensureGoogleSheetsConfig();
 

@@ -18,11 +18,6 @@ export function ConversationList({
   selectedId,
   onSelectConversation,
 }: ConversationListProps) {
-  const toSafeTime = (value: string) => {
-    const t = new Date(value).getTime();
-    return Number.isNaN(t) ? 0 : t;
-  };
-
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all"); // Changed from "open" to "all"
   const [sortBy, setSortBy] = useState("recent");
@@ -60,11 +55,16 @@ export function ConversationList({
       filtered = filtered.filter((conv) => conv.status === statusFilter);
     }
 
-    // Apply sorting
+    const timeMs = (t: string) => {
+      const n = new Date(t).getTime();
+      return Number.isNaN(n) ? 0 : n;
+    };
+
+    // Apply sorting (latest first for "recent")
     if (sortBy === "recent") {
-      filtered.sort((a, b) => toSafeTime(b.timestamp) - toSafeTime(a.timestamp));
+      filtered.sort((a, b) => timeMs(b.timestamp) - timeMs(a.timestamp));
     } else if (sortBy === "oldest") {
-      filtered.sort((a, b) => toSafeTime(a.timestamp) - toSafeTime(b.timestamp));
+      filtered.sort((a, b) => timeMs(a.timestamp) - timeMs(b.timestamp));
     } else if (sortBy === "unread") {
       filtered.sort((a, b) => (b.unread ? 1 : 0) - (a.unread ? 1 : 0));
     }

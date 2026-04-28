@@ -12,6 +12,50 @@ export interface AutomationTemplate {
 
 export const automationTemplates: AutomationTemplate[] = [
   {
+    id: "template_inbound_call_email_digest",
+    name: "Inbound Call → Email Conversation Digest",
+    description: "When an inbound call completes, send caller details, call metadata, summary, and transcript to a destination email via connected Gmail.",
+    icon: "☎️",
+    color: "#0ea5e9",
+    requiredIntegrations: ["google"],
+    nodes: [
+      {
+        id: "node_1",
+        type: "trigger",
+        service: "inbound_call_completed",
+        config: {
+          event: "inbound_call_completed",
+        },
+        position: 0,
+      },
+      {
+        id: "node_2",
+        type: "action",
+        service: "aistein_google_gmail_send",
+        config: {
+          to: "ops-team@example.com",
+          subject: "Inbound Call Report - {{contact.name}} ({{contact.phone}})",
+          body:
+            "Inbound call has completed.\n\n" +
+            "Caller Details:\n" +
+            "- Name: {{contact.name}}\n" +
+            "- Phone: {{contact.phone}}\n" +
+            "- Email: {{contact.email}}\n\n" +
+            "Call Details:\n" +
+            "- Conversation ID: {{conversation.id}}\n" +
+            "- Status: {{conversation.status}}\n" +
+            "- Duration: {{conversation.duration_seconds}} seconds\n" +
+            "- End reason: {{conversation.end_reason}}\n" +
+            "- Completed at: {{now}}\n\n" +
+            "Summary:\n{{conversation.summary}}\n\n" +
+            "Transcript:\n{{conversation.transcript_text}}\n",
+          isHtml: false,
+        },
+        position: 1,
+      },
+    ],
+  },
+  {
     id: "template_outbound_batch_call",
     name: "Batch Call → Appointment Booking",
     description: "When batch calling completes, extract appointments from conversations, create calendar events, and log to Google Sheets",
@@ -159,7 +203,7 @@ export const automationTemplates: AutomationTemplate[] = [
   {
     id: "template_contact_form_whatsapp",
     name: "Contact Form Workflow (WhatsApp)",
-    description: "When a contact form is submitted, wait 10 seconds, send WhatsApp message, and save contact data to Google Sheets",
+    description: "When a contact form is submitted, wait 10 seconds, send WhatsApp message, and save lead to Google Sheets",
     icon: "📝",
     color: "#25d366",
     requiredIntegrations: ["whatsapp", "google"],

@@ -63,26 +63,26 @@ export interface Automation {
 
 export const nodeServices = {
   triggers: [
-    { id: "aistein_contact_created", name: "mammam-ia - Contact Created", icon: "👤", color: "#6366f1" },
-    { id: "aistein_contact_deleted", name: "mammam-ia - Contact Deleted", icon: "🗑️", color: "#ef4444" },
-    { id: "aistein_contact_moved", name: "mammam-ia - Contact Moved", icon: "📋", color: "#8b5cf6" },
-    { id: "conversation_created", name: "mammam-ia - Call Finished (AI Agent)", icon: "📞", color: "#10b981" },
-    { id: "inbound_call_completed", name: "mammam-ia - Inbound Call Completed", icon: "📱", color: "#10b981" },
-    { id: "batch_call_completed", name: "mammam-ia - Batch Call Completed", icon: "📤", color: "#f59e0b" },
-    { id: "batch_call", name: "mammam-ia - Batch Call (CSV/List)", icon: "📤", color: "#f59e0b" },
+    { id: "aistein_contact_created", name: "Aistein-It - Contact Created", icon: "👤", color: "#6366f1" },
+    { id: "aistein_contact_deleted", name: "Aistein-It - Contact Deleted", icon: "🗑️", color: "#ef4444" },
+    { id: "aistein_contact_moved", name: "Aistein-It - Contact Moved", icon: "📋", color: "#8b5cf6" },
+    { id: "conversation_created", name: "Aistein-It - Call Finished (AI Agent)", icon: "📞", color: "#10b981" },
+    { id: "inbound_call_completed", name: "Aistein-It - Inbound Call Completed", icon: "📱", color: "#10b981" },
+    { id: "batch_call_completed", name: "Aistein-It - Batch Call Completed", icon: "📤", color: "#f59e0b" },
+    { id: "batch_call", name: "Aistein-It - Batch Call (CSV/List)", icon: "📤", color: "#f59e0b" },
     { id: "shopify_order", name: "Shopify Order", icon: "🛍️", color: "#96bf48" },
     { id: "cart_abandoned", name: "Cart Abandoned", icon: "🛒", color: "#f59e0b" },
     { id: "webhook", name: "Webhook", icon: "🔗", color: "#a855f7" },
   ],
   actions: [
-    { id: "aistein_batch_calling", name: "mammam-ia - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },
-    { id: "aistein_extract_data", name: "mammam-ia - Extract Conversation Data", icon: "🧠", color: "#8b5cf6" },
-    { id: "aistein_extract_appointment", name: "mammam-ia - Extract Appointment", icon: "📅", color: "#8b5cf6" },
-    { id: "aistein_outbound_call", name: "mammam-ia - Outbound Call", icon: "📞", color: "#8b5cf6" },
-    { id: "aistein_send_sms", name: "mammam-ia - Send SMS", icon: "💬", color: "#10b981" },
-    { id: "aistein_send_email", name: "mammam-ia - Send Email", icon: "📧", color: "#3b82f6" },
-    { id: "aistein_create_contact", name: "mammam-ia - Create Contact", icon: "➕", color: "#6366f1" },
-    { id: "aistein_api_call", name: "mammam-ia - API Call", icon: "🔗", color: "#a855f7" },
+    { id: "aistein_batch_calling", name: "Aistein-It - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },
+    { id: "aistein_extract_data", name: "Aistein-It - Extract Conversation Data", icon: "🧠", color: "#8b5cf6" },
+    { id: "aistein_extract_appointment", name: "Aistein-It - Extract Appointment", icon: "📅", color: "#8b5cf6" },
+    { id: "aistein_outbound_call", name: "Aistein-It - Outbound Call", icon: "📞", color: "#8b5cf6" },
+    { id: "aistein_send_sms", name: "Aistein-It - Send SMS", icon: "💬", color: "#10b981" },
+    { id: "aistein_send_email", name: "Aistein – Send Email", icon: "📧", color: "#3b82f6" },
+    { id: "aistein_create_contact", name: "Aistein-It - Create Contact", icon: "➕", color: "#6366f1" },
+    { id: "aistein_api_call", name: "Aistein-It - API Call", icon: "🔗", color: "#a855f7" },
     { id: "whatsapp_template", name: "WhatsApp Template", icon: "💬", color: "#25d366" },
     { id: "save_to_crm", name: "Save to CRM", icon: "💾", color: "#8b5cf6" },
     // Google Workspace Actions
@@ -103,7 +103,7 @@ export const mockAutomations: Automation[] = [
         id: "node_1",
         type: "trigger",
         service: "webhook",
-        config: { event: "" },
+        config: { event: "lead_created" },
         position: 0,
       },
       {
@@ -216,7 +216,7 @@ export const mockAutomations: Automation[] = [
   },
   {
     id: "auto_4",
-    name: "Contact Qualification",
+    name: "Lead Qualification",
     status: "disabled",
     nodes: [
       {

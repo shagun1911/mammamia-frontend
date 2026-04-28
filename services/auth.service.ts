@@ -3,12 +3,14 @@ import { apiClient } from '@/lib/api';
 export interface LoginCredentials {
   email: string;
   password: string;
+  captchaToken: string;
 }
 
 export interface SignupData {
   email: string;
   password: string;
   name: string;
+  captchaToken: string;
   organizationName?: string;
 }
 

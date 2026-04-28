@@ -7,8 +7,8 @@ import { pythonRagService } from "@/services/pythonRag.service";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useSettings } from "@/hooks/useSettings";
 import { useAIBehavior } from "@/hooks/useAIBehavior";
-import { v4 as uuidv4 } from "uuid";
 import { useAuth } from "@/contexts/AuthContext";
+import { v4 as uuidv4 } from "uuid";
 
 interface ChatMessage {
   id: string;
@@ -19,10 +19,10 @@ interface ChatMessage {
 }
 
 export function WidgetSimulator() {
-  const { user } = useAuth();
   const { collections, selectedCollection, setSelectedCollection, loadCollections } = useKnowledgeBase();
   const { data: dbSettings } = useSettings();
   const { aiBehavior } = useAIBehavior();
+  const { user } = useAuth();
   // Use Configuration (AIBehavior) system prompt for chat - same as outer widget
   const chatAgentPrompt = aiBehavior?.chatAgent?.systemPrompt || 'You are a helpful AI assistant. Be friendly and concise.';
   const [threadId] = useState(uuidv4());
@@ -72,8 +72,13 @@ export function WidgetSimulator() {
   // Save conversation to backend
   const saveConversation = async (message: string, response: string) => {
     try {
+      const widgetId = user?.id;
+      if (!widgetId) {
+        console.warn('[WidgetSimulator] No user id — skip saving conversation');
+        return;
+      }
       const payload = {
-        widgetId: user?.id,
+        widgetId,
         name: userName,
         threadId: threadId,
         collection: selectedCollection,

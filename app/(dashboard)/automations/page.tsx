@@ -1,40 +1,103 @@
 "use client";
 
 import { NodeBasedBuilder } from "@/components/automations/NodeBasedBuilder";
+import type { AutomationBuilderSelection } from "@/components/automations/NodeBasedBuilder";
 import { PrebuiltTemplatesModal } from "@/components/automations/PrebuiltTemplatesModal";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { apiClient } from "@/lib/api";
 import { Automation } from "@/data/mockAutomations";
+import {
+  readAutomationsSession,
+  writeAutomationsSession,
+  mergeAutomationsWithDraft,
+} from "@/lib/automationsSessionStorage";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { Zap, Activity, Plus, Sparkles } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { LoadingLogo } from "@/components/LoadingLogo";
-import { mergeAutomationsWithDraft, readAutomationsSession } from "@/lib/automationsSessionStorage";
 
 export default function AutomationsPage() {
   const { getSidebarWidth } = useSidebar();
   const [automations, setAutomations] = useState<Automation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPrebuiltModal, setShowPrebuiltModal] = useState(false);
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [defaultSelection, setDefaultSelection] = useState<AutomationBuilderSelection | null>(null);
+  const [sessionDataRevision, setSessionDataRevision] = useState(0);
   const nodeBuilderRef = useRef<{ handleNewAutomation: () => void }>(null);
-  // Set CSS variable for sidebar width so modal can use it
-  useEffect(() => {
-    document.documentElement.style.setProperty('--sidebar-width', `${getSidebarWidth()}px`);
-  }, [getSidebarWidth]);
+
+  const automationsRef = useRef<Automation[]>([]);
+  const draftDirtyRef = useRef(false);
+  const selectionRef = useRef<AutomationBuilderSelection>({
+    selectedAutomationId: null,
+    selectedNodeId: null,
+  });
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    loadAutomations();
+    automationsRef.current = automations;
+  }, [automations]);
+  useEffect(() => {
+    draftDirtyRef.current = draftDirty;
+  }, [draftDirty]);
+
+  const persistToSession = useCallback(() => {
+    writeAutomationsSession({
+      version: 1,
+      automations: automationsRef.current,
+      selectedAutomationId: selectionRef.current.selectedAutomationId,
+      selectedNodeId: selectionRef.current.selectedNodeId,
+      dirty: draftDirtyRef.current,
+      updatedAt: Date.now(),
+    });
   }, []);
 
-  const loadAutomations = async () => {
+  const schedulePersist = useCallback(() => {
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      persistToSession();
+    }, 280);
+  }, [persistToSession]);
+
+  const handleAutomationsChange = useCallback(
+    (next: Automation[]) => {
+      setAutomations(next);
+      setDraftDirty(true);
+      automationsRef.current = next;
+      draftDirtyRef.current = true;
+      schedulePersist();
+    },
+    [schedulePersist]
+  );
+
+  const handleSelectionChange = useCallback(
+    (sel: AutomationBuilderSelection) => {
+      selectionRef.current = sel;
+      schedulePersist();
+    },
+    [schedulePersist]
+  );
+
+  const handleSaved = useCallback(() => {
+    setDraftDirty(false);
+    draftDirtyRef.current = false;
+    schedulePersist();
+  }, [schedulePersist]);
+
+  // Set CSS variable for sidebar width so modal can use it
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-width", `${getSidebarWidth()}px`);
+  }, [getSidebarWidth]);
+
+  const loadAutomations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/automations');
-      
+      const response = await apiClient.get("/automations");
+
       let automationsList: any[] = [];
-      
+
       if (response.data?.success && response.data?.data) {
         automationsList = Array.isArray(response.data.data) ? response.data.data : [];
       } else if (Array.isArray(response.data)) {
@@ -42,9 +105,10 @@ export default function AutomationsPage() {
       } else if (response.data?.data && Array.isArray(response.data.data)) {
         automationsList = response.data.data;
       }
-      
+
+      let transformedAutomations: Automation[] = [];
       if (automationsList.length > 0) {
-        const transformedAutomations: Automation[] = automationsList.map((auto: any) => ({
+        transformedAutomations = automationsList.map((auto: any) => ({
           id: auto._id,
           name: auto.name,
           status: auto.isActive ? "enabled" : "disabled",
@@ -53,27 +117,58 @@ export default function AutomationsPage() {
           executionCount: auto.executionCount || 0,
           createdAt: auto.createdAt,
         }));
-        
-        const session = readAutomationsSession();
-        setAutomations(mergeAutomationsWithDraft(transformedAutomations, session));
-      } else {
-        setAutomations([]);
       }
+
+      const persisted = readAutomationsSession();
+      let merged = transformedAutomations;
+      let nextDirty = false;
+
+      if (persisted?.dirty && persisted.automations) {
+        merged = mergeAutomationsWithDraft(transformedAutomations, persisted.automations);
+        nextDirty = true;
+      }
+
+      setAutomations(merged);
+      automationsRef.current = merged;
+      setDraftDirty(nextDirty);
+      draftDirtyRef.current = nextDirty;
+
+      if (persisted) {
+        selectionRef.current = {
+          selectedAutomationId: persisted.selectedAutomationId,
+          selectedNodeId: persisted.selectedNodeId,
+        };
+        setDefaultSelection({
+          selectedAutomationId: persisted.selectedAutomationId,
+          selectedNodeId: persisted.selectedNodeId,
+        });
+      } else {
+        setDefaultSelection(null);
+      }
+
+      persistToSession();
+      setSessionDataRevision((r) => r + 1);
     } catch (error: any) {
-      console.error('Error loading automations:', error);
+      console.error("Error loading automations:", error);
       setAutomations([]);
+      automationsRef.current = [];
+      setDraftDirty(false);
+      draftDirtyRef.current = false;
+      setDefaultSelection(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [persistToSession]);
 
-  const handleUseTemplate = async (templateAutomation: Automation) => {
-    // Reload automations to get the newly created one from backend
+  useEffect(() => {
+    loadAutomations();
+  }, [loadAutomations]);
+
+  const handleUseTemplate = async (_templateAutomation: Automation) => {
     await loadAutomations();
   };
 
   const handleNewAutomation = () => {
-    // Trigger the new automation creation in NodeBasedBuilder
     if (nodeBuilderRef.current?.handleNewAutomation) {
       nodeBuilderRef.current.handleNewAutomation();
     }
@@ -149,10 +244,14 @@ export default function AutomationsPage() {
 
       {/* Main Content Area - Full Space for Automation Builder */}
       <div className="flex-1 overflow-hidden bg-background">
-        <NodeBasedBuilder 
+        <NodeBasedBuilder
           ref={nodeBuilderRef}
-          automations={automations} 
-          onAutomationsChange={setAutomations} 
+          automations={automations}
+          onAutomationsChange={handleAutomationsChange}
+          onSelectionChange={handleSelectionChange}
+          onSaved={handleSaved}
+          defaultSelection={defaultSelection}
+          selectionRevision={sessionDataRevision}
         />
       </div>
 

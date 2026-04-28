@@ -50,6 +50,34 @@ export interface BatchJobCallsResponse {
   cursor?: string;
 }
 
+export interface BatchContactDetail {
+  phone_number: string;
+  name: string;
+  email?: string;
+  status: string;
+  conversation_id?: string | null;
+  recipient_id?: string | null;
+  duration_seconds?: number;
+  end_reason?: string;
+  failed_reason?: string;
+  summary?: string;
+  transcript?: any;
+  metadata?: Record<string, any>;
+  conversation?: {
+    id: string;
+    status: string;
+    channel: string;
+    createdAt: string;
+    updatedAt: string;
+    message_count: number;
+  } | null;
+}
+
+export interface BatchJobDetailsResponse {
+  batch: any;
+  contacts: BatchContactDetail[];
+}
+
 /**
  * Batch Calling Service
  * Handles batch calling operations
@@ -94,6 +122,20 @@ class BatchCallingService {
     } catch (error: any) {
       console.error('❌ [BatchCallingService] cancelBatchJob() error:', error);
       throw new Error(error.response?.data?.error?.message || error.message || 'Failed to cancel batch job');
+    }
+  }
+
+  /**
+   * Resume batch job
+   * POST /api/v1/batch-calling/:jobId/resume
+   */
+  async resumeBatchJob(jobId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await apiClient.post<{ success: boolean; message: string }>(`/batch-calling/${jobId}/resume`, {});
+      return response;
+    } catch (error: any) {
+      console.error('❌ [BatchCallingService] resumeBatchJob() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to resume batch job');
     }
   }
 
@@ -152,6 +194,23 @@ class BatchCallingService {
     } catch (error: any) {
       console.error('❌ [BatchCallingService] getBatchJobCalls() error:', error);
       throw new Error(error.response?.data?.error?.message || error.message || 'Failed to get batch job calls');
+    }
+  }
+
+  /**
+   * Get complete per-contact details
+   * GET /api/v1/batch-calling/:jobId/details
+   */
+  async getBatchJobDetails(jobId: string): Promise<BatchJobDetailsResponse> {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: BatchJobDetailsResponse }>(`/batch-calling/${jobId}/details`);
+      if (response && typeof response === 'object' && 'data' in response) {
+        return (response as any).data;
+      }
+      return response as any;
+    } catch (error: any) {
+      console.error('❌ [BatchCallingService] getBatchJobDetails() error:', error);
+      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to get batch job details');
     }
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +11,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { toast } from "sonner";
 import { Bot } from "lucide-react";
+import { RecaptchaWidget } from "@/components/auth/RecaptchaWidget";
 
 export default function SignInPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [error, setError] = useState("");
   const { login, loading, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -49,7 +52,11 @@ export default function SignInPage() {
     const trimmedPassword = password.trim();
 
     try {
-      const loggedInUser = await login(trimmedEmail, trimmedPassword);
+      if (!captchaToken) {
+        throw new Error("Please complete the captcha verification");
+      }
+
+      const loggedInUser = await login(trimmedEmail, trimmedPassword, captchaToken);
       toast.success("Login successful! Welcome back.");
       
       // STRICT: Only redirect to admin if role === 'admin' in database
@@ -62,8 +69,8 @@ export default function SignInPage() {
         console.log('[SignIn] Normal user detected, redirecting to /conversations');
         router.replace("/conversations");
       }
-    } catch (err: any) {
-      const errorMessage = err.message || "Invalid email or password";
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Invalid email or password";
       setError(errorMessage);
       toast.error(errorMessage);
       console.error("Login error:", err);
@@ -104,7 +111,7 @@ export default function SignInPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-foreground">
-            Welcome to mammam-ia
+            Welcome to Aistein-It
           </CardTitle>
           <CardDescription className="text-muted-foreground">
             Sign in to your account to continue
@@ -184,6 +191,7 @@ export default function SignInPage() {
                 disabled={loading}
               />
             </div>
+            <RecaptchaWidget onTokenChange={setCaptchaToken} />
             {error && (
               <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
                 {error}
@@ -192,14 +200,17 @@ export default function SignInPage() {
             <Button
               type="submit"
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-              disabled={loading}
+              disabled={loading || !captchaToken}
             >
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
           <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              {/* Demo credentials: admin@test.com / admin123 */}
+            <p className="text-sm text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <Link href="/auth/signup" className="text-primary hover:underline">
+                Sign up
+              </Link>
             </p>
           </div>
         </CardContent>

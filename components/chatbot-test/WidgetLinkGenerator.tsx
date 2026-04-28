@@ -5,16 +5,35 @@ import { Copy, Check, ExternalLink, Code } from "lucide-react";
 import { useKnowledgeBase } from "@/contexts/KnowledgeBaseContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 export function WidgetLinkGenerator() {
-  const { collections, selectedCollection } = useKnowledgeBase();
+  const { selectedCollection } = useKnowledgeBase();
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
-  
+  const [nameModalOpen, setNameModalOpen] = useState(false);
+  const [visitorNameInput, setVisitorNameInput] = useState("");
+
   // CRITICAL: widgetId MUST be the logged-in user's MongoDB ObjectId
   // Backend expects widgetId === userId (validated as 24-char hex ObjectId)
   // User.id is the MongoDB ObjectId string
   const widgetId = user?.id || null;
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+
+  const buildWidgetUrl = (visitorName?: string) => {
+    if (!widgetId) return "";
+    const params = new URLSearchParams();
+    if (selectedCollection) params.set("collection", selectedCollection);
+    if (visitorName?.trim()) params.set("visitorName", visitorName.trim());
+    const qs = params.toString();
+    return `${origin}/widget/${widgetId}${qs ? `?${qs}` : ""}`;
+  };
+
+  const widgetUrl = buildWidgetUrl();
 
   // CRITICAL: Validate widgetId is available (user must be logged in)
   if (!widgetId) {
@@ -29,20 +48,11 @@ export function WidgetLinkGenerator() {
       </div>
     );
   }
-
-  const buildWidgetUrl = (name?: string) => {
-    const params = new URLSearchParams();
-    if (selectedCollection) params.set("collection", selectedCollection);
-    if (name && name.trim()) params.set("visitorName", name.trim().slice(0, 80));
-    const query = params.toString();
-    return `${typeof window !== "undefined" ? window.location.origin : ""}/widget/${widgetId}${query ? `?${query}` : ""}`;
-  };
-  const widgetUrl = buildWidgetUrl();
   
   // Generate embed code
-  const embedCode = `<!-- mammam-ia Chatbot Widget -->
+  const embedCode = `<!-- Aistein Chatbot Widget -->
 <script>
-  window.mammamIa = {
+  window.Aistein = {
     widgetId: "${widgetId}",
     collection: "${selectedCollection || ''}",
     position: "bottom-right",
@@ -66,6 +76,18 @@ export function WidgetLinkGenerator() {
     setCopied(true);
     toast.success(`${label} copied to clipboard!`);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openWidgetInNewTab = () => {
+    const name = visitorNameInput.trim();
+    if (!name) {
+      toast.error("Please enter your name");
+      return;
+    }
+    const url = buildWidgetUrl(name);
+    window.open(url, "_blank", "noopener,noreferrer");
+    setNameModalOpen(false);
+    setVisitorNameInput("");
   };
 
   return (
@@ -99,10 +121,8 @@ export function WidgetLinkGenerator() {
             {copied ? 'Copied!' : 'Copy Link'}
           </button>
           <button
-            onClick={() => {
-              const visitorName = window.prompt("Visitor name (optional)") || "";
-              window.open(buildWidgetUrl(visitorName), "_blank", "noopener,noreferrer");
-            }}
+            type="button"
+            onClick={() => setNameModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-accent text-foreground rounded-lg text-sm font-medium transition-colors"
           >
             <ExternalLink className="w-4 h-4" />
@@ -110,6 +130,53 @@ export function WidgetLinkGenerator() {
           </button>
         </div>
       </div>
+
+      <Modal
+        isOpen={nameModalOpen}
+        onClose={() => {
+          setNameModalOpen(false);
+          setVisitorNameInput("");
+        }}
+        title="Before we open the chatbot"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Enter your name so the assistant can greet you personally.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="visitor-name-widget">Your name</Label>
+            <Input
+              id="visitor-name-widget"
+              value={visitorNameInput}
+              onChange={(e) => setVisitorNameInput(e.target.value)}
+              placeholder="e.g. Alex"
+              autoComplete="name"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  openWidgetInNewTab();
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setNameModalOpen(false);
+                setVisitorNameInput("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={openWidgetInNewTab}>
+              Open chatbot
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Embed Code (Script) */}
       <div className="bg-card border border-border rounded-xl p-6">
@@ -169,7 +236,6 @@ export function WidgetLinkGenerator() {
         <ul className="space-y-1 text-sm text-blue-300">
           <li>• Widget ID: <code className="bg-blue-500/20 px-2 py-0.5 rounded">{widgetId}</code></li>
           <li>• Collection: <code className="bg-blue-500/20 px-2 py-0.5 rounded">{selectedCollection || 'None selected'}</code></li>
-          <li>• RAG Service: <code className="bg-blue-500/20 px-2 py-0.5 rounded">https://keplerov1-python-2.onrender.com</code></li>
         </ul>
         {!selectedCollection && (
           <p className="text-xs text-amber-400 mt-3">
