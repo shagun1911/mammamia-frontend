@@ -130,6 +130,29 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
     return new Date(unixTimestamp * 1000).toLocaleString();
   };
 
+  const getBatchDisplayStatus = (batchCall: BatchCall) => {
+    const rawStatus = (batchCall.status || "").toLowerCase();
+    const nowUnix = Math.floor(Date.now() / 1000);
+    const isFutureScheduled =
+      batchCall.scheduled_time_unix > 0 &&
+      batchCall.scheduled_time_unix > nowUnix &&
+      ["pending", "scheduled"].includes(rawStatus);
+
+    if (isFutureScheduled) {
+      return {
+        label: "scheduled",
+        statusForColor: "scheduled",
+        scheduledNote: `Will start automatically at ${formatDate(batchCall.scheduled_time_unix)}`
+      };
+    }
+
+    return {
+      label: batchCall.status,
+      statusForColor: batchCall.status,
+      scheduledNote: null as string | null
+    };
+  };
+
   const toggleExpand = (jobId: string) => {
     setExpandedJobId(expandedJobId === jobId ? null : jobId);
   };
@@ -176,6 +199,7 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
         <div className="space-y-3">
           {batchCalls.map((batchCall: BatchCall) => {
             const isExpanded = expandedJobId === batchCall.batch_call_id;
+            const displayStatus = getBatchDisplayStatus(batchCall);
             return (
               <div
                 key={batchCall.batch_call_id}
@@ -193,9 +217,9 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h4 className="font-semibold text-foreground">{batchCall.name}</h4>
-                        <span className={cn("px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1", getStatusColor(batchCall.status))}>
-                          {getStatusIcon(batchCall.status)}
-                          {batchCall.status}
+                        <span className={cn("px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1", getStatusColor(displayStatus.statusForColor))}>
+                          {getStatusIcon(displayStatus.statusForColor)}
+                          {displayStatus.label}
                         </span>
                       </div>
                       
@@ -218,6 +242,9 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
                         <div>Created: {formatDate(batchCall.created_at_unix)}</div>
                         {batchCall.scheduled_time_unix && (
                           <div>Scheduled: {formatDate(batchCall.scheduled_time_unix)}</div>
+                        )}
+                        {displayStatus.scheduledNote && (
+                          <div className="text-blue-500 mt-1">{displayStatus.scheduledNote}</div>
                         )}
                       </div>
                     </div>
