@@ -1,7 +1,7 @@
 # 🚀 Free Deployment Guide for KepleroAI
 
 This guide will help you deploy your KepleroAI project completely **FREE** using various free-tier services.
-..,
+
 ## 📋 Overview
 
 - **Frontend (Next.js)**: Vercel (Free Tier)..
