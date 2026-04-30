@@ -12,6 +12,9 @@ export interface BatchCallRequest {
   call_name: string;
   recipients: BatchCallRecipient[];
   retry_count?: number;
+  scheduled_at?: string;
+  timezone?: string;
+  target_concurrency_limit?: number;
   sender_email?: string;
   phone_number_id?: string; // Internal phone number ID - backend will resolve to ElevenLabs ID
   ecommerce_credentials?: {

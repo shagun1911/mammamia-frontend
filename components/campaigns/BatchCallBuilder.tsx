@@ -99,6 +99,9 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
   const [testCustomerName, setTestCustomerName] = useState("");
   const [testCustomerEmail, setTestCustomerEmail] = useState("");
+  const [scheduleType, setScheduleType] = useState<"now" | "scheduled">("now");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [targetConcurrencyLimit, setTargetConcurrencyLimit] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -596,6 +599,17 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
       return;
     }
 
+    if (scheduleType === "scheduled" && !scheduledAt) {
+      toast.error("Please choose a scheduled date and time");
+      return;
+    }
+
+    const concurrencyValue = targetConcurrencyLimit.trim();
+    if (concurrencyValue && Number(concurrencyValue) <= 0) {
+      toast.error("Target concurrency limit must be greater than 0");
+      return;
+    }
+
     // Validate recipients
     const invalidRecipients = recipients.filter(r => !r.phone_number || !r.name);
     if (invalidRecipients.length > 0) {
@@ -671,6 +685,16 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         retry_count: 0,
         phone_number_id: selectedPhoneNumberId // Always include phone_number_id
       };
+
+      if (scheduleType === "scheduled" && scheduledAt) {
+        payload.scheduled_at = new Date(scheduledAt).toISOString();
+      }
+
+      if (concurrencyValue) {
+        payload.target_concurrency_limit = Number(concurrencyValue);
+      }
+
+      payload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
       // Only add sender_email if it exists
       if (senderEmail) {
@@ -807,6 +831,58 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                   </div>
                 );
               })()}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Start time
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="radio"
+                      name="start-time"
+                      checked={scheduleType === "now"}
+                      onChange={() => setScheduleType("now")}
+                    />
+                    Start now
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="radio"
+                      name="start-time"
+                      checked={scheduleType === "scheduled"}
+                      onChange={() => setScheduleType("scheduled")}
+                    />
+                    Schedule date and time
+                  </label>
+                  {scheduleType === "scheduled" && (
+                    <input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                      className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary transition-colors"
+                    />
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">
+                  Target concurrency limit
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={targetConcurrencyLimit}
+                  onChange={(e) => setTargetConcurrencyLimit(e.target.value)}
+                  placeholder="Optional (e.g. 10)"
+                  className="w-full bg-secondary border border-border rounded-lg px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave empty to use default concurrency from backend.
+                </p>
+              </div>
             </div>
 
             {/* File Upload Section */}
