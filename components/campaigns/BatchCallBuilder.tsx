@@ -694,7 +694,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         payload.target_concurrency_limit = Number(concurrencyValue);
       }
 
-      payload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      payload.timezone = "Europe/Rome";
 
       // Only add sender_email if it exists
       if (senderEmail) {
