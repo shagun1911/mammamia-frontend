@@ -260,7 +260,7 @@ export function ConversationFilters({
                     selectedFilter === "channel:whatsapp" ? "text-primary-foreground" : "text-green-500"
                   )} />
                 </div>
-                <span>WhatsApp</span>
+                <span data-no-translate>WhatsApp</span>
               </button>
               <button
                 onClick={() => handleFilterSelect("channel:instagram")}
@@ -282,7 +282,7 @@ export function ConversationFilters({
                     selectedFilter === "channel:instagram" ? "text-primary-foreground" : "text-pink-500"
                   )} />
                 </div>
-                <span>Instagram</span>
+                <span data-no-translate>Instagram</span>
               </button>
               <button
                 onClick={() => handleFilterSelect("channel:facebook")}
@@ -304,7 +304,7 @@ export function ConversationFilters({
                     selectedFilter === "channel:facebook" ? "text-primary-foreground" : "text-blue-500"
                   )} />
                 </div>
-                <span>Facebook</span>
+                <span data-no-translate>Facebook</span>
               </button>
               <button
                 onClick={() => handleFilterSelect("channel:phone")}

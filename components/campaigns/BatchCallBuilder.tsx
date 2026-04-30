@@ -23,6 +23,65 @@ interface Recipient {
   [key: string]: any; // For dynamic variables
 }
 
+const BATCH_UPLOAD_MAX_RECIPIENTS = 10_000;
+
+const FIRST_NAME_HEADERS = new Set(["first_name", "firstname", "fname", "given_name"]);
+const LAST_NAME_HEADERS = new Set([
+  "last_name",
+  "lastname",
+  "lname",
+  "surname",
+  "family_name",
+  "cognome",
+]);
+
+function normalizeSpreadsheetHeader(raw: unknown): string {
+  return String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+}
+
+function headerColumnIndices(headersNorm: string[]) {
+  const phoneNumberIndex = headersNorm.findIndex((h) => h === "phone_number" || h === "phone");
+  let nameIndex = headersNorm.findIndex((h) => h === "name" || h === "full_name" || h === "fullname");
+  let firstNameIndex = headersNorm.findIndex((h) => FIRST_NAME_HEADERS.has(h));
+  let lastNameIndex = headersNorm.findIndex((h) => LAST_NAME_HEADERS.has(h));
+  const nomeIdx = headersNorm.findIndex((h) => h === "nome");
+  const cognomeIdx = headersNorm.findIndex((h) => h === "cognome");
+
+  // Italian "Nome" + "Cognome" pair (only when English split columns are absent)
+  if (firstNameIndex === -1 && lastNameIndex === -1 && nomeIdx !== -1 && cognomeIdx !== -1) {
+    firstNameIndex = nomeIdx;
+    lastNameIndex = cognomeIdx;
+  } else if (nameIndex === -1 && nomeIdx !== -1 && cognomeIdx === -1) {
+    // Single "Nome" column often holds the full display name
+    nameIndex = nomeIdx;
+  }
+
+  const emailIndex = headersNorm.findIndex((h) => h === "email");
+  return { phoneNumberIndex, nameIndex, firstNameIndex, lastNameIndex, emailIndex };
+}
+
+function displayNameFromRow(
+  row: any[],
+  nameIndex: number,
+  firstNameIndex: number,
+  lastNameIndex: number
+): string {
+  const hasSplit = firstNameIndex !== -1 || lastNameIndex !== -1;
+  const first = firstNameIndex !== -1 ? String(row[firstNameIndex] ?? "").trim() : "";
+  const last = lastNameIndex !== -1 ? String(row[lastNameIndex] ?? "").trim() : "";
+  const combined = [first, last].filter(Boolean).join(" ").trim();
+  if (hasSplit && combined) return combined;
+  if (nameIndex !== -1) {
+    const n = String(row[nameIndex] ?? "").trim();
+    if (n) return n;
+  }
+  if (combined) return combined;
+  return "";
+}
+
 export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) {
   const { data: phoneNumbers } = usePhoneNumbersList();
   const outboundPhoneNumbers = phoneNumbers?.filter(phone => phone.supports_outbound === true) || [];
@@ -44,12 +103,20 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate CSV template (works for both CSV and Excel)
-  // Generate CSV template (works for both CSV and Excel)
   const downloadTemplate = () => {
-    const headers = ["name", "email", "phone_number", "customer_name", "customer_email", "customer_phone_number"];
+    const headers = [
+      "first_name",
+      "last_name",
+      "name",
+      "email",
+      "phone_number",
+      "customer_name",
+      "customer_email",
+      "customer_phone_number",
+    ];
     const sampleData = [
-      ["John Doe", "john.doe@example.com", "15551234567", "John Doe", "john.doe@example.com", "15551234567"],
-      ["Jane Smith", "jane.smith@example.com", "15559876543", "Jane Smith", "jane.smith@example.com", "15559876543"]
+      ["John", "Doe", "John Doe", "john.doe@example.com", "15551234567", "John Doe", "john.doe@example.com", "15551234567"],
+      ["Jane", "Smith", "Jane Smith", "jane.smith@example.com", "15559876543", "Jane Smith", "jane.smith@example.com", "15559876543"],
     ];
 
     // Create Excel file using xlsx library
@@ -150,33 +217,47 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
               return;
             }
 
-            // Parse header
-            const headers = (jsonData[0] || []).map((h: any) => String(h).trim().toLowerCase());
-            const phoneNumberIndex = headers.findIndex((h: string) => h === "phone_number" || h === "phone");
-            const nameIndex = headers.findIndex((h: string) => h === "name");
-            const emailIndex = headers.findIndex((h: string) => h === "email");
+            const headersNorm = (jsonData[0] || []).map((h: any) => normalizeSpreadsheetHeader(h));
+            const idx = headerColumnIndices(headersNorm);
 
-            if (phoneNumberIndex === -1 || nameIndex === -1) {
-              reject(new Error("File must contain 'phone_number' (or 'phone') and 'name' columns"));
+            if (idx.phoneNumberIndex === -1) {
+              reject(new Error("File must contain a 'phone_number' (or 'phone') column"));
+              return;
+            }
+            const hasNameCol = idx.nameIndex !== -1;
+            const hasSplitName = idx.firstNameIndex !== -1 || idx.lastNameIndex !== -1;
+            if (!hasNameCol && !hasSplitName) {
+              reject(
+                new Error(
+                  "File must include a 'name' column (or 'first_name' / 'last_name' columns) together with phone"
+                )
+              );
               return;
             }
 
             const parsedRecipients: Recipient[] = [];
             for (let i = 1; i < jsonData.length; i++) {
               const row = jsonData[i] || [];
-              const phone = normalizePhone(String(row[phoneNumberIndex] || ""));
-              const name = String(row[nameIndex] || "").trim();
+              const phone = normalizePhone(String(row[idx.phoneNumberIndex] || ""));
+              const name = displayNameFromRow(row, idx.nameIndex, idx.firstNameIndex, idx.lastNameIndex);
 
               if (phone && name) {
                 const recipient: Recipient = {
                   phone_number: phone,
                   name,
-                  ...(emailIndex !== -1 && row[emailIndex] && { email: String(row[emailIndex]).trim() })
+                  ...(idx.emailIndex !== -1 &&
+                    row[idx.emailIndex] && { email: String(row[idx.emailIndex]).trim() }),
                 };
 
-                // Add any other columns as dynamic variables
-                headers.forEach((header, index) => {
-                  if (index !== phoneNumberIndex && index !== nameIndex && index !== emailIndex && row[index]) {
+                headersNorm.forEach((header, index) => {
+                  if (
+                    index !== idx.phoneNumberIndex &&
+                    index !== idx.nameIndex &&
+                    index !== idx.firstNameIndex &&
+                    index !== idx.lastNameIndex &&
+                    index !== idx.emailIndex &&
+                    row[index]
+                  ) {
                     recipient[header] = String(row[index]).trim();
                   }
                 });
@@ -217,30 +298,54 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
             // Auto-detect delimiter (handles Italian/European CSVs that use semicolons)
             const delimiter = detectDelimiter(lines[0]);
 
-            // Parse header with quoted-field support
-            const headers = parseCSVLine(lines[0], delimiter).map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
-            const phoneNumberIndex = headers.findIndex((h) => h === "phone_number" || h === "phone");
-            const nameIndex = headers.findIndex((h) => h === "name");
-            const emailIndex = headers.findIndex((h) => h === "email");
+            const headersNorm = parseCSVLine(lines[0], delimiter).map((h) =>
+              normalizeSpreadsheetHeader(h.replace(/^"|"$/g, ""))
+            );
+            const idx = headerColumnIndices(headersNorm);
 
-            if (phoneNumberIndex === -1 || nameIndex === -1) {
-              reject(new Error(`File must contain 'phone_number' (or 'phone') and 'name' columns. Detected columns: ${headers.join(", ") || "(none — check delimiter)"}`));
+            if (idx.phoneNumberIndex === -1) {
+              reject(
+                new Error(
+                  `File must contain a 'phone_number' (or 'phone') column. Detected columns: ${headersNorm.join(", ") || "(none — check delimiter)"}`
+                )
+              );
+              return;
+            }
+            const hasNameCol = idx.nameIndex !== -1;
+            const hasSplitName = idx.firstNameIndex !== -1 || idx.lastNameIndex !== -1;
+            if (!hasNameCol && !hasSplitName) {
+              reject(
+                new Error(
+                  `File must include a 'name' column or 'first_name' / 'last_name' columns. Detected: ${headersNorm.join(", ") || "(none)"}`
+                )
+              );
               return;
             }
 
             const parsedRecipients: Recipient[] = [];
             for (let i = 1; i < lines.length; i++) {
               const values = parseCSVLine(lines[i], delimiter);
-              const phone = normalizePhone(values[phoneNumberIndex] ?? "");
-              const name = values[nameIndex]?.trim().replace(/^"|"$/g, "") ?? "";
+              const phone = normalizePhone(values[idx.phoneNumberIndex] ?? "");
+              const rowAsArray = values.map((v) => v?.trim().replace(/^"|"$/g, "") ?? "");
+              const name = displayNameFromRow(rowAsArray, idx.nameIndex, idx.firstNameIndex, idx.lastNameIndex);
               if (phone && name) {
                 const recipient: Recipient = {
                   phone_number: phone,
                   name,
-                  ...(emailIndex !== -1 && values[emailIndex]?.trim() && { email: values[emailIndex].trim().replace(/^"|"$/g, "") })
+                  ...(idx.emailIndex !== -1 &&
+                    values[idx.emailIndex]?.trim() && {
+                      email: values[idx.emailIndex].trim().replace(/^"|"$/g, ""),
+                    }),
                 };
-                headers.forEach((header, index) => {
-                  if (index !== phoneNumberIndex && index !== nameIndex && index !== emailIndex && values[index]?.trim()) {
+                headersNorm.forEach((header, index) => {
+                  if (
+                    index !== idx.phoneNumberIndex &&
+                    index !== idx.nameIndex &&
+                    index !== idx.firstNameIndex &&
+                    index !== idx.lastNameIndex &&
+                    index !== idx.emailIndex &&
+                    values[index]?.trim()
+                  ) {
                     recipient[header] = values[index].trim().replace(/^"|"$/g, "");
                   }
                 });
@@ -287,6 +392,13 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     setIsUploading(true);
     try {
       const parsedRecipients = await parseFile(file);
+      if (parsedRecipients.length > BATCH_UPLOAD_MAX_RECIPIENTS) {
+        toast.error(
+          `This file has ${parsedRecipients.length.toLocaleString()} recipients. The maximum allowed is ${BATCH_UPLOAD_MAX_RECIPIENTS.toLocaleString()}.`
+        );
+        setRecipients([]);
+        return;
+      }
       setRecipients(parsedRecipients);
       toast.success(`Successfully loaded ${parsedRecipients.length} recipient${parsedRecipients.length !== 1 ? 's' : ''}`);
     } catch (error: any) {
@@ -418,9 +530,11 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
 
     // If we have "name" from recipient, add standard aliases
     if (recipient.name && recipient.name !== '') {
-      dynamicVars.name = String(recipient.name).trim();
-      dynamicVars.customer_name = String(recipient.name).trim();
-      dynamicVars['contact.name'] = String(recipient.name).trim();
+      const trimmed = String(recipient.name).trim();
+      dynamicVars.name = trimmed;
+      dynamicVars.customer_name = trimmed;
+      dynamicVars['contact.name'] = trimmed;
+      dynamicVars.full_name = trimmed;
     }
 
     // If we have "email" from recipient, add standard aliases
@@ -442,6 +556,7 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     if (dynamicVars.customer_name && !dynamicVars.name) {
       dynamicVars.name = dynamicVars.customer_name;
       dynamicVars['contact.name'] = dynamicVars.customer_name;
+      dynamicVars.full_name = dynamicVars.customer_name;
     }
     if (dynamicVars.customer_email && !dynamicVars.email) {
       dynamicVars.email = dynamicVars.customer_email;
@@ -471,6 +586,13 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
 
     if (recipients.length === 0) {
       toast.error("Please upload a file with recipients");
+      return;
+    }
+
+    if (recipients.length > BATCH_UPLOAD_MAX_RECIPIENTS) {
+      toast.error(
+        `A batch can include at most ${BATCH_UPLOAD_MAX_RECIPIENTS.toLocaleString()} recipients. Reduce the list and try again.`
+      );
       return;
     }
 
@@ -693,7 +815,10 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                 Recipients <span className="text-red-500">*</span>
               </label>
               <p className="text-xs text-muted-foreground mb-3">
-                Please ensure your file follows the format shown below. Include headers for <strong>name</strong>, <strong>email</strong>, <strong>phone_number</strong>, <strong>customer_name</strong>, <strong>customer_email</strong>, and <strong>customer_phone_number</strong>.
+                Include a <strong>phone_number</strong> column (or <strong>phone</strong>). For each contact&apos;s display name in Conversations, use either a single <strong>name</strong> column or both <strong>first_name</strong> and <strong>last_name</strong> (they are joined into a full name). Optional: <strong>email</strong>, <strong>customer_name</strong>, <strong>customer_email</strong>, <strong>customer_phone_number</strong>.
+              </p>
+              <p className="text-xs text-amber-600/90 dark:text-amber-400/90 mb-3">
+                Each file can include at most {BATCH_UPLOAD_MAX_RECIPIENTS.toLocaleString()} recipients. Larger lists must be split into multiple batches.
               </p>
 
               {/* Upload Area - Accepts both CSV and Excel */}
@@ -745,12 +870,14 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                 </button>
               </div>
               <p className="text-xs text-muted-foreground mb-3">
-                The <strong>phone_number</strong> column is required. Please use the exact headers as shown below.
+                The <strong>phone_number</strong> column is required, plus either <strong>name</strong> or <strong>first_name</strong> / <strong>last_name</strong>. Use the same header spelling as below (case-insensitive).
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border-collapse">
                   <thead>
                     <tr className="bg-background">
+                      <th className="border border-border px-2 py-1 text-left text-foreground">first_name</th>
+                      <th className="border border-border px-2 py-1 text-left text-foreground">last_name</th>
                       <th className="border border-border px-2 py-1 text-left text-foreground">name</th>
                       <th className="border border-border px-2 py-1 text-left text-foreground">email</th>
                       <th className="border border-border px-2 py-1 text-left text-foreground">phone_number</th>
@@ -761,6 +888,8 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                   </thead>
                   <tbody>
                     <tr>
+                      <td className="border border-border px-2 py-1 text-foreground">John</td>
+                      <td className="border border-border px-2 py-1 text-foreground">Doe</td>
                       <td className="border border-border px-2 py-1 text-foreground">John Doe</td>
                       <td className="border border-border px-2 py-1 text-foreground">john.doe@example.com</td>
                       <td className="border border-border px-2 py-1 text-foreground">15551234567</td>
@@ -769,6 +898,8 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                       <td className="border border-border px-2 py-1 text-foreground">15551234567</td>
                     </tr>
                     <tr>
+                      <td className="border border-border px-2 py-1 text-foreground">Jane</td>
+                      <td className="border border-border px-2 py-1 text-foreground">Smith</td>
                       <td className="border border-border px-2 py-1 text-foreground">Jane Smith</td>
                       <td className="border border-border px-2 py-1 text-foreground">jane.smith@example.com</td>
                       <td className="border border-border px-2 py-1 text-foreground">15559876543</td>

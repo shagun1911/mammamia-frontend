@@ -1,3 +1,5 @@
+import { isProtectedFromAutoTranslate } from "@/lib/nonTranslatableUiStrings";
+
 // Google Cloud Translation API integration
 const GOOGLE_TRANSLATE_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_TRANSLATE_API_KEY || "";
 const TRANSLATE_API_URL = "https://translation.googleapis.com/language/translate/v2";
@@ -34,6 +36,7 @@ class GoogleTranslateService {
 
   async translate(text: string, targetLang: string, sourceLang?: string): Promise<string> {
     if (!text || !text.trim()) return text;
+    if (isProtectedFromAutoTranslate(text)) return text;
     // Only skip if target matches source (if known) or if target is English AND source is English (or implied)
     if (targetLang === sourceLang) return text;
     if (targetLang === "en" && sourceLang === "en") return text;
@@ -142,14 +145,15 @@ class GoogleTranslateService {
     }
 
     try {
-      // Filter out empty texts and get unique ones
-      const uniqueTexts = [...new Set(texts.filter((t) => t && t.trim()))];
-
       // Check which texts are already cached
       const uncachedTexts: string[] = [];
       const results: string[] = new Array(texts.length);
 
       texts.forEach((text, index) => {
+        if (text && text.trim() && isProtectedFromAutoTranslate(text)) {
+          results[index] = text;
+          return;
+        }
         // Assume English source for batch for now or update signature later
         const cacheKey = `${text.trim()}_en`;
         if (this.cache[cacheKey]?.[targetLang]) {

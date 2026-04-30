@@ -323,7 +323,7 @@ export default function ConversationsPage() {
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              <span>WhatsApp</span>
+              <span data-no-translate>WhatsApp</span>
             </button>
             <button
               onClick={() => setFilter("channel:instagram")}
@@ -334,7 +334,7 @@ export default function ConversationsPage() {
               }`}
             >
               <Instagram className="w-4 h-4" />
-              <span>Instagram</span>
+              <span data-no-translate>Instagram</span>
             </button>
             <button
               onClick={() => setFilter("channel:facebook")}
@@ -345,7 +345,7 @@ export default function ConversationsPage() {
               }`}
             >
               <Facebook className="w-4 h-4" />
-              <span>Facebook</span>
+              <span data-no-translate>Facebook</span>
             </button>
             <button
               onClick={() => setFilter("channel:phone")}

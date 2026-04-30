@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { googleTranslate } from "@/lib/googleTranslate";
+import { isProtectedFromAutoTranslate } from "@/lib/nonTranslatableUiStrings";
 
 /**
  * AutoTranslate Component
@@ -48,6 +49,7 @@ export function AutoTranslate() {
 
             const text = node.textContent?.trim();
             if (!text) return NodeFilter.FILTER_REJECT;
+            if (isProtectedFromAutoTranslate(text)) return NodeFilter.FILTER_REJECT;
 
             const parent = node.parentElement;
             if (!parent) return NodeFilter.FILTER_REJECT;
