@@ -81,6 +81,24 @@ export function useUpdateSettings() {
 }
 
 /**
+ * Upload chatbot avatar/logo image
+ */
+export function useUploadChatbotAvatar() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => settingsService.uploadChatbotAvatar(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      toast.success('Logo uploaded');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to upload logo');
+    },
+  });
+}
+
+/**
  * Create operator mutation
  */
 export function useCreateOperator() {

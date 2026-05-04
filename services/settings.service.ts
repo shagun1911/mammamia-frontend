@@ -57,6 +57,14 @@ export interface ChannelConfig {
   isActive: boolean;
 }
 
+interface UploadChatbotAvatarResponse {
+  success: boolean;
+  message: string;
+  data: {
+    avatarUrl: string;
+  };
+}
+
 /**
  * Settings Service
  * Handles organization settings, team management, and configurations
@@ -85,6 +93,23 @@ class SettingsService {
       return response.data.settings;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to update settings');
+    }
+  }
+
+  /**
+   * Upload chatbot avatar/logo image to GCS
+   */
+  async uploadChatbotAvatar(file: File): Promise<string> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await apiClient.uploadFile<UploadChatbotAvatarResponse>(
+        '/settings/chatbot-avatar',
+        formData
+      );
+      return response.data.avatarUrl;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to upload chatbot avatar');
     }
   }
 
