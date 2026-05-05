@@ -37,7 +37,7 @@ interface BatchCallListProps {
 }
 
 export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
-  const { data: batchCalls = [], isLoading, isFetching, refetch } = useBatchCalls();
+  const { data: batchCalls = [], isLoading, refetch } = useBatchCalls();
   const cancelBatchJob = useCancelBatchJob();
   const resumeBatchJob = useResumeBatchJob();
   const queryClient = useQueryClient();
@@ -167,7 +167,14 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
     setIsManualRefreshing(true);
     try {
       await queryClient.invalidateQueries({ queryKey: ['batchCalls'] });
-      await refetch();
+      await queryClient.invalidateQueries({ queryKey: ['batchJobStatus'] });
+      await queryClient.invalidateQueries({ queryKey: ['batchJobDetails'] });
+      await Promise.all([
+        refetch(),
+        queryClient.refetchQueries({ queryKey: ['batchJobStatus'], type: 'active' }),
+        queryClient.refetchQueries({ queryKey: ['batchJobDetails'], type: 'active' }),
+      ]);
+      toast.success("Batch calls refreshed");
     } catch (error) {
       toast.error("Failed to refresh batch calls");
     } finally {
@@ -202,11 +209,11 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
           <button
             type="button"
             onClick={handleManualRefresh}
-            disabled={isManualRefreshing || isFetching}
+            disabled={isManualRefreshing}
             className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
             title="Refresh"
           >
-            <RefreshCw className={cn("w-4 h-4", (isManualRefreshing || isFetching) && "animate-spin")} />
+            <RefreshCw className={cn("w-4 h-4", isManualRefreshing && "animate-spin")} />
           </button>
         </div>
       </div>
