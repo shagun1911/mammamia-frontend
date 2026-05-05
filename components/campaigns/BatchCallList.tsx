@@ -64,6 +64,8 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
     switch (status.toLowerCase()) {
       case 'completed':
       case 'finished':
+      case 'done':
+      case 'success':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'cancelled':
       case 'canceled':
@@ -86,6 +88,8 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
     switch (status.toLowerCase()) {
       case 'completed':
       case 'finished':
+      case 'done':
+      case 'success':
         return 'text-green-500 bg-green-500/10';
       case 'cancelled':
       case 'canceled':
@@ -309,19 +313,24 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
   };
 
   const getCallStatusIcon = (status: string) => {
-    switch (status?.toLowerCase()) {
+    const k = (status || "").toLowerCase().replace(/[\s-]+/g, "_");
+    switch (k) {
       case 'completed':
       case 'finished':
       case 'success':
+      case 'done':
         return <CheckCircle className="w-3 h-3 text-green-500" />;
       case 'busy':
       case 'line_busy':
       case 'user_busy':
         return <AlertCircle className="w-3 h-3 text-amber-500" />;
       case 'voicemail':
+      case 'voice_mail':
         return <Phone className="w-3 h-3 text-purple-500" />;
       case 'no_answer':
       case 'no-answer':
+      case 'noanswer':
+      case 'unanswered':
         return <Clock className="w-3 h-3 text-orange-500" />;
       case 'failed':
       case 'error':
@@ -336,19 +345,24 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
   };
 
   const getCallStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
+    const k = (status || "").toLowerCase().replace(/[\s-]+/g, "_");
+    switch (k) {
       case 'completed':
       case 'finished':
       case 'success':
+      case 'done':
         return 'text-green-500 bg-green-500/10';
       case 'busy':
       case 'line_busy':
       case 'user_busy':
         return 'text-amber-600 bg-amber-500/10';
       case 'voicemail':
+      case 'voice_mail':
         return 'text-purple-600 bg-purple-500/10';
       case 'no_answer':
       case 'no-answer':
+      case 'noanswer':
+      case 'unanswered':
         return 'text-orange-600 bg-orange-500/10';
       case 'failed':
       case 'error':
@@ -362,14 +376,104 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
     }
   };
 
+  const formatCallStatusLabel = (raw: string) => {
+    const s = (raw || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
+    if (!s) return "Pending";
+    const map: Record<string, string> = {
+      completed: "Completed",
+      finished: "Completed",
+      success: "Completed",
+      done: "Completed",
+      busy: "Line busy",
+      line_busy: "Line busy",
+      user_busy: "Line busy",
+      voicemail: "Voicemail",
+      voice_mail: "Voicemail",
+      no_answer: "No answer",
+      noanswer: "No answer",
+      unanswered: "No answer",
+      failed: "Failed",
+      error: "Failed",
+      pending: "Pending",
+      cancelled: "Cancelled",
+      canceled: "Cancelled",
+      ringing: "Ringing",
+      in_progress: "In progress",
+      active: "Active",
+    };
+    if (map[s]) return map[s];
+    return (raw || "Unknown")
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  };
+
+  const isBenignAgentTerminationReason = (text: string): boolean => {
+    const s = (text || "").toLowerCase();
+    if (!s.trim()) return false;
+    if (/\bend_call\b/.test(s)) return true;
+    if (s.includes("end call tool")) return true;
+    if (s.includes("tool was called") && /end/.test(s)) return true;
+    if (s.includes("remote party") || s.includes("ended by remote")) return true;
+    if (s.includes("customer ended") || s.includes("user hung up") || s.includes("hangup by user")) return true;
+    return false;
+  };
+
   const getDisplayFailureReason = (contact: any): string => {
-    if (contact?.failed_reason) return contact.failed_reason;
+    if (contact?.failed_reason) {
+      if (isBenignAgentTerminationReason(contact.failed_reason)) return "";
+      return contact.failed_reason;
+    }
     const status = String(contact?.status || "").toLowerCase();
     if (status === "busy") return "Line busy";
     if (status === "voicemail") return "Reached voicemail";
     if (status === "no_answer" || status === "no-answer") return "No answer";
     if (status === "failed") return "Call failed before completion";
     return "";
+  };
+
+  /**
+   * Decide which colored banner (if any) to show under the contact header.
+   * - 'failed'      → red "Call Failed Reason" (real failure)
+   * - 'busy'        → amber "Line busy"
+   * - 'voicemail'   → purple "Reached voicemail"
+   * - 'no_answer'   → orange "No answer"
+   * - 'completed'   → no banner (success — show end_reason in overview tab instead)
+   * - others        → no banner
+   */
+  const getOutcomeBanner = (contact: any): { label: string; text: string; classes: string } | null => {
+    const status = String(contact?.status || "").toLowerCase().replace(/[\s-]+/g, "_");
+    const reason = getDisplayFailureReason(contact);
+    if (status === "failed") {
+      return {
+        label: "Call Failed Reason",
+        text: reason || "Call failed before completion",
+        classes: "border-red-300/40 bg-red-500/10 text-red-700",
+      };
+    }
+    if (status === "busy" || status === "line_busy" || status === "user_busy") {
+      return {
+        label: "Call Outcome",
+        text: reason || "Line busy — recipient was on another call",
+        classes: "border-amber-300/40 bg-amber-500/10 text-amber-700",
+      };
+    }
+    if (status === "voicemail" || status === "voice_mail") {
+      return {
+        label: "Call Outcome",
+        text: reason || "Call sent to voicemail",
+        classes: "border-purple-300/40 bg-purple-500/10 text-purple-700",
+      };
+    }
+    if (status === "no_answer" || status === "noanswer" || status === "unanswered") {
+      return {
+        label: "Call Outcome",
+        text: reason || "Recipient did not answer",
+        classes: "border-orange-300/40 bg-orange-500/10 text-orange-700",
+      };
+    }
+    return null;
   };
 
   const contacts = detailsData?.contacts || [];
@@ -594,7 +698,7 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
                         <div className="flex items-center gap-1.5 min-w-0">
                           {getCallStatusIcon(call.status || "pending")}
                           <span className={cn("px-2 py-0.5 rounded text-[11px] font-medium", getCallStatusColor(call.status || "pending"))}>
-                            {call.status || "pending"}
+                            {formatCallStatusLabel(call.status || "pending")}
                           </span>
                         </div>
                         <div className="text-right text-xs text-muted-foreground font-medium">
@@ -617,17 +721,21 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={cn("px-2 py-1 rounded text-xs font-medium", getCallStatusColor(selectedContact.status || "pending"))}>
-                            {selectedContact.status || "pending"}
+                            {formatCallStatusLabel(selectedContact.status || "pending")}
                           </span>
                         </div>
                       </div>
 
-                      {getDisplayFailureReason(selectedContact) && (
-                        <div className="mt-3 rounded-lg border border-red-300/40 bg-red-500/10 px-3 py-2">
-                          <div className="text-xs font-semibold text-red-600">Call Failed Reason</div>
-                          <div className="text-xs text-red-700 mt-0.5">{getDisplayFailureReason(selectedContact)}</div>
-                        </div>
-                      )}
+                      {(() => {
+                        const banner = getOutcomeBanner(selectedContact);
+                        if (!banner) return null;
+                        return (
+                          <div className={cn("mt-3 rounded-lg border px-3 py-2", banner.classes)}>
+                            <div className="text-xs font-semibold opacity-90">{banner.label}</div>
+                            <div className="text-xs mt-0.5">{banner.text}</div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="px-4 pt-3 border-b border-border flex items-center gap-2">
@@ -668,8 +776,8 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
                               <div className="text-foreground font-medium mt-1">{selectedContact.end_reason || "-"}</div>
                             </div>
                             <div className="rounded-lg bg-muted/40 p-3 col-span-2">
-                              <div className="text-muted-foreground">Failure reason</div>
-                              <div className="text-foreground font-medium mt-1">{getDisplayFailureReason(selectedContact) || "-"}</div>
+                              <div className="text-muted-foreground">Outcome details</div>
+                              <div className="text-foreground font-medium mt-1">{getDisplayFailureReason(selectedContact) || selectedContact?.end_reason || "-"}</div>
                             </div>
                             <div className="rounded-lg bg-muted/40 p-3">
                               <div className="text-muted-foreground">Messages</div>

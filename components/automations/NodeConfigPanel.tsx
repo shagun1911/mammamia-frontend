@@ -21,6 +21,61 @@ interface NodeConfigPanelProps {
   allNodes?: AutomationNode[];
 }
 
+/** Build dot-paths from the agent JSON example (nested objects → extracted.a.b.c). */
+function flattenJsonExamplePaths(
+  obj: unknown,
+  prefix = ""
+): { path: string; sample: unknown }[] {
+  if (obj === null || obj === undefined) return [];
+  if (Array.isArray(obj)) return [];
+  if (typeof obj !== "object") {
+    return [{ path: prefix || "value", sample: obj }];
+  }
+  const o = obj as Record<string, unknown>;
+  const keys = Object.keys(o);
+  if (keys.length === 0) return [];
+  const out: { path: string; sample: unknown }[] = [];
+  for (const k of keys) {
+    const v = o[k];
+    const p = prefix ? `${prefix}.${k}` : k;
+    if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+      out.push(...flattenJsonExamplePaths(v, p));
+    } else {
+      out.push({ path: p, sample: v });
+    }
+  }
+  return out;
+}
+
+function sampleTypeLabel(sample: unknown): string {
+  if (typeof sample === "boolean") return "boolean";
+  if (typeof sample === "number") return "number";
+  return "text";
+}
+
+/** Walk json_example on extract nodes to infer type for a path like "loan.approved". */
+function sampleForExtractedPath(
+  extractNodes: AutomationNode[],
+  pathAfterExtracted: string
+): unknown {
+  const keys = pathAfterExtracted.split(".").filter(Boolean);
+  if (keys.length === 0) return undefined;
+  for (const n of extractNodes) {
+    const ex = n.config?.json_example;
+    if (typeof ex !== "object" || ex === null || Array.isArray(ex)) continue;
+    let cur: unknown = ex;
+    for (const k of keys) {
+      if (cur === null || typeof cur !== "object" || Array.isArray(cur)) {
+        cur = undefined;
+        break;
+      }
+      cur = (cur as Record<string, unknown>)[k];
+    }
+    if (cur !== undefined) return cur;
+  }
+  return undefined;
+}
+
 export function NodeConfigPanel({
   node,
   onClose,
@@ -552,29 +607,102 @@ export function NodeConfigPanel({
             </div>
           )}
 
-          {/* CONDITION NODE - dynamic field from Extract node json_example */}
+          {/* CONDITION NODE – fields aligned with Extract node / agent JSON schema */}
           {(node.type === "condition" && node.service === "condition") && (() => {
             const extractNodes = (allNodes || []).filter(
               (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
             );
-            const legacyFields: { value: string; label: string }[] = [
-              { value: "appointment.booked", label: "appointment.booked (legacy)" },
-            ];
-            const extractedFields: { value: string; label: string }[] = [];
+
+            const schemaFields: { value: string; label: string }[] = [];
+            const seenSchema = new Set<string>();
             extractNodes.forEach((extractNode) => {
               const ex = extractNode.config?.json_example;
-              if (typeof ex === "object" && ex !== null && !Array.isArray(ex)) {
-                Object.keys(ex).forEach((key) => {
-                  const fieldValue = `extracted.${key}`;
-                  if (!extractedFields.some((f) => f.value === fieldValue)) {
-                    extractedFields.push({ value: fieldValue, label: fieldValue });
-                  }
+              if (typeof ex !== "object" || ex === null || Array.isArray(ex)) return;
+              const flat = flattenJsonExamplePaths(ex);
+              for (const { path, sample } of flat) {
+                const value = `extracted.${path}`;
+                if (seenSchema.has(value)) continue;
+                seenSchema.add(value);
+                const t = sampleTypeLabel(sample);
+                schemaFields.push({
+                  value,
+                  label: `${value} (${t} — from agent / JSON schema)`,
                 });
               }
             });
-            const allFieldOptions = [...legacyFields, ...extractedFields];
+
+            const topLevelKeys = new Set<string>();
+            extractNodes.forEach((extractNode) => {
+              const ex = extractNode.config?.json_example;
+              if (typeof ex === "object" && ex !== null && !Array.isArray(ex)) {
+                Object.keys(ex as object).forEach((k) => topLevelKeys.add(k));
+              }
+            });
+
+            const hasExtractAppointmentNode = extractNodes.some(
+              (n) => n.service === "aistein_extract_appointment"
+            );
+            const appointmentLikeKeys = [
+              "date",
+              "time",
+              "appointment_booked",
+              "preferred_date",
+              "preferred_time",
+              "appointment_date",
+              "appointment_time",
+            ];
+            const looksLikeAppointmentFlow =
+              hasExtractAppointmentNode ||
+              appointmentLikeKeys.some((k) => topLevelKeys.has(k));
+
+            /** Engine-normalized paths; only shown for appointment-style agents or Extract Appointment node */
+            const normalizedAppointmentFields: { value: string; label: string }[] =
+              looksLikeAppointmentFlow || (schemaFields.length === 0 && hasExtractAppointmentNode)
+                ? [
+                    {
+                      value: "extracted.appointment.booked",
+                      label: "extracted.appointment.booked (normalized — booking agreed)",
+                    },
+                    {
+                      value: "extracted.appointment.date",
+                      label: "extracted.appointment.date (normalized)",
+                    },
+                    {
+                      value: "extracted.appointment.time",
+                      label: "extracted.appointment.time (normalized)",
+                    },
+                    { value: "extracted.date", label: "extracted.date (flat alias)" },
+                    { value: "extracted.time", label: "extracted.time (flat alias)" },
+                    {
+                      value: "extracted.appointment_booked",
+                      label: "extracted.appointment_booked (flat alias)",
+                    },
+                  ]
+                : [];
+
+            const legacyFields: { value: string; label: string }[] = [
+              {
+                value: "appointment.booked",
+                label: "appointment.booked (legacy — avoid if using extracted.*)",
+              },
+            ];
+
+            const allFieldOptions = (() => {
+              const merged = [
+                ...schemaFields,
+                ...normalizedAppointmentFields,
+                ...legacyFields,
+              ];
+              const seen = new Set<string>();
+              return merged.filter((o) => {
+                if (seen.has(o.value)) return false;
+                seen.add(o.value);
+                return true;
+              });
+            })();
+
             const currentField = (node.config.field as string) || "";
-            const hasExtractKeys = extractedFields.length > 0;
+            const hasAgentSchema = schemaFields.length > 0;
             return (
               <div className="space-y-4">
                 <div>
@@ -585,11 +713,30 @@ export function NodeConfigPanel({
                     value={currentField}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (hasExtractKeys && v.startsWith("extracted.")) {
-                        const key = v.replace("extracted.", "");
-                        const sample = extractNodes.map((n) => (n.config?.json_example as Record<string, unknown>)?.[key]).find((val) => val !== undefined);
-                        if (typeof sample === "boolean" && !node.config.operator) {
-                          onUpdate({ ...node.config, field: v, operator: "equals", value: true });
+                      const boolExtractFields =
+                        v === "extracted.appointment.booked" ||
+                        v === "extracted.appointment_booked" ||
+                        v === "appointment.booked" ||
+                        (v.startsWith("extracted.") && v.endsWith(".booked"));
+                      if (boolExtractFields) {
+                        onUpdate({
+                          ...node.config,
+                          field: v,
+                          operator: "equals",
+                          value: true,
+                        });
+                        return;
+                      }
+                      if (v.startsWith("extracted.")) {
+                        const sub = v.slice("extracted.".length);
+                        const sample = sampleForExtractedPath(extractNodes, sub);
+                        if (typeof sample === "boolean") {
+                          onUpdate({
+                            ...node.config,
+                            field: v,
+                            operator: "equals",
+                            value: true,
+                          });
                           return;
                         }
                       }
@@ -605,9 +752,22 @@ export function NodeConfigPanel({
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {hasExtractKeys
-                      ? "Use a field from your Extract node (e.g. extracted.interested_in_loan) or the legacy appointment.booked."
-                      : "Add an Extract node with a JSON example to see extracted.* options here."}
+                    {hasAgentSchema ? (
+                      <>
+                        Top options match your Extract node&apos;s JSON schema (from &quot;From
+                        agent&quot; or manual JSON). Use those fields for conditions — they are
+                        exactly what extraction returns. Normalized{" "}
+                        <code className="text-[11px]">extracted.appointment.*</code> rows appear for
+                        booking-style agents.
+                      </>
+                    ) : (
+                      <>
+                        Add a JSON example on your Extract node (or use &quot;From agent&quot;) to
+                        list fields here. For appointment agents without a JSON example, normalized{" "}
+                        <code className="text-[11px]">extracted.appointment.*</code> is still
+                        available when you use Extract Appointment.
+                      </>
+                    )}
                   </p>
                 </div>
                 <div>
@@ -655,7 +815,8 @@ export function NodeConfigPanel({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  When this condition is true, the &quot;Yes&quot; branch runs; otherwise the &quot;No&quot; branch. Use extracted fields from your Extract node (e.g. interested_in_loan) so the flow triggers on the right outcome.
+                  When true, the &quot;Yes&quot; branch runs. Pick a field that exists on your Extract
+                  node&apos;s agent schema so it matches what the call actually extracts.
                 </p>
               </div>
             );
