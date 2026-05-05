@@ -37,11 +37,12 @@ interface BatchCallListProps {
 }
 
 export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
-  const { data: batchCalls = [], isLoading, refetch } = useBatchCalls();
+  const { data: batchCalls = [], isLoading, isFetching, refetch } = useBatchCalls();
   const cancelBatchJob = useCancelBatchJob();
   const resumeBatchJob = useResumeBatchJob();
   const queryClient = useQueryClient();
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   const handleCancel = async (jobId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -161,6 +162,19 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
     setExpandedJobId(expandedJobId === jobId ? null : jobId);
   };
 
+  const handleManualRefresh = async () => {
+    if (isManualRefreshing) return;
+    setIsManualRefreshing(true);
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['batchCalls'] });
+      await refetch();
+    } catch (error) {
+      toast.error("Failed to refresh batch calls");
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -177,6 +191,7 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
         <div className="flex items-center gap-2">
           {onCreateNew && (
             <button
+              type="button"
               onClick={onCreateNew}
               className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-blue-600 hover:shadow-lg hover:shadow-blue-600/30 transition-all flex items-center gap-2"
             >
@@ -185,11 +200,13 @@ export function BatchCallList({ onClose, onCreateNew }: BatchCallListProps) {
             </button>
           )}
           <button
-            onClick={() => refetch()}
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isManualRefreshing || isFetching}
             className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
             title="Refresh"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={cn("w-4 h-4", (isManualRefreshing || isFetching) && "animate-spin")} />
           </button>
         </div>
       </div>
