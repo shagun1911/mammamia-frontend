@@ -47,12 +47,6 @@ function flattenJsonExamplePaths(
   return out;
 }
 
-function sampleTypeLabel(sample: unknown): string {
-  if (typeof sample === "boolean") return "boolean";
-  if (typeof sample === "number") return "number";
-  return "text";
-}
-
 /** Walk json_example on extract nodes to infer type for a path like "loan.approved". */
 function sampleForExtractedPath(
   extractNodes: AutomationNode[],
@@ -74,6 +68,23 @@ function sampleForExtractedPath(
     if (cur !== undefined) return cur;
   }
   return undefined;
+}
+
+function parseJsonExampleObject(raw: unknown): Record<string, unknown> | null {
+  if (typeof raw === "object" && raw !== null && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string" && raw.trim() !== "") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export function NodeConfigPanel({
@@ -103,6 +114,37 @@ export function NodeConfigPanel({
   const [loadingHeaders, setLoadingHeaders] = useState(false);
   const [headersError, setHeadersError] = useState<string | null>(null);
   const [sheetSourceTab, setSheetSourceTab] = useState<"url" | "drive">("url");
+  const [activeSheetMappingIndex, setActiveSheetMappingIndex] = useState<number | null>(null);
+  const [isWideLayout, setIsWideLayout] = useState(false);
+
+  const selectedExtractJsonExample = useMemo(() => {
+    const extractNodes = (allNodes || []).filter(
+      (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
+    );
+    if (extractNodes.length === 0) return null;
+
+    const currentPos = typeof node.position === "number" ? node.position : Number.POSITIVE_INFINITY;
+    const beforeCurrent = extractNodes.filter(
+      (n) => typeof n.position === "number" && n.position < currentPos
+    );
+    const pool = beforeCurrent.length > 0 ? beforeCurrent : extractNodes;
+    const sorted = [...pool].sort((a, b) => {
+      const ap = typeof a.position === "number" ? a.position : -1;
+      const bp = typeof b.position === "number" ? b.position : -1;
+      return bp - ap;
+    });
+
+    for (const extractNode of sorted) {
+      const parsed = parseJsonExampleObject(extractNode.config?.json_example);
+      if (parsed && Object.keys(parsed).length > 0) return parsed;
+    }
+    return null;
+  }, [allNodes, node.position]);
+
+  const selectedExtractPaths = useMemo(() => {
+    if (!selectedExtractJsonExample) return [] as string[];
+    return flattenJsonExamplePaths(selectedExtractJsonExample).map((x) => x.path);
+  }, [selectedExtractJsonExample]);
 
   const { status: googleIntegrationStatus, isLoading: isLoadingGoogleStatus } = useGoogleIntegrationsStatus();
   const { integrations: socialIntegrations, isLoading: isLoadingSocialStatus } = useSocialIntegrationsStatus();
@@ -143,7 +185,27 @@ export function NodeConfigPanel({
     setSpreadsheetLink("");
     setSheetHeaders([]);
     setHeadersError(null);
+    setActiveSheetMappingIndex(null);
   }, [node.id]);
+
+  useEffect(() => {
+    // Keep compact by default for better dashboard usability
+    if (isGoogleSheetsAppend) setIsWideLayout(false);
+  }, [isGoogleSheetsAppend, node.id]);
+
+  // Default Google Sheets node to standard (fixed) format on first open.
+  useEffect(() => {
+    if (!isGoogleSheetsAppend) return;
+    if (typeof node.config.useFixedFormat === 'boolean') return;
+    onUpdate({
+      ...node.config,
+      useFixedFormat: true,
+      extraExtractedKeys: Array.isArray(node.config.extraExtractedKeys)
+        ? node.config.extraExtractedKeys
+        : [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [node.id, isGoogleSheetsAppend]);
 
   // Sync jsonExampleRaw from node.config when opening extract node
   useEffect(() => {
@@ -311,6 +373,86 @@ export function NodeConfigPanel({
     onUpdate({ ...node.config, values: [...currentValues, ""] });
   };
 
+  const normalizeHeader = (header: string): string =>
+    String(header || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const buildSuggestedSheetValues = (headers: string[], extractedKeys: string[]): string[] => {
+    const defaults = [
+      "{{first_name}}",
+      "{{appointment_date}}",
+      "{{appointment_time}}",
+      "{{address}}",
+      "{{created_time}}",
+      "{{recording_link}}",
+      "{{contact.name}}",
+      "{{contact.email}}",
+      "{{contact.phone}}",
+      ...extractedKeys.map((k) => `{{extracted.${k}}}`),
+      "{{extracted_json}}",
+      "{{dynamic_variables_json}}",
+      "{{now}}",
+    ];
+
+    if (headers.length === 0) return defaults;
+
+    const byHeader: Record<string, string> = {
+      firstname: "{{first_name}}",
+      lastname: "{{last_name}}",
+      name: "{{contact.name}}",
+      email: "{{contact.email}}",
+      phone: "{{contact.phone}}",
+      phonenumber: "{{contact.phone}}",
+      mobilenumber: "{{contact.phone}}",
+      appointmentdate: "{{appointment_date}}",
+      appointmenttime: "{{appointment_time}}",
+      appointmentdatetime: "{{appointment_datetime}}",
+      datetime: "{{appointment_datetime}}",
+      address: "{{address}}",
+      createdtime: "{{created_time}}",
+      recordinglink: "{{recording_link}}",
+      callrecordinglink: "{{call_recording_link}}",
+      extractedjson: "{{extracted_json}}",
+      dynamicvariablesjson: "{{dynamic_variables_json}}",
+    };
+
+    const usedDefaults = new Set<number>();
+    let fallbackIndex = 0;
+    const mappedFromHeaders = headers.map((header) => {
+      const normalized = normalizeHeader(header);
+      if (normalized && byHeader[normalized]) return byHeader[normalized];
+
+      if (normalized.startsWith("extracted")) {
+        const maybeKey = normalized.replace(/^extracted/, "");
+        const match = extractedKeys.find((k) => normalizeHeader(k) === maybeKey);
+        if (match) return `{{extracted.${match}}}`;
+      }
+
+      const next = defaults[fallbackIndex] ?? "";
+      usedDefaults.add(fallbackIndex);
+      fallbackIndex += 1;
+      return next;
+    });
+
+    const remainingDefaults = defaults.filter((_, idx) => !usedDefaults.has(idx));
+    return [...mappedFromHeaders, ...remainingDefaults];
+  };
+
+  const buildClientFormatValues = (extractedKeys: string[]): string[] => {
+    const base = [
+      "{{first_name}}",
+      "{{appointment_date}}",
+      "{{appointment_time}}",
+      "{{address}}",
+      "{{created_time}}",
+      "{{recording_link}}",
+      "{{contact.name}}",
+      "{{contact.email}}",
+      "{{contact.phone}}",
+    ];
+    const extracted = extractedKeys.map((k) => `{{extracted.${k}}}`);
+    return [...base, ...extracted, "{{extracted_json}}", "{{dynamic_variables_json}}"];
+  };
+
   const updateColumnMapping = (index: number, value: string) => {
     const currentValues = [...(node.config.values || [])];
     // Ensure array is large enough
@@ -325,12 +467,13 @@ export function NodeConfigPanel({
   /** Insert a variable into the first empty mapped cell (or append when not using sheet headers) */
   const insertVariableIntoMapping = (varName: string) => {
     const vals = node.config.values || [];
+    if (activeSheetMappingIndex !== null && activeSheetMappingIndex >= 0) {
+      updateColumnMapping(activeSheetMappingIndex, varName);
+      return;
+    }
     if (sheetHeaders.length > 0) {
-      const idx = vals.findIndex(
-        (v: unknown, i: number) =>
-          i < sheetHeaders.length && (!v || !String(v).trim())
-      );
-      const target = idx >= 0 ? idx : 0;
+      const idx = vals.findIndex((v: unknown) => !v || !String(v).trim());
+      const target = idx >= 0 ? idx : vals.length;
       updateColumnMapping(target, varName);
       return;
     }
@@ -340,10 +483,10 @@ export function NodeConfigPanel({
   const removeColumnMapping = (index: number) => {
     const currentValues = [...(node.config.values || [])];
     currentValues.splice(index, 1);
-    // Filter out empty values
-    const filteredValues = currentValues.filter(v => v && v.trim() !== "");
-    onUpdate({ ...node.config, values: filteredValues });
+    onUpdate({ ...node.config, values: currentValues });
   };
+
+  const mappingRowCount = Math.max(sheetHeaders.length, (node.config.values || []).length);
 
   const resolvedSpreadsheetId = useMemo(() => {
     const fromLink = spreadsheetLink ? extractSpreadsheetIdFromUrl(spreadsheetLink) : null;
@@ -469,6 +612,14 @@ export function NodeConfigPanel({
       }
       config.values = valuesArray;
 
+      // Default to fixed format on save when undefined (keeps new nodes consistent).
+      if (typeof (config as any).useFixedFormat !== 'boolean') {
+        (config as any).useFixedFormat = true;
+      }
+      if (!Array.isArray((config as any).extraExtractedKeys)) {
+        (config as any).extraExtractedKeys = [];
+      }
+
       // DO NOT modify range - keep it exactly as it was in the original config
       // Range logic is handled elsewhere and should not be changed here
 
@@ -497,6 +648,13 @@ export function NodeConfigPanel({
       if (!hasSpreadsheetId && !hasValidLink) {
         return { valid: false, error: "Please paste a Google Sheet link or select a spreadsheet from the list" };
       }
+
+      // Standard (fixed) format always has 6 locked columns; no manual values required.
+      const useFixedFormat = config.useFixedFormat !== false;
+      if (useFixedFormat) {
+        return { valid: true };
+      }
+
       const vals = config.values && Array.isArray(config.values) ? config.values : [];
       const hasAny = vals.some((v) => v && String(v).trim() !== "");
       if (!hasAny) {
@@ -522,9 +680,15 @@ export function NodeConfigPanel({
   };
 
   const serviceInfo = getServiceInfo();
+  const panelWidthClass = isWideLayout
+    ? "w-[680px] max-w-[96vw]"
+    : "w-[420px] max-w-[92vw]";
 
   return (
-    <div ref={panelRef} className="w-[420px] bg-card border-l border-border h-full flex flex-col overflow-hidden">
+    <div
+      ref={panelRef}
+      className={`${panelWidthClass} bg-card border-l border-border h-full flex flex-col overflow-hidden`}
+    >
       {/* Header - Sticky */}
       <div className="p-4 border-b border-border shrink-0 bg-card/95 backdrop-blur-sm">
         <div className="flex items-center justify-between mb-3">
@@ -536,13 +700,24 @@ export function NodeConfigPanel({
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
             <span>Back</span>
           </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
-            aria-label="Close"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isGoogleSheetsAppend && (
+              <button
+                type="button"
+                onClick={() => setIsWideLayout((v) => !v)}
+                className="h-8 px-3 text-xs border border-border rounded-md bg-secondary text-foreground hover:bg-secondary/80 transition-colors"
+              >
+                {isWideLayout ? "Small" : "Expand"}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-secondary/50">
@@ -559,7 +734,7 @@ export function NodeConfigPanel({
 
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-6">
+        <div className="p-7">
           {/* DELAY NODE */}
           {node.service === "delay" && (
             <div className="space-y-4">
@@ -623,10 +798,9 @@ export function NodeConfigPanel({
                 const value = `extracted.${path}`;
                 if (seenSchema.has(value)) continue;
                 seenSchema.add(value);
-                const t = sampleTypeLabel(sample);
                 schemaFields.push({
                   value,
-                  label: `${value} (${t} — from agent / JSON schema)`,
+                  label: value,
                 });
               }
             });
@@ -655,43 +829,31 @@ export function NodeConfigPanel({
               hasExtractAppointmentNode ||
               appointmentLikeKeys.some((k) => topLevelKeys.has(k));
 
-            /** Engine-normalized paths; only shown for appointment-style agents or Extract Appointment node */
+            /** Engine-normalized paths; keep concise for appointment flow */
             const normalizedAppointmentFields: { value: string; label: string }[] =
               looksLikeAppointmentFlow || (schemaFields.length === 0 && hasExtractAppointmentNode)
                 ? [
                     {
                       value: "extracted.appointment.booked",
-                      label: "extracted.appointment.booked (normalized — booking agreed)",
+                      label: "extracted.appointment.booked",
                     },
                     {
                       value: "extracted.appointment.date",
-                      label: "extracted.appointment.date (normalized)",
+                      label: "extracted.appointment.date",
                     },
                     {
                       value: "extracted.appointment.time",
-                      label: "extracted.appointment.time (normalized)",
+                      label: "extracted.appointment.time",
                     },
-                    { value: "extracted.date", label: "extracted.date (flat alias)" },
-                    { value: "extracted.time", label: "extracted.time (flat alias)" },
-                    {
-                      value: "extracted.appointment_booked",
-                      label: "extracted.appointment_booked (flat alias)",
-                    },
+                    { value: "extracted.date", label: "extracted.date" },
+                    { value: "extracted.time", label: "extracted.time" },
                   ]
                 : [];
 
-            const legacyFields: { value: string; label: string }[] = [
-              {
-                value: "appointment.booked",
-                label: "appointment.booked (legacy — avoid if using extracted.*)",
-              },
-            ];
-
             const allFieldOptions = (() => {
               const merged = [
-                ...schemaFields,
                 ...normalizedAppointmentFields,
-                ...legacyFields,
+                ...schemaFields,
               ];
               const seen = new Set<string>();
               return merged.filter((o) => {
@@ -752,22 +914,7 @@ export function NodeConfigPanel({
                     ))}
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {hasAgentSchema ? (
-                      <>
-                        Top options match your Extract node&apos;s JSON schema (from &quot;From
-                        agent&quot; or manual JSON). Use those fields for conditions — they are
-                        exactly what extraction returns. Normalized{" "}
-                        <code className="text-[11px]">extracted.appointment.*</code> rows appear for
-                        booking-style agents.
-                      </>
-                    ) : (
-                      <>
-                        Add a JSON example on your Extract node (or use &quot;From agent&quot;) to
-                        list fields here. For appointment agents without a JSON example, normalized{" "}
-                        <code className="text-[11px]">extracted.appointment.*</code> is still
-                        available when you use Extract Appointment.
-                      </>
-                    )}
+                    Only required extracted fields are shown here for this agent flow.
                   </p>
                 </div>
                 <div>
@@ -2629,187 +2776,369 @@ export function NodeConfigPanel({
                 </p>
               </div>
 
-              {/* Column Mapping */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-medium text-foreground">
-                    Column mapping *
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const extractNode = allNodes.find(
-                        (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
-                      );
-                      const ex = extractNode?.config?.json_example;
-                      const keys =
-                        typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
-                      if (keys.length === 0) return null;
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const base = ["{{contact.name}}", "{{contact.email}}", "{{contact.phone}}"];
-                            const extracted = keys.map((k) => `{{extracted.${k}}}`);
-                            const combined = [...base, ...extracted, "{{now}}"];
-                            if (sheetHeaders.length > 0) {
-                              const merged = sheetHeaders.map((_, i) => combined[i] ?? "");
-                              onUpdate({ ...node.config, values: merged });
-                            } else {
-                              onUpdate({ ...node.config, values: combined });
-                            }
-                          }}
-                          className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                        >
-                          Fill from Extract node
-                        </button>
-                      );
-                    })()}
-                    {sheetHeaders.length === 0 && (
-                      <button
-                        type="button"
-                        onClick={addColumnMapping}
-                        className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                      >
-                        + Add column
-                      </button>
-                    )}
-                  </div>
-                </div>
+              {/* Standard Format (locked) */}
+              {(() => {
+                const useFixedFormat = node.config.useFixedFormat !== false;
+                const FIXED_COLUMNS = [
+                  { label: "Name", desc: "From call or CSV" },
+                  { label: "Address", desc: "Call → CSV → Not Provided" },
+                  { label: "Email", desc: "Call → CSV → Not Provided" },
+                  { label: "Phone Number", desc: "Call → CSV → Not Provided" },
+                  { label: "Appointment Date & Time", desc: "Extracted from call" },
+                  { label: "Call Recording", desc: "Audio link of the call" },
+                ];
+                const COVERED = new Set([
+                  "name",
+                  "first_name",
+                  "last_name",
+                  "customer_name",
+                  "address",
+                  "full_address",
+                  "customer_address",
+                  "home_address",
+                  "email",
+                  "customer_email",
+                  "phone",
+                  "phone_number",
+                  "customer_phone",
+                  "date",
+                  "time",
+                  "preferred_date",
+                  "preferred_time",
+                  "appointment_date",
+                  "appointment_time",
+                  "scheduled_date",
+                  "scheduled_time",
+                  "meeting_date",
+                  "meeting_time",
+                  "slot_date",
+                  "slot_time",
+                  "booking_date",
+                  "booking_time",
+                ]);
+                const availableExtras = selectedExtractPaths.filter(
+                  (k) => !COVERED.has(String(k).toLowerCase())
+                );
+                const enabledExtras: string[] = Array.isArray(node.config.extraExtractedKeys)
+                  ? (node.config.extraExtractedKeys as string[])
+                  : [];
+                const titleCase = (s: string) =>
+                  String(s || "")
+                    .replace(/[._]/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .replace(/\b\w/g, (c) => c.toUpperCase());
 
-                {sheetHeaders.length > 0 && (
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Values append in column order (A, B, C…). Row 1 in your sheet is treated as the header row.
-                  </p>
-                )}
-
-                {resolvedSpreadsheetId &&
-                  !loadingHeaders &&
-                  sheetHeaders.length === 0 &&
-                  !headersError && (
-                    <div className="p-2 rounded-lg border border-border bg-secondary/40 text-xs text-muted-foreground mb-2">
-                      No headers found in row 1 for this tab — map columns manually below, or add titles in row 1 and we will pick them up on save.
-                    </div>
-                  )}
-
-                {sheetHeaders.length > 0 ? (
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-3 py-2 bg-secondary/80 text-xs font-medium text-muted-foreground border-b border-border">
-                      <span>Sheet column (row 1)</span>
-                      <span>Value / variable</span>
-                    </div>
-                    {sheetHeaders.map((header, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-2 px-3 py-2 border-b border-border/60 last:border-b-0 items-center"
-                      >
-                        <span
-                          className="text-sm text-foreground truncate"
-                          title={header || `Column ${index + 1}`}
-                        >
-                          {header?.trim() ? (
-                            header
-                          ) : (
-                            <span className="italic text-muted-foreground">(empty — column {index + 1})</span>
-                          )}
-                        </span>
-                        <input
-                          type="text"
-                          value={(node.config.values || [])[index] ?? ""}
-                          onChange={(e) => updateColumnMapping(index, e.target.value)}
-                          className="w-full flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                          placeholder={`{{contact.name}} or {{extracted.field}}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    {(!node.config.values || node.config.values.length === 0) && (
-                      <div className="p-3 bg-secondary/50 border border-border rounded-lg mb-2">
-                        <p className="text-xs text-muted-foreground text-center">
-                          No columns mapped. Add a spreadsheet above (we load row 1 when possible) or use &quot;Add column&quot;.
+                return (
+                  <div className="space-y-4">
+                    {/* Format mode toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/40">
+                      <div className="min-w-0 pr-3">
+                        <p className="text-sm font-medium text-foreground">
+                          {useFixedFormat ? "Standard Format (recommended)" : "Custom mapping"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {useFixedFormat
+                            ? "Locked columns guarantee a clean, consistent sheet."
+                            : "Map any sheet column to any variable."}
                         </p>
                       </div>
-                    )}
-
-                    <div className="space-y-2">
-                      {(node.config.values || []).map((value: string, index: number) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={value}
-                            onChange={(e) => updateColumnMapping(index, e.target.value)}
-                            className="flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                            placeholder={`Column ${index + 1} (e.g., {{contact.name}})`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeColumnMapping(index)}
-                            className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                            title="Remove column"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {(!node.config.values || node.config.values.length === 0) && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    At least one column mapping is required
-                  </p>
-                )}
-
-                <div className="mt-3 p-2 bg-secondary/50 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1 font-medium">Available variables (click to insert)</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {[
-                      "{{contact.name}}",
-                      "{{contact.email}}",
-                      "{{contact.phone}}",
-                      "{{appointment.date}}",
-                      "{{appointment.time}}",
-                      "{{now}}",
-                    ].map((varName) => (
                       <button
                         type="button"
-                        key={varName}
-                        onClick={() => insertVariableIntoMapping(varName)}
-                        className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                        onClick={() =>
+                          onUpdate({
+                            ...node.config,
+                            useFixedFormat: !useFixedFormat,
+                          })
+                        }
+                        className="h-8 px-3 text-xs border border-border rounded-md bg-secondary text-foreground hover:bg-secondary/70 font-medium transition-colors shrink-0"
                       >
-                        {varName}
+                        {useFixedFormat ? "Switch to custom" : "Use standard"}
                       </button>
-                    ))}
-                    {(() => {
-                      const extractNode = allNodes.find(
-                        (n) => n.service === "aistein_extract_data" || n.service === "aistein_extract_appointment"
-                      );
-                      const ex = extractNode?.config?.json_example;
-                      const keys =
-                        typeof ex === "object" && ex !== null && !Array.isArray(ex) ? Object.keys(ex) : [];
-                      return keys.map((key) => {
-                        const varName = `{{extracted.${key}}}`;
-                        return (
-                          <button
-                            type="button"
-                            key={varName}
-                            onClick={() => insertVariableIntoMapping(varName)}
-                            className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
-                          >
-                            {varName}
-                          </button>
-                        );
-                      });
-                    })()}
+                    </div>
+
+                    {useFixedFormat ? (
+                      <>
+                        {/* Locked columns */}
+                        <div className="rounded-lg border border-border overflow-hidden">
+                          <div className="px-3 py-2 bg-secondary/70 border-b border-border flex items-center justify-between">
+                            <span className="text-xs font-semibold text-foreground">Locked columns</span>
+                            <span className="text-[11px] text-muted-foreground">{FIXED_COLUMNS.length} columns</span>
+                          </div>
+                          <ol className="divide-y divide-border/60">
+                            {FIXED_COLUMNS.map((col, idx) => (
+                              <li
+                                key={col.label}
+                                className="flex items-center gap-3 px-3 py-2 text-sm"
+                              >
+                                <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[11px] flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <span className="text-foreground font-medium flex-1 truncate">
+                                  {col.label}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground truncate max-w-[55%]">
+                                  {col.desc}
+                                </span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+
+                        {/* Extra extracted toggle */}
+                        <div className="rounded-lg border border-border overflow-hidden">
+                          <div className="px-3 py-2 bg-secondary/70 border-b border-border flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-foreground">
+                                Extra extracted fields
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Toggle which agent-extracted fields to add as columns.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (availableExtras.length === 0) {
+                                  toast.error(
+                                    "No extract schema found. Add a JSON example on your Extract node first."
+                                  );
+                                  return;
+                                }
+                                onUpdate({
+                                  ...node.config,
+                                  extraExtractedKeys: availableExtras,
+                                });
+                                toast.success("Added all extracted fields.");
+                              }}
+                              className="h-7 px-2 text-[11px] border border-primary/30 rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors shrink-0"
+                            >
+                              Fill from Extract node
+                            </button>
+                          </div>
+                          {availableExtras.length === 0 ? (
+                            <div className="px-3 py-3 text-xs text-muted-foreground">
+                              No extra fields detected. Add a JSON example on your Extract node to enable this.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-border/60 max-h-[280px] overflow-y-auto">
+                              {availableExtras.map((key) => {
+                                const checked = enabledExtras.includes(key);
+                                return (
+                                  <label
+                                    key={key}
+                                    className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-secondary/40"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(e) => {
+                                        const next = e.target.checked
+                                          ? Array.from(new Set([...enabledExtras, key]))
+                                          : enabledExtras.filter((k) => k !== key);
+                                        onUpdate({ ...node.config, extraExtractedKeys: next });
+                                      }}
+                                      className="w-4 h-4"
+                                    />
+                                    <span className="text-foreground flex-1 truncate">
+                                      Extracted {titleCase(key)}
+                                    </span>
+                                    <code className="text-[11px] text-muted-foreground truncate max-w-[45%]">
+                                      {`{{extracted.${key}}}`}
+                                    </code>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Preview */}
+                        <div className="rounded-lg border border-border bg-secondary/30 p-3">
+                          <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
+                            Sheet preview
+                          </p>
+                          <p className="text-xs text-foreground/90 leading-relaxed">
+                            <span className="font-medium">Locked:</span> Name | Address | Email | Phone Number | Appointment Date & Time | Call Recording
+                          </p>
+                          {enabledExtras.length > 0 && (
+                            <p className="text-xs text-foreground/80 leading-relaxed mt-1">
+                              <span className="font-medium">Extra:</span>{" "}
+                              {enabledExtras.map((k) => `Extracted ${titleCase(k)}`).join(" | ")}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      // Advanced custom mapping
+                      <div>
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <label className="block text-sm font-semibold text-foreground">
+                            Custom mapping
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const combined = buildSuggestedSheetValues(
+                                  sheetHeaders,
+                                  selectedExtractPaths
+                                );
+                                onUpdate({ ...node.config, values: combined });
+                                if (selectedExtractPaths.length === 0) {
+                                  toast.error(
+                                    "No extract schema found. Add JSON example in the Extract node first."
+                                  );
+                                } else {
+                                  toast.success("Sheet rows filled from extract schema.");
+                                }
+                              }}
+                              className="h-8 px-3 text-xs border border-primary/30 rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors"
+                            >
+                              Fill from Extract node
+                            </button>
+                            <button
+                              type="button"
+                              onClick={addColumnMapping}
+                              className="h-8 px-3 text-xs border border-border rounded-md bg-secondary text-foreground hover:bg-secondary/70 font-medium transition-colors"
+                            >
+                              + Add row
+                            </button>
+                          </div>
+                        </div>
+
+                        {resolvedSpreadsheetId &&
+                          !loadingHeaders &&
+                          sheetHeaders.length === 0 &&
+                          !headersError && (
+                            <div className="p-2 rounded-lg border border-border bg-secondary/40 text-xs text-muted-foreground mb-2">
+                              No headers found in row 1 — map columns manually below.
+                            </div>
+                          )}
+
+                        {sheetHeaders.length > 0 ? (
+                          <div className="rounded-lg border border-border overflow-hidden">
+                            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 px-3 py-2 bg-secondary/80 text-xs font-semibold text-muted-foreground border-b border-border">
+                              <span>Sheet column (row 1)</span>
+                              <span>Value / variable</span>
+                            </div>
+                            <div className="max-h-[360px] overflow-y-auto">
+                              {Array.from({ length: mappingRowCount }).map((_, index) => (
+                                <div
+                                  key={index}
+                                  className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 px-3 py-2 border-b border-border/60 last:border-b-0 items-center"
+                                >
+                                  <span
+                                    className="text-sm text-foreground break-words leading-snug"
+                                    title={sheetHeaders[index] || `Column ${index + 1}`}
+                                  >
+                                    {sheetHeaders[index]?.trim() ? (
+                                      sheetHeaders[index]
+                                    ) : (
+                                      <span className="italic text-muted-foreground">
+                                        (extra row — column {index + 1})
+                                      </span>
+                                    )}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={(node.config.values || [])[index] ?? ""}
+                                      onChange={(e) => updateColumnMapping(index, e.target.value)}
+                                      onFocus={() => setActiveSheetMappingIndex(index)}
+                                      className="w-full flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                                      placeholder={`{{contact.name}} or {{extracted.field}}`}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeColumnMapping(index)}
+                                      className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                      title="Delete row"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {(!node.config.values || node.config.values.length === 0) && (
+                              <div className="p-3 bg-secondary/50 border border-border rounded-lg">
+                                <p className="text-xs text-muted-foreground text-center">
+                                  No columns mapped. Click &quot;+ Add row&quot;.
+                                </p>
+                              </div>
+                            )}
+                            {(node.config.values || []).map((value: string, index: number) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={value}
+                                  onChange={(e) => updateColumnMapping(index, e.target.value)}
+                                  onFocus={() => setActiveSheetMappingIndex(index)}
+                                  className="flex-1 h-9 bg-secondary border border-border rounded-lg px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                                  placeholder={`Column ${index + 1} (e.g., {{contact.name}})`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeColumnMapping(index)}
+                                  className="p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                  title="Remove column"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="mt-3 p-2 bg-secondary/50 rounded-lg border border-border/60">
+                          <p className="text-xs text-muted-foreground mb-1 font-medium">
+                            Available variables (click to insert)
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              "{{name}}",
+                              "{{address}}",
+                              "{{email}}",
+                              "{{phone}}",
+                              "{{appointment_datetime}}",
+                              "{{recording_link}}",
+                              "{{appointment_date}}",
+                              "{{appointment_time}}",
+                              "{{created_time}}",
+                            ].map((varName) => (
+                              <button
+                                type="button"
+                                key={varName}
+                                onClick={() => insertVariableIntoMapping(varName)}
+                                className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                              >
+                                {varName}
+                              </button>
+                            ))}
+                            {selectedExtractPaths.map((key) => {
+                              const varName = `{{extracted.${key}}}`;
+                              return (
+                                <button
+                                  type="button"
+                                  key={varName}
+                                  onClick={() => insertVariableIntoMapping(varName)}
+                                  className="text-xs px-2 py-0.5 bg-background border border-border rounded text-foreground hover:bg-accent transition-colors"
+                                >
+                                  {varName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Contact and appointment fields come from the trigger; use {"{{extracted.key}}"} for keys from your Extract node JSON.
-                  </p>
-                </div>
-              </div>
+                );
+              })()}
             </div>
           )}
 

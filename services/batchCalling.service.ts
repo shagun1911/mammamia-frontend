@@ -96,7 +96,11 @@ class BatchCallingService {
       return response;
     } catch (error: any) {
       console.error('❌ [BatchCallingService] submitBatchCall() error:', error);
-      throw new Error(error.response?.data?.error?.message || error.message || 'Failed to submit batch call');
+      const backendMessage =
+        error.response?.data?.error?.message ||
+        error.response?.data?.message ||
+        error.response?.data?.detail;
+      throw new Error(backendMessage || error.message || 'Failed to submit batch call');
     }
   }
 

@@ -15,6 +15,12 @@ interface Execution {
   executedAt: string;
 }
 
+const statusTone = (status: 'completed' | 'skipped' | 'failed') => {
+  if (status === 'completed') return 'text-green-600 dark:text-green-400';
+  if (status === 'skipped') return 'text-yellow-600 dark:text-yellow-400';
+  return 'text-red-600 dark:text-red-400';
+};
+
 interface ExecutionsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -167,31 +173,36 @@ export function ExecutionsModal({ isOpen, onClose, automationId, automationName 
                     </div>
                   )}
                   
-                  {(execution.triggerData || execution.actionData) && (
-                    <details className="mt-3">
-                      <summary className="text-sm font-medium text-foreground cursor-pointer hover:text-primary">
-                        View Details
-                      </summary>
-                      <div className="mt-2 p-3 bg-background rounded-lg border border-border">
-                        {execution.triggerData && (
-                          <div className="mb-2">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Trigger Data:</p>
-                            <pre className="text-xs text-foreground overflow-x-auto">
-                              {JSON.stringify(execution.triggerData, null, 2)}
-                            </pre>
+                  <div className="mt-3 p-3 bg-background rounded-lg border border-border">
+                    {Array.isArray(execution.actionData?.contacts) && execution.actionData.contacts.length > 0 ? (
+                      <div className="space-y-2">
+                        {execution.actionData.contacts.map((c: any, idx: number) => (
+                          <div key={`${execution._id}-contact-${idx}`} className="p-2 rounded border border-border">
+                            <p className="text-sm font-semibold text-foreground">
+                              {c.name || "Unknown"} {c.phone ? `(${c.phone})` : ""}
+                            </p>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              Done {c.completed || 0} | Skipped {c.skipped || 0} | Failed {c.failed || 0}
+                            </p>
+                            {Array.isArray(c.timeline) && c.timeline.length > 0 && (
+                              <div className="space-y-1">
+                                {c.timeline.map((t: any, ti: number) => (
+                                  <p key={`${execution._id}-timeline-${idx}-${ti}`} className="text-sm text-foreground">
+                                    <span className={`font-medium ${statusTone(t.status)}`}>
+                                      {String(t.status || '').toUpperCase()}
+                                    </span>{' '}
+                                    - {t.label || t.service}: {t.message || ''}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {execution.actionData && (
-                          <div>
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Action Data:</p>
-                            <pre className="text-xs text-foreground overflow-x-auto">
-                              {JSON.stringify(execution.actionData, null, 2)}
-                            </pre>
-                          </div>
-                        )}
+                        ))}
                       </div>
-                    </details>
-                  )}
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No contact-wise flow available for this run.</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
