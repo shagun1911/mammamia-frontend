@@ -427,4 +427,49 @@ export const automationTemplates: AutomationTemplate[] = [
       },
     ],
   },
+  {
+    id: "template_inbound_chatbox_notify",
+    name: "Inbound Chatbox Notify",
+    description: "Automatically send an email notification when a new message is received from Facebook, Instagram, or WhatsApp.",
+    icon: "💬",
+    color: "#10b981",
+    requiredIntegrations: ["email"],
+    nodes: [
+      {
+        id: "node_1",
+        type: "trigger",
+        service: "inbound_chatbox_message",
+        config: {
+          event: "message_received",
+        },
+        position: 0,
+      },
+      {
+        id: "node_2",
+        type: "action",
+        service: "aistein_send_email",
+        config: {
+          to: "{{contact.email}}",
+          subject: "New Inbound Message from {{platform}}",
+          body: 
+            "Hello,\n\n" +
+            "You have received a new inbound chat message.\n\n" +
+            "------------------------------\n" +
+            "Platform : {{platform}}\n" +
+            "Sender   : {{sender_name}}\n" +
+            "Contact  : {{contact.phone}}\n" +
+            "Message  : {{messageText}}\n" +
+            "Time     : {{formatted_now}}\n" +
+            "------------------------------\n\n" +
+            "Open Conversation:\n" +
+            "{{conversation_link}}\n\n" +
+            "Please respond as soon as possible.\n\n" +
+            "Thanks,\n" +
+            "Your Automation System",
+          is_html: false,
+        },
+        position: 1,
+      },
+    ],
+  },
 ];

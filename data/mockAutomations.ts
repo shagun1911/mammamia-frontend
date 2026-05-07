@@ -73,6 +73,7 @@ export const nodeServices = {
     { id: "shopify_order", name: "Shopify Order", icon: "🛍️", color: "#96bf48" },
     { id: "cart_abandoned", name: "Cart Abandoned", icon: "🛒", color: "#f59e0b" },
     { id: "webhook", name: "Webhook", icon: "🔗", color: "#a855f7" },
+    { id: "inbound_chatbox_message", name: "Inbound Chatbox Message", icon: "💬", color: "#10b981" },
   ],
   actions: [
     { id: "aistein_batch_calling", name: "Aistein-It - Batch Call (CSV/List)", icon: "📞", color: "#f59e0b" },

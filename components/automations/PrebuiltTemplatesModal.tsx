@@ -174,6 +174,7 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       aistein_google_calendar_create_event: "📅",
       aistein_google_sheet_append_row: "📊",
       aistein_google_gmail_send: "📧",
+      inbound_chatbox_message: "💬",
     };
     return serviceMap[service] || "⚙️";
   };
@@ -194,6 +195,7 @@ export function PrebuiltTemplatesModal({ isOpen, onClose, onUseTemplate }: Prebu
       aistein_google_calendar_create_event: "Create Calendar Event",
       aistein_google_sheet_append_row: "Add to Google Sheets",
       aistein_google_gmail_send: "Gmail – Send Email",
+      inbound_chatbox_message: "Inbound Chatbox Message",
     };
     return nameMap[service] || service.replace(/aistein_/g, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };

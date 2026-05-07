@@ -1862,7 +1862,8 @@ export function NodeConfigPanel({
             node.service !== "inbound_call_completed" &&
             node.service !== "conversation_created" &&
             node.service !== "batch_call" &&
-            node.service !== "webhook") && (
+            node.service !== "webhook" &&
+            node.service !== "inbound_chatbox_message") && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">

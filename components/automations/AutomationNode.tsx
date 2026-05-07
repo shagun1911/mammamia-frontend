@@ -48,6 +48,12 @@ export function AutomationNode({
       ...nodeServices.triggers,
       ...nodeServices.actions,
     ];
+    
+    // Special handling for inbound_chatbox_message since it's not in nodeServices.triggers yet
+    if (node.service === "inbound_chatbox_message") {
+      return { name: "Inbound Chatbox Message", icon: "💬", color: "#10b981" };
+    }
+    
     return allServices.find((s) => s.id === node.service) || {
       name: node.service,
       icon: "⚙️",
