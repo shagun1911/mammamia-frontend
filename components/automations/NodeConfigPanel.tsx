@@ -537,12 +537,29 @@ export function NodeConfigPanel({
           }
         } catch (e: any) {
           setSheetHeaders([]);
-          const msg =
+          const rawMsg =
             e?.response?.data?.error?.message ||
             e?.response?.data?.message ||
             e?.message ||
             "Could not load column headers";
-          setHeadersError(msg);
+          const lower = String(rawMsg).toLowerCase();
+
+          // Show actionable UI messages for common Google Sheets misconfiguration cases.
+          let friendly = String(rawMsg);
+          if (lower.includes("unable to parse range")) {
+            friendly =
+              "Sheet tab name is invalid for this spreadsheet. Please set the correct tab name (or reselect spreadsheet).";
+          } else if (
+            lower.includes("requested entity was not found") ||
+            lower.includes("not found") ||
+            lower.includes("insufficient permissions") ||
+            lower.includes("permission denied")
+          ) {
+            friendly =
+              "Selected spreadsheet is not accessible in this account. Reconnect Google, share the sheet, or choose another spreadsheet.";
+          }
+
+          setHeadersError(friendly);
         } finally {
           setLoadingHeaders(false);
         }

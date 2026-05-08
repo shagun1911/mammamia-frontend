@@ -39,6 +39,8 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string>("");
   const [selectedAgentId, setSelectedAgentId] = useState<string>("");
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [csvColumns, setCsvColumns] = useState<string[]>([]);
+  const [selectedDynamicVariables, setSelectedDynamicVariables] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isTestingCall, setIsTestingCall] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState("");
@@ -49,6 +51,17 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
   const [targetConcurrencyLimit, setTargetConcurrencyLimit] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Columns that are handled by fixed sheet fields — not shown as selectable dynamic variables
+  const STANDARD_COLUMNS = new Set([
+    'phone_number', 'phone',
+    'name', 'first_name', 'last_name', 'firstname', 'lastname',
+    'email',
+    'customer_name', 'customer_email', 'customer_phone_number',
+    'customer_first_name', 'customer_last_name',
+    'contact.name', 'contact.email', 'contact.phone_number',
+    'address', 'full_address', 'customer_address', 'home_address',
+  ]);
 
   // Generate CSV template (works for both CSV and Excel)
   // Generate CSV template (works for both CSV and Excel)
@@ -323,9 +336,19 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
     try {
       const parsedRecipients = await parseFile(file);
       setRecipients(parsedRecipients);
+
+      // Collect all column keys across all rows, then filter out standard fields
+      const allKeys = new Set<string>();
+      parsedRecipients.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+      const dynamicCols = Array.from(allKeys).filter(k => !STANDARD_COLUMNS.has(k.toLowerCase()));
+      setCsvColumns(dynamicCols);
+      setSelectedDynamicVariables(dynamicCols); // all selected by default
+
       toast.success(`Successfully loaded ${parsedRecipients.length} recipient${parsedRecipients.length !== 1 ? 's' : ''}`);
     } catch (error: any) {
       toast.error(error.message || "Failed to parse file");
+      setCsvColumns([]);
+      setSelectedDynamicVariables([]);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -623,6 +646,11 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
         payload.sender_email = senderEmail;
       }
 
+      // Include the user-selected CSV dynamic variable keys
+      if (selectedDynamicVariables.length > 0) {
+        payload.selected_dynamic_variable_keys = selectedDynamicVariables;
+      }
+
       console.log('[BatchCallBuilder] Submitting batch call with payload:', {
         agent_id: payload.agent_id,
         call_name: payload.call_name,
@@ -854,6 +882,84 @@ export function BatchCallBuilder({ onClose, onSuccess }: BatchCallBuilderProps) 
                   <p className="text-sm text-foreground">
                     {recipients.length} recipient{recipients.length !== 1 ? 's' : ''} loaded
                   </p>
+                </div>
+              )}
+
+              {csvColumns.length > 0 && (
+                <div className="mt-4 bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                  <div className="flex items-start gap-2 mb-3">
+                    <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <div>
+                      <h4 className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                        These are dynamic variables from the uploaded CSV
+                      </h4>
+                      <p className="text-xs text-blue-600/80 dark:text-blue-400/80 mt-0.5">
+                        Select which variables to store and append as extra columns in your automation's Google Sheet.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-blue-600/70 dark:text-blue-400/70 font-medium">
+                      {selectedDynamicVariables.length} of {csvColumns.length} selected
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDynamicVariables([...csvColumns])}
+                        className="text-xs text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+                      >
+                        Select all
+                      </button>
+                      <span className="text-blue-400/50">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDynamicVariables([])}
+                        className="text-xs text-blue-600 dark:text-blue-400 underline underline-offset-2 hover:opacity-80 transition-opacity"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {csvColumns.map(col => {
+                      const isChecked = selectedDynamicVariables.includes(col);
+                      return (
+                        <button
+                          key={col}
+                          type="button"
+                          onClick={() => {
+                            if (isChecked) {
+                              setSelectedDynamicVariables(prev => prev.filter(v => v !== col));
+                            } else {
+                              setSelectedDynamicVariables(prev => [...prev, col]);
+                            }
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-mono transition-all",
+                            isChecked
+                              ? "bg-blue-500/20 border-blue-500/50 text-blue-700 dark:text-blue-300"
+                              : "bg-transparent border-border text-muted-foreground opacity-60 hover:opacity-100"
+                          )}
+                        >
+                          <span className={cn(
+                            "w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-all",
+                            isChecked ? "bg-blue-500 border-blue-500" : "border-muted-foreground/50"
+                          )}>
+                            {isChecked && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                          {col}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
