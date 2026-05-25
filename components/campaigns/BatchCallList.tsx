@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Phone, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, ChevronDown, ChevronUp, User, Mail, Calendar, ChevronLeft, ChevronRight, FileText } from "lucide-react";
-import { useBatchCalls, useCancelBatchJob, useResumeBatchJob, useBatchJobDetails } from "@/hooks/useBatchCalling";
+import { useBatchCalls, useCancelBatchJob, useResumeBatchJob, useBatchJobDetails, useBatchContactTranscript } from "@/hooks/useBatchCalling";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -319,11 +319,20 @@ interface BatchCallDetailsProps {
 }
 
 function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
-  const { data: detailsData, isLoading: detailsLoading } = useBatchJobDetails(batchCall.batch_call_id);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+  const { data: detailsData, isLoading: detailsLoading } = useBatchJobDetails(batchCall.batch_call_id, {
+    page: currentPage,
+    page_size: pageSize,
+  });
   const [selectedContactKey, setSelectedContactKey] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "transcript" | "metadata">("overview");
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedContactKey(null);
+    setActiveTab("overview");
+  }, [batchCall.batch_call_id]);
 
   const formatDate = (unixTimestamp: number) => {
     return new Date(unixTimestamp * 1000).toLocaleString();
@@ -494,12 +503,13 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
   };
 
   const contacts = detailsData?.contacts || [];
-  const totalContacts = contacts.length;
-  const totalPages = Math.max(1, Math.ceil(totalContacts / pageSize));
-  const safePage = Math.min(currentPage, totalPages);
-  const startIndex = (safePage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalContacts);
-  const paginatedContacts = contacts.slice(startIndex, endIndex);
+  const pagination = detailsData?.pagination;
+  const totalContacts = pagination?.total_contacts ?? contacts.length;
+  const totalPages = pagination?.total_pages ?? Math.max(1, Math.ceil(totalContacts / pageSize));
+  const safePage = pagination?.page ?? currentPage;
+  const startIndex = totalContacts === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endIndex = Math.min(safePage * pageSize, totalContacts);
+  const paginatedContacts = contacts;
 
   const goToPrevPage = () => setCurrentPage((p) => Math.max(1, p - 1));
   const goToNextPage = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
@@ -550,7 +560,23 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
     return contacts[0];
   })();
 
-  const selectedTranscript = normalizeTranscript(selectedContact?.transcript);
+  const selectedConversationId = selectedContact?.conversation_id
+    ? String(selectedContact.conversation_id)
+    : null;
+
+  const { data: transcriptData, isLoading: transcriptLoading } = useBatchContactTranscript(
+    batchCall.batch_call_id,
+    selectedConversationId,
+    activeTab === "transcript" && !!selectedConversationId
+  );
+
+  const selectedTranscript = normalizeTranscript(
+    transcriptData?.messages?.map((m) => ({
+      role: m.role,
+      message: m.message,
+      timestamp: m.timestamp,
+    })) ?? []
+  );
 
   const PaginationBar = () => (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2">
@@ -812,7 +838,12 @@ function BatchCallDetails({ batchCall }: BatchCallDetailsProps) {
 
                       {activeTab === "transcript" && (
                         <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                          {selectedTranscript.length > 0 ? selectedTranscript.map((row, idx) => (
+                          {transcriptLoading ? (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground py-4">
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              Loading transcript...
+                            </div>
+                          ) : selectedTranscript.length > 0 ? selectedTranscript.map((row, idx) => (
                             <div
                               key={`${row.speaker}_${idx}`}
                               className={cn(

@@ -90,20 +90,20 @@ export function useResumeBatchJob() {
 /**
  * Get all batch calls query
  */
+const ACTIVE_BATCH_STATUSES = ['pending', 'running', 'scheduled', 'in_progress', 'queued', 'processing'];
+
 export function useBatchCalls() {
   return useQuery({
     queryKey: ['batchCalls'],
     queryFn: () => batchCallingService.getAllBatchCalls(),
-    staleTime: 0, // Always fetch fresh — never serve cached data when list mounts
+    staleTime: 20_000,
     refetchInterval: (query) => {
       const data = query.state.data as any[] | undefined;
-      if (data && data.length > 0) {
-        const hasActiveCalls = data.some((call: any) =>
-          ['pending', 'running', 'scheduled', 'in_progress'].includes(call.status?.toLowerCase())
-        );
-        return hasActiveCalls ? 10000 : 30000; // 10 s for active batches, 30 s otherwise
-      }
-      return 30000; // Still poll even with no calls so new ones appear quickly
+      if (!data?.length) return false;
+      const hasActive = data.some((call: any) =>
+        ACTIVE_BATCH_STATUSES.includes(String(call.status || '').toLowerCase())
+      );
+      return hasActive ? 15_000 : false;
     },
   });
 }
@@ -133,13 +133,41 @@ export function useBatchJobCalls(
 }
 
 /**
- * Get complete per-contact batch details
+ * Get paginated per-contact batch details
  */
-export function useBatchJobDetails(jobId: string | null, enabled: boolean = true) {
+export function useBatchJobDetails(
+  jobId: string | null,
+  options?: { page?: number; page_size?: number; enabled?: boolean }
+) {
+  const page = options?.page ?? 1;
+  const pageSize = options?.page_size ?? 50;
+  const enabled = options?.enabled !== false;
+
   return useQuery({
-    queryKey: ['batchJobDetails', jobId],
-    queryFn: () => batchCallingService.getBatchJobDetails(jobId!),
+    queryKey: ['batchJobDetails', jobId, page, pageSize],
+    queryFn: () => batchCallingService.getBatchJobDetails(jobId!, { page, page_size: pageSize }),
     enabled: enabled && !!jobId,
-    refetchInterval: 15000,
+    refetchInterval: (query) => {
+      const batch = (query.state.data as BatchJobDetailsResponse | undefined)?.batch;
+      const status = String(batch?.live_status || batch?.status || '').toLowerCase();
+      if (ACTIVE_BATCH_STATUSES.includes(status)) return 20_000;
+      return false;
+    },
+  });
+}
+
+/**
+ * On-demand transcript for one batch contact (Mongo, no full details reload)
+ */
+export function useBatchContactTranscript(
+  jobId: string | null,
+  conversationId: string | null,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: ['batchContactTranscript', jobId, conversationId],
+    queryFn: () => batchCallingService.getBatchContactTranscript(jobId!, conversationId!),
+    enabled: enabled && !!jobId && !!conversationId,
+    staleTime: 60_000,
   });
 }

@@ -34,6 +34,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_URL,
+      timeout: 300_000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -87,9 +88,11 @@ class ApiClient {
             }
 
             // Call refresh endpoint
-            const response = await axios.post(`${API_URL}/auth/refresh`, {
-              refreshToken,
-            });
+            const response = await axios.post(
+              `${API_URL}/auth/refresh`,
+              { refreshToken },
+              { timeout: 300_000 }
+            );
 
             const { token, refreshToken: newRefreshToken } = response.data.data;
 
